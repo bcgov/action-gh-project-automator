@@ -1,6 +1,24 @@
 # Create a GitHub Action Using TypeScript
 
 [![GitHub Super-Linter](https://github.com/actions/typescript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
+
+## Project Board Sync
+
+This action wraps the legacy Project Board Sync core located under `packages/project-board-sync/project-board-sync` and exposes a simple interface to run it on a schedule.
+
+### Required secret
+
+- `PROJECT_SYNC_TOKEN`: Personal access token with `repo` and `project` scopes
+
+### Optional inputs
+
+- `project_url`: GitHub Project URL, resolved automatically to node ID
+- `project_id`: GitHub Project node ID (overrides URL if provided)
+- `github_author`: Username to monitor for authored items
+- `verbose`: true/false, defaults to true
+- `strict_mode`: true/false, defaults to false
+
+See workflow example in `.github/workflows/project-board-sync.yml`.
 ![CI](https://github.com/actions/typescript-action/actions/workflows/ci.yml/badge.svg)
 [![Check dist/](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml)
 [![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)

@@ -32,8 +32,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        working-directory: packages/project-board-sync/project-board-sync
+      - name: Install dependencies (root)
         run: npm ci
         
       - name: Show Project Configuration
@@ -45,20 +44,13 @@ jobs:
           echo ""
           echo "Using hardcoded project URL for development"
         
-      - name: Run Validation
-        env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-          VERBOSE: true
-        working-directory: packages/project-board-sync/project-board-sync
-        run: npm run validate
+      - name: Build action
+        run: npm run package
        
-      - name: Run Project Board Sync
-        env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-          VERBOSE: true
-        working-directory: packages/project-board-sync/project-board-sync
-        run: npm run start
+      - name: Run Project Sync Action
+        uses: ./
+        with:
+          token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          project_url: ${{ inputs.project_url || '' }}
+          github_author: ${{ github.actor }}
+          verbose: ${{ inputs.verbose || true }}

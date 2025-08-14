@@ -1,23 +1,39 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: Project Board Sync Automator
+description: Synchronize GitHub Project (v2) board items across repositories based on configurable rules
+author: BCGov
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
   icon: heart
   color: red
 
-# Define your inputs here.
+# Define inputs for the Project Board Sync
 inputs:
-  milliseconds:
-    description: Your input description here
-    required: true
-    default: '1000'
+  token:
+    description: GitHub token (PAT) with repo and project scopes. Falls back to PROJECT_SYNC_TOKEN or GITHUB_TOKEN.
+    required: false
+  project_url:
+    description: GitHub Project URL (orgs/.../projects/<number>); resolved to project ID automatically.
+    required: false
+  project_id:
+    description: GitHub Project node ID. If set, overrides project_url.
+    required: false
+  github_author:
+    description: GitHub username to monitor for authored items.
+    required: false
+  verbose:
+    description: Enable verbose logging (true/false).
+    required: false
+    default: 'true'
+  strict_mode:
+    description: Fail fast on any preflight check failure (true/false).
+    required: false
+    default: 'false'
 
-# Define your outputs here.
+# No outputs are currently exposed
 outputs:
-  time:
-    description: Your output description here
+  result:
+    description: Execution result of the sync (success/failure message)
 
 runs:
   using: node24
