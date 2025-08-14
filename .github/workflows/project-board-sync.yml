@@ -1,0 +1,64 @@
+name: GH Project Board Sync
+
+on:
+  pull_request:
+  schedule:
+    - cron: '*/30 * * * *'  # every 30 minutes
+  workflow_dispatch:
+    inputs:
+      project_url:
+        description: 'GitHub project URL (e.g., https://github.com/orgs/bcgov/projects/16)'
+        required: false
+        default: 'https://github.com/orgs/bcgov/projects/16'
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: packages/project-board-sync/project-board-sync
+        run: npm ci
+        
+      - name: Show Project Configuration
+        run: |
+          echo "Project Configuration:"
+          echo "  PROJECT_URL: https://github.com/orgs/bcgov/projects/16"
+          echo "  VERBOSE: true"
+          echo "  GITHUB_AUTHOR: ${{ github.actor }}"
+          echo ""
+          echo "Using hardcoded project URL for development"
+        
+      - name: Run Validation
+        env:
+          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          GITHUB_AUTHOR: ${{ github.actor }}
+          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+          VERBOSE: true
+        working-directory: packages/project-board-sync/project-board-sync
+        run: npm run validate
+       
+      - name: Run Project Board Sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          GITHUB_AUTHOR: ${{ github.actor }}
+          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+          VERBOSE: true
+        working-directory: packages/project-board-sync/project-board-sync
+        run: npm run start
