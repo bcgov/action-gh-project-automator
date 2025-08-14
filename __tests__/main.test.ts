@@ -12,6 +12,12 @@ import { wait } from '../__fixtures__/wait.js'
 // Mocks should be declared before the module being tested is imported.
 jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('../src/wait.js', () => ({ wait }))
+// Mock the legacy Project Board Sync core the façade imports
+const projectSync = { main: jest.fn() }
+jest.unstable_mockModule(
+  '../packages/project-board-sync/project-board-sync/src/index.js',
+  () => projectSync
+)
 
 // The module being tested should be imported dynamically. This ensures that the
 // mocks are used in place of any actual dependencies.
@@ -30,33 +36,15 @@ describe('main.ts', () => {
     jest.resetAllMocks()
   })
 
-  it('Sets the time output', async () => {
+  it('Invokes legacy Project Board Sync main()', async () => {
+    projectSync.main.mockResolvedValueOnce(undefined)
     await run()
-
-    // Verify the time output was set.
-    expect(core.setOutput).toHaveBeenNthCalledWith(
-      1,
-      'time',
-      // Simple regex to match a time string in the format HH:MM:SS.
-      expect.stringMatching(/^\d{2}:\d{2}:\d{2}/)
-    )
+    expect(projectSync.main).toHaveBeenCalledTimes(1)
   })
 
-  it('Sets a failed status', async () => {
-    // Clear the getInput mock and return an invalid value.
-    core.getInput.mockClear().mockReturnValueOnce('this is not a number')
-
-    // Clear the wait mock and return a rejected promise.
-    wait
-      .mockClear()
-      .mockRejectedValueOnce(new Error('milliseconds is not a number'))
-
+  it('Sets failed status when legacy core errors', async () => {
+    projectSync.main.mockRejectedValueOnce(new Error('boom'))
     await run()
-
-    // Verify that the action was marked as failed.
-    expect(core.setFailed).toHaveBeenNthCalledWith(
-      1,
-      'milliseconds is not a number'
-    )
+    expect(core.setFailed).toHaveBeenNthCalledWith(1, 'boom')
   })
 })

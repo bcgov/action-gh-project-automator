@@ -27,6 +27,7 @@ import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
 import require$$2$2 from 'child_process';
 import require$$6$1 from 'timers';
+import { createRequire } from 'node:module';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -27247,40 +27248,46 @@ function requireCore () {
 var coreExports = requireCore();
 
 /**
- * Waits for a number of milliseconds.
- *
- * @param milliseconds The number of milliseconds to wait.
- * @returns Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-    return new Promise((resolve) => {
-        if (isNaN(milliseconds))
-            throw new Error('milliseconds is not a number');
-        setTimeout(() => resolve('done!'), milliseconds);
-    });
-}
-
-/**
  * The main function for the action.
- *
- * @returns Resolves when the action is complete.
+ * Bridges action inputs/env to the legacy Project Board Sync core.
  */
 async function run() {
     try {
-        const ms = coreExports.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        coreExports.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        coreExports.debug(new Date().toTimeString());
-        await wait(parseInt(ms, 10));
-        coreExports.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        coreExports.setOutput('time', new Date().toTimeString());
+        // Prefer explicit input first, then env-provided secret
+        const token = coreExports.getInput('token', { required: false }) ||
+            process.env.PROJECT_SYNC_TOKEN ||
+            process.env.GITHUB_TOKEN ||
+            '';
+        if (token) {
+            process.env.GITHUB_TOKEN = token;
+        }
+        const projectUrl = coreExports.getInput('project_url', { required: false }) || process.env.PROJECT_URL;
+        if (projectUrl)
+            process.env.PROJECT_URL = projectUrl;
+        const projectId = coreExports.getInput('project_id', { required: false }) || process.env.PROJECT_ID;
+        if (projectId)
+            process.env.PROJECT_ID = projectId;
+        const githubAuthor = coreExports.getInput('github_author', { required: false }) || process.env.GITHUB_AUTHOR;
+        if (githubAuthor)
+            process.env.GITHUB_AUTHOR = githubAuthor;
+        const verbose = coreExports.getInput('verbose', { required: false }) || process.env.VERBOSE || 'true';
+        if (verbose)
+            process.env.VERBOSE = verbose;
+        const strictMode = coreExports.getInput('strict_mode', { required: false }) || process.env.STRICT_MODE || 'false';
+        if (strictMode)
+            process.env.STRICT_MODE = strictMode;
+        const require = createRequire(import.meta.url);
+        const projectSync = require('../packages/project-board-sync/project-board-sync/src/index.js');
+        if (typeof projectSync?.main !== 'function') {
+            throw new Error('Project Board Sync core not found or invalid export: expected main()');
+        }
+        await projectSync.main();
     }
     catch (error) {
-        // Fail the workflow run if an error occurs
         if (error instanceof Error)
             coreExports.setFailed(error.message);
+        else
+            coreExports.setFailed('Unknown error occurred while running Project Board Sync');
     }
 }
 

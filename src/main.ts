@@ -1,5 +1,4 @@
 import * as core from '@actions/core'
-import { createRequire } from 'node:module'
 
 /**
  * The main function for the action.
@@ -32,9 +31,13 @@ export async function run(): Promise<void> {
     const strictMode = core.getInput('strict_mode', { required: false }) || process.env.STRICT_MODE || 'false'
     if (strictMode) process.env.STRICT_MODE = strictMode
 
-    const require = createRequire(import.meta.url)
-    const projectSync = require('../packages/project-board-sync/project-board-sync/src/index.js')
-    if (typeof projectSync?.main !== 'function') {
+    const projectSyncModule = await import(
+      '../packages/project-board-sync/project-board-sync/src/index.js'
+    )
+    const projectSync = (projectSyncModule as any).main
+      ? projectSyncModule
+      : (projectSyncModule as any).default
+    if (!projectSync || typeof projectSync.main !== 'function') {
       throw new Error('Project Board Sync core not found or invalid export: expected main()')
     }
 
