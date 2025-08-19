@@ -3,11 +3,12 @@ name: GH Project Board Sync
 on:
   pull_request:
   schedule:
-    - cron: '*/30 * * * *'  # every 30 minutes
+    - cron: '*/30 * * * *' # every 30 minutes
   workflow_dispatch:
     inputs:
       project_url:
-        description: 'GitHub project URL (e.g., https://github.com/orgs/bcgov/projects/16)'
+        description:
+          'GitHub project URL (e.g., https://github.com/orgs/bcgov/projects/16)'
         required: false
         default: 'https://github.com/orgs/bcgov/projects/16'
       verbose:
@@ -23,6 +24,9 @@ permissions:
 
 jobs:
   sync:
+    concurrency:
+      group: project-board-sync
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +39,7 @@ jobs:
       - name: Install dependencies
         working-directory: packages/project-board-sync/project-board-sync
         run: npm ci
-        
+
       - name: Show Project Configuration
         run: |
           echo "Project Configuration:"
@@ -44,16 +48,7 @@ jobs:
           echo "  GITHUB_AUTHOR: ${{ github.actor }}"
           echo ""
           echo "Using hardcoded project URL for development"
-        
-      - name: Run Validation
-        env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-          VERBOSE: true
-        working-directory: packages/project-board-sync/project-board-sync
-        run: npm run validate
-       
+
       - name: Run Project Board Sync
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
