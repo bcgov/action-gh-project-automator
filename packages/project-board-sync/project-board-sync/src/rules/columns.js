@@ -95,23 +95,23 @@ async function processColumnAssignment(item, projectItemId, projectId) {
     log.info(`  • Item type: ${item.__typename}`, true);
     log.info(`  • Item state: ${item.state || 'Unknown'}`, true);
 
-    // Skip if item is closed/merged and already in Done column
-    if ((item.state === 'CLOSED' || item.state === 'MERGED') && currentColumnLower === 'done') {
-      log.info('  • Rule: Item is closed/merged and in Done column → Skipping', true);
+    // Actively handle closed/merged items:
+    // - If MERGED or CLOSED and not already in Done, move to Done
+    if ((item.state === 'MERGED' || item.state === 'CLOSED')) {
+      if (currentColumnLower === 'done') {
+        log.info('  • Rule: Item is closed/merged and in Done column → Skipping', true);
+        return {
+          changed: false,
+          reason: 'Column already set to Done',
+          currentStatus: currentColumn
+        };
+      }
+      const optionId = getColumnOptionId('Done', options);
+      await setItemColumn(projectId, projectItemId, optionId);
       return {
-        changed: false,
-        reason: 'Column already set to Done by GitHub automation',
-        currentStatus: currentColumn
-      };
-    }
-
-    // Skip if item is closed/merged (GitHub handles these)
-    if (item.state === 'CLOSED' || item.state === 'MERGED') {
-      log.info('  • Rule: Item is closed/merged → GitHub handles column', true);
-      return {
-        changed: false,
-        reason: `Column handled by GitHub automation for ${item.state.toLowerCase()} items`,
-        currentStatus: currentColumn
+        changed: true,
+        newStatus: 'Done',
+        reason: `Item state=${item.state} → Set column to Done`
       };
     }
 
