@@ -275,6 +275,7 @@ async function getRecentItems(org, repos, monitoredUser) {
               repository { nameWithOwner }
               author { login }
               assignees(first: 5) { nodes { login } }
+              state
               updatedAt
             }
             ... on PullRequest {
@@ -283,6 +284,7 @@ async function getRecentItems(org, repos, monitoredUser) {
               repository { nameWithOwner }
               author { login }
               assignees(first: 5) { nodes { login } }
+              state
               updatedAt
             }
           }
@@ -307,6 +309,7 @@ async function getRecentItems(org, repos, monitoredUser) {
             repository { nameWithOwner }
             author { login }
             assignees(first: 5) { nodes { login } }
+            state
             updatedAt
           }
         }

@@ -1,4 +1,4 @@
-const { getItemColumn, setItemColumn, isItemInProject, octokit } = require('../github/api');
+const { getItemColumn, setItemColumn, isItemInProject, octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
 
 // Cache column options per project ID during a single run
@@ -19,7 +19,7 @@ async function getColumnOptions(projectId) {
 
   // Cache miss - fetch from API
   log.debug(`Fetching column options for project ${projectId}`);
-  const result = await octokit.graphql(`
+  const result = await graphql(`
     query($projectId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -38,7 +38,7 @@ async function getColumnOptions(projectId) {
 
   // Create mapping of column names to option IDs
   const columnMap = new Map();
-  const options = result.node.field.options || [];
+  const options = result.node?.field?.options || [];
   for (const opt of options) {
     // Store both exact name and lowercase for case-insensitive lookup
     columnMap.set(opt.name, opt.id);
@@ -63,10 +63,11 @@ function getColumnOptionId(columnName, options) {
   const optionId = options.get(columnName) || options.get(columnName.toLowerCase());
   if (!optionId) {
     // Get original case-sensitive column names, removing duplicates while preserving case
-    const uniqueColumns = [...new Set([...options.keys()].filter((k, i, arr) => 
+    const uniqueColumns = [...new Set([...options.keys()].filter((k, i, arr) =>
       arr.findIndex(item => item.toLowerCase() === k.toLowerCase()) === i
     ))];
-    throw new Error(`Column "${columnName}" not found in project. Available columns: ${uniqueColumns.join(', ')}`);
+    log.info(`Status option not found: "${columnName}". Available: ${uniqueColumns.join(', ')}`);
+    return null;
   }
   return optionId;
 }
@@ -95,24 +96,47 @@ async function processColumnAssignment(item, projectItemId, projectId) {
     log.info(`  • Item type: ${item.__typename}`, true);
     log.info(`  • Item state: ${item.state || 'Unknown'}`, true);
 
-    // Skip if item is closed/merged and already in Done column
-    if ((item.state === 'CLOSED' || item.state === 'MERGED') && currentColumnLower === 'done') {
-      log.info('  • Rule: Item is closed/merged and in Done column → Skipping', true);
-      return {
-        changed: false,
-        reason: 'Column already set to Done by GitHub automation',
-        currentStatus: currentColumn
-      };
-    }
-
-    // Skip if item is closed/merged (GitHub handles these)
-    if (item.state === 'CLOSED' || item.state === 'MERGED') {
-      log.info('  • Rule: Item is closed/merged → GitHub handles column', true);
-      return {
-        changed: false,
-        reason: `Column handled by GitHub automation for ${item.state.toLowerCase()} items`,
-        currentStatus: currentColumn
-      };
+    // Actively handle closed/merged items:
+    // - If MERGED or CLOSED and not already in a done-like column, move to Done/Closed
+    if (item.state === 'MERGED' || item.state === 'CLOSED') {
+      if (currentColumnLower === 'done' || currentColumnLower === 'closed') {
+        log.info('  • Rule: Item is closed/merged and already in Done/Closed → Skipping', true);
+        return {
+          changed: false,
+          reason: 'Column already set to Done/Closed',
+          currentStatus: currentColumn
+        };
+      }
+      // Try to set to 'Done'; if not found, try 'Closed'; otherwise skip gracefully
+      try {
+        let targetName = 'Done';
+        let optionId = getColumnOptionId('Done', options);
+        if (!optionId) {
+          targetName = 'Closed';
+          optionId = getColumnOptionId('Closed', options);
+        }
+        if (!optionId) {
+          log.info('  • No Done/Closed status option found on project → Skipping column update', true);
+          return {
+            changed: false,
+            reason: 'No Done/Closed status option found',
+            currentStatus: currentColumn
+          };
+        }
+        await setItemColumn(projectId, projectItemId, optionId);
+        return {
+          changed: true,
+          newStatus: targetName,
+          reason: `Item state=${item.state} → Set column to ${targetName}`
+        };
+      } catch (e) {
+        log.info(`  • Could not set to Done/Closed (${e.message}) → Skipping column update`, true);
+        return {
+          changed: false,
+          reason: 'Failed to resolve Done/Closed option',
+          currentStatus: currentColumn
+        };
+      }
     }
 
     // Handle PRs and Issues according to requirements
@@ -166,6 +190,14 @@ async function processColumnAssignment(item, projectItemId, projectId) {
 
     // Set the new column
     const optionId = getColumnOptionId(targetColumn, options);
+    if (!optionId) {
+      log.info(`  • No Status option for "${targetColumn}" → Skipping column update`, true);
+      return {
+        changed: false,
+        reason: `No Status option found for ${targetColumn}`,
+        currentStatus: currentColumn
+      };
+    }
     await setItemColumn(projectId, projectItemId, optionId);
 
     return {
