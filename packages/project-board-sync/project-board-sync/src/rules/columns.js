@@ -63,10 +63,11 @@ function getColumnOptionId(columnName, options) {
   const optionId = options.get(columnName) || options.get(columnName.toLowerCase());
   if (!optionId) {
     // Get original case-sensitive column names, removing duplicates while preserving case
-    const uniqueColumns = [...new Set([...options.keys()].filter((k, i, arr) => 
+    const uniqueColumns = [...new Set([...options.keys()].filter((k, i, arr) =>
       arr.findIndex(item => item.toLowerCase() === k.toLowerCase()) === i
     ))];
-    throw new Error(`Column "${columnName}" not found in project. Available columns: ${uniqueColumns.join(', ')}`);
+    log.info(`Status option not found: "${columnName}". Available: ${uniqueColumns.join(', ')}`);
+    return null;
   }
   return optionId;
 }
@@ -189,6 +190,14 @@ async function processColumnAssignment(item, projectItemId, projectId) {
 
     // Set the new column
     const optionId = getColumnOptionId(targetColumn, options);
+    if (!optionId) {
+      log.info(`  • No Status option for "${targetColumn}" → Skipping column update`, true);
+      return {
+        changed: false,
+        reason: `No Status option found for ${targetColumn}`,
+        currentStatus: currentColumn
+      };
+    }
     await setItemColumn(projectId, projectItemId, optionId);
 
     return {
