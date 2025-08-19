@@ -15,9 +15,9 @@ const { processBoardItemRules } = require('./processors/unified-rule-processor')
  */
 const VERIFY_DELAY_MS = 2000; // 2 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId }) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours }) {
   log.info(`Starting item processing for user ${monitoredUser}`);
-  const items = await getRecentItems(org, repos, monitoredUser);
+  const items = await getRecentItems(org, repos, monitoredUser, windowHours);
   log.info(`Found ${items.length} items to process\n`, true);
 
   const addedItems = [];
