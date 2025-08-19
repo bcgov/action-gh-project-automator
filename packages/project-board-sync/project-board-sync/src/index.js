@@ -201,12 +201,18 @@ async function main() {
     const startTime = new Date();
     log.info('Monitored Repos: ' + context.repos.map(r => `${context.org}/${r}`).join(', '));
 
+    // Determine tighter search window (1h) in PR context unless overridden via env
+    const windowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
+      ? 1
+      : undefined;
+
     // Process items according to our enhanced rules
     const { addedItems, skippedItems } = await processAddItems({
       org: context.org,
       repos: context.repos,
       monitoredUser: context.monitoredUser,
-      projectId: context.projectId
+      projectId: context.projectId,
+      windowHours
     });
 
     // Process additional rules for added items

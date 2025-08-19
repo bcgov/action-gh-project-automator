@@ -249,9 +249,13 @@ async function addItemToProject(nodeId, projectId) {
  * @param {string} monitoredUser - GitHub username to monitor
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
-async function getRecentItems(org, repos, monitoredUser) {
-  // Calculate 24 hours ago in ISO format
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+async function getRecentItems(org, repos, monitoredUser, windowHours = undefined) {
+  // Determine search window (hours): env overrides param; default 24
+  let hours = parseInt(process.env.UPDATE_WINDOW_HOURS || '', 10);
+  if (!Number.isFinite(hours) || hours <= 0) {
+    hours = Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 24;
+  }
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
   // Search for items in monitored repositories
   const repoQueries = repos.map(repo => `repo:${org}/${repo} created:>${since}`);
