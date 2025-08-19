@@ -1,4 +1,4 @@
-const { getItemColumn, setItemColumn, isItemInProject, octokit } = require('../github/api');
+const { getItemColumn, setItemColumn, isItemInProject, octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
 
 // Cache column options per project ID during a single run
@@ -19,7 +19,7 @@ async function getColumnOptions(projectId) {
 
   // Cache miss - fetch from API
   log.debug(`Fetching column options for project ${projectId}`);
-  const result = await octokit.graphql(`
+  const result = await graphql(`
     query($projectId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -38,7 +38,7 @@ async function getColumnOptions(projectId) {
 
   // Create mapping of column names to option IDs
   const columnMap = new Map();
-  const options = result.node.field.options || [];
+  const options = result.node?.field?.options || [];
   for (const opt of options) {
     // Store both exact name and lowercase for case-insensitive lookup
     columnMap.set(opt.name, opt.id);
