@@ -96,23 +96,46 @@ async function processColumnAssignment(item, projectItemId, projectId) {
     log.info(`  • Item state: ${item.state || 'Unknown'}`, true);
 
     // Actively handle closed/merged items:
-    // - If MERGED or CLOSED and not already in Done, move to Done
-    if ((item.state === 'MERGED' || item.state === 'CLOSED')) {
-      if (currentColumnLower === 'done') {
-        log.info('  • Rule: Item is closed/merged and in Done column → Skipping', true);
+    // - If MERGED or CLOSED and not already in a done-like column, move to Done/Closed
+    if (item.state === 'MERGED' || item.state === 'CLOSED') {
+      if (currentColumnLower === 'done' || currentColumnLower === 'closed') {
+        log.info('  • Rule: Item is closed/merged and already in Done/Closed → Skipping', true);
         return {
           changed: false,
-          reason: 'Column already set to Done',
+          reason: 'Column already set to Done/Closed',
           currentStatus: currentColumn
         };
       }
-      const optionId = getColumnOptionId('Done', options);
-      await setItemColumn(projectId, projectItemId, optionId);
-      return {
-        changed: true,
-        newStatus: 'Done',
-        reason: `Item state=${item.state} → Set column to Done`
-      };
+      // Try to set to 'Done'; if not found, try 'Closed'; otherwise skip gracefully
+      try {
+        let targetName = 'Done';
+        let optionId = getColumnOptionId('Done', options);
+        if (!optionId) {
+          targetName = 'Closed';
+          optionId = getColumnOptionId('Closed', options);
+        }
+        if (!optionId) {
+          log.info('  • No Done/Closed status option found on project → Skipping column update', true);
+          return {
+            changed: false,
+            reason: 'No Done/Closed status option found',
+            currentStatus: currentColumn
+          };
+        }
+        await setItemColumn(projectId, projectItemId, optionId);
+        return {
+          changed: true,
+          newStatus: targetName,
+          reason: `Item state=${item.state} → Set column to ${targetName}`
+        };
+      } catch (e) {
+        log.info(`  • Could not set to Done/Closed (${e.message}) → Skipping column update`, true);
+        return {
+          changed: false,
+          reason: 'Failed to resolve Done/Closed option',
+          currentStatus: currentColumn
+        };
+      }
     }
 
     // Handle PRs and Issues according to requirements
