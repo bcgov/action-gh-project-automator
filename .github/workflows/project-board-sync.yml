@@ -23,6 +23,9 @@ permissions:
 
 jobs:
   sync:
+    concurrency:
+      group: project-board-sync
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,15 +48,6 @@ jobs:
           echo ""
           echo "Using hardcoded project URL for development"
         
-      - name: Run Validation
-        env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-          VERBOSE: true
-        working-directory: packages/project-board-sync/project-board-sync
-        run: npm run validate
-       
       - name: Run Project Board Sync
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
