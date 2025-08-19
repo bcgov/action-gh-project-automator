@@ -25,6 +25,16 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Compute update window hours
+        id: compute
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "hours=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "hours=24" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
         working-directory: packages/project-board-sync/project-board-sync
         run: npm ci
@@ -38,23 +48,12 @@ jobs:
           echo ""
           echo "Using hardcoded project URL for development"
 
-      - name: Run Project Board Sync (PR)
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-          UPDATE_WINDOW_HOURS: '1'
-          VERBOSE: true
-        working-directory: packages/project-board-sync/project-board-sync
-        run: npm run start
-
       - name: Run Project Board Sync
-        if: ${{ github.event_name != 'pull_request' }}
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
-          GITHUB_AUTHOR: ${{ github.actor }}
+          GITHUB_AUTHOR: 'DerekRoberts'
           PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+          UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: true
         working-directory: packages/project-board-sync/project-board-sync
         run: npm run start
