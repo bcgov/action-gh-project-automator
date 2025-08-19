@@ -11,14 +11,17 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  GITHUB_AUTHOR_DEFAULT: DerekRoberts
+  PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+  VERBOSE: true
+
 jobs:
   sync:
     concurrency:
       group: project-board-sync
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    env:
-      GITHUB_AUTHOR_DEFAULT: DerekRoberts
     steps:
       - uses: actions/checkout@v4
 
@@ -44,8 +47,8 @@ jobs:
       - name: Show Project Configuration
         run: |
           echo "Project Configuration:"
-          echo "  PROJECT_URL: https://github.com/orgs/bcgov/projects/16"
-          echo "  VERBOSE: true"
+          echo "  PROJECT_URL: ${{ env.PROJECT_URL }}"
+          echo "  VERBOSE: ${{ env.VERBOSE }}"
           echo "  GITHUB_AUTHOR: ${{ env.GITHUB_AUTHOR_DEFAULT }}"
           echo ""
           echo "Using hardcoded project URL for development"
@@ -54,8 +57,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
           GITHUB_AUTHOR: ${{ env.GITHUB_AUTHOR_DEFAULT }}
-          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+          PROJECT_URL: ${{ env.PROJECT_URL }}
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
-          VERBOSE: true
+          VERBOSE: ${{ env.VERBOSE }}
         working-directory: packages/project-board-sync/project-board-sync
         run: npm run start
