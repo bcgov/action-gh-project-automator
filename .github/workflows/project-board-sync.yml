@@ -5,17 +5,6 @@ on:
   schedule:
     - cron: '*/30 * * * *' # every 30 minutes
   workflow_dispatch:
-    inputs:
-      project_url:
-        description:
-          'GitHub project URL (e.g., https://github.com/orgs/bcgov/projects/16)'
-        required: false
-        default: 'https://github.com/orgs/bcgov/projects/16'
-      verbose:
-        description: 'Enable verbose logging'
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: read
