@@ -142,6 +142,10 @@ async function getCurrentSprint(projectId) {
 async function setItemSprintsBatch(projectId, updates, batchSize = 20) {
   if (!Array.isArray(updates) || updates.length === 0) return 0;
   const fieldId = await getSprintFieldId(projectId);
+  if (!fieldId) {
+    log.warning(`Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`);
+    return 0;
+  }
   let success = 0;
   for (let i = 0; i < updates.length; i += batchSize) {
     const slice = updates.slice(i, i + batchSize);
@@ -161,7 +165,10 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20) {
     });
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     const res = await graphql(mutation, variables);
-    Object.keys(res || {}).forEach(k => { if (res[k]?.projectV2Item?.id) success += 1; });
+    // Each alias key (m0, m1, ...) maps to a mutation result
+    Object.keys(res || {}).forEach(mutationKey => {
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
+    });
   }
   return success;
 }
