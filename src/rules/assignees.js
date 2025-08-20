@@ -1,4 +1,4 @@
-const { octokit } = require('../github/api');
+const { octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
 const { processAssigneeRules } = require('./processors/unified-rule-processor');
 
@@ -127,32 +127,82 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
       throw new Error(`Could not get details for item ${itemId}`);
     }
 
-    const { repository, number } = itemDetails.content;
+    const { repository, number, id: assignableId } = itemDetails.content;
     const [owner, repo] = repository.nameWithOwner.split('/');
     const isPullRequest = itemDetails.type === 'PullRequest';
 
-    // Set assignees on the actual PR/Issue (this is what matters most)
-    if (isPullRequest) {
-      await octokit.rest.pulls.update({
-        owner,
-        repo,
-        pull_number: number,
-        assignees: assigneeLogins
-      });
-      log.info(`Successfully set assignees on PR: ${assigneeLogins.join(', ')}`);
-    } else {
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: number,
-        assignees: assigneeLogins
-      });
-      log.info(`Successfully set assignees on Issue: ${assigneeLogins.join(', ')}`);
+    // Current repo-level assignees to support no-op guard and delta
+    const issueOrPrData = isPullRequest
+      ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
+      : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+    const current = (issueOrPrData.data.assignees || []).map(a => a.login);
+
+    // No-op guard
+    if (arraysEqual(current, assigneeLogins)) {
+      log.info('Assignees already up to date; skipping');
+      return;
     }
+
+    // Compute delta to minimize calls
+    const toAdd = assigneeLogins.filter(a => !current.includes(a));
+    if (toAdd.length === 0) {
+      log.info('No new assignees to add; skipping');
+      return;
+    }
+
+    // Resolve user IDs in one batched GraphQL call
+    const { ids, missing } = await getUserIdsBatched(toAdd);
+    if (missing.length > 0) {
+      log.warning(`Some assignee logins not found: ${missing.join(', ')}`);
+    }
+    if (ids.length === 0) {
+      log.info('No valid assignee IDs to add; skipping');
+      return;
+    }
+
+    // Use GraphQL addAssigneesToAssignable to add assignees in one call
+    const mutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+      addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+        assignable { __typename }
+      }
+    }`;
+    await graphql(mutation, { assignableId, assigneeIds: ids });
+    log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
   } catch (error) {
     log.error(`Failed to update assignees: ${error.message}`, true);
     throw new Error(`Failed to update assignees: ${error.message}`);
   }
+}
+
+// Cache user login -> id during run
+const userIdCache = new Map();
+
+async function getUserIdsBatched(logins) {
+  const unique = [...new Set(logins.filter(Boolean))];
+  const ids = [];
+  const missing = [];
+
+  // Prepare vars for uncached logins
+  const uncached = unique.filter(l => !userIdCache.has(l));
+  if (uncached.length > 0) {
+    const varDecls = uncached.map((_, i) => `$l${i}: String!`).join(', ');
+    const fields = uncached.map((_, i) => `u${i}: user(login: $l${i}) { id login }`).join(' ');
+    const query = `query(${varDecls}) { ${fields} }`;
+    const variables = {};
+    uncached.forEach((l, i) => { variables[`l${i}`] = l; });
+    const res = await graphql(query, variables);
+    uncached.forEach((l, i) => {
+      const node = res[`u${i}`];
+      if (node?.id) userIdCache.set(l, node.id); else missing.push(l);
+    });
+  }
+
+  unique.forEach(l => {
+    const id = userIdCache.get(l);
+    if (id) ids.push(id); else if (!missing.includes(l)) missing.push(l);
+  });
+
+  return { ids, missing };
 }
 
 /**
