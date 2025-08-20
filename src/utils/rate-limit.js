@@ -1,8 +1,9 @@
-const { graphql } = require('../github/api');
 const { log } = require('./log');
 
 async function getRateLimit() {
   try {
+    // Late import to avoid circular dependency during module load
+    const { graphql } = require('../github/api');
     const res = await graphql(`
       query {
         rateLimit {
@@ -44,8 +45,12 @@ async function withBackoff(fn, { retries = 3 } = {}) {
       return await fn();
     } catch (e) {
       lastErr = e;
-      const msg = (e && e.message || '').toLowerCase();
-      const isRate = msg.includes('rate limit');
+      // Prefer structured detection; fallback to message check
+      const isRate = (
+        (e && (e.code === 'RATE_LIMITED' || e.name === 'RateLimitError' || e.status === 403)) ||
+        (e && e.response && e.response.headers && e.response.headers['x-ratelimit-remaining'] === '0') ||
+        ((e && e.message || '').toLowerCase().includes('rate limit'))
+      );
       if (!isRate || attempt === retries) break;
       const delay = backoffDelay(attempt);
       log.info(`Rate limited; backing off ${delay}ms (attempt ${attempt + 1}/${retries})`);

@@ -408,13 +408,31 @@ async function setItemColumn(projectId, projectItemId, optionId) {
   // Get Status field ID from cache
   const statusFieldId = await getFieldId(projectId, 'Status');
 
-  // No-op guard: avoid write if already the same column
+  // No-op guard: avoid write if already the same column (map optionId -> name once)
   try {
-    const current = await getItemColumn(projectId, projectItemId);
-    if (current && typeof current === 'string') {
-      // We need the option name to compare; resolve once
-      const desiredName = null; // leave as null; comparison requires mapping id->name in future
-      // If we cannot cheaply resolve, skip name compare to avoid extra calls
+    const statusOptions = await (async () => {
+      const result = await withBackoff(() => graphqlWithAuth(`
+        query($projectId: ID!) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
+              field(name: "Status") {
+                ... on ProjectV2SingleSelectField {
+                  options { id name }
+                }
+              }
+            }
+          }
+        }
+      `, { projectId }));
+      return result.node?.field?.options || [];
+    })();
+    const desired = statusOptions.find(o => o.id === optionId);
+    if (desired && desired.name) {
+      const current = await getItemColumn(projectId, projectItemId);
+      if (current === desired.name) {
+        log.info(`[API] setItemColumn: Skipping no-op update; item already in column '${current}'`);
+        return { skipped: true };
+      }
     }
   } catch (_) {
     // ignore guard failures; proceed to attempt write
