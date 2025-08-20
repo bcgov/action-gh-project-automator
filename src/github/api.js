@@ -38,6 +38,13 @@ const projectItemsCache = new Map();
 // Cache Status options per project (id -> name mapping)
 const statusOptionsCache = new Map();
 
+/**
+ * Get and cache the Status field options for a project board.
+ * Caches the array of { id, name } for the duration of the run.
+ *
+ * @param {string} projectId - The ProjectV2 node ID
+ * @returns {Promise<Array<{id: string, name: string}>>} Status options list
+ */
 async function getStatusOptions(projectId) {
   if (statusOptionsCache.has(projectId)) {
     return statusOptionsCache.get(projectId);
@@ -55,7 +62,12 @@ async function getStatusOptions(projectId) {
       }
     }
   `, { projectId }));
-  const list = result.node?.field?.options || [];
+  if (!result.node || !result.node.field) {
+    log.error(`Status field not found in project ${projectId}. Please check project configuration.`);
+    statusOptionsCache.set(projectId, []);
+    return [];
+  }
+  const list = result.node.field.options || [];
   statusOptionsCache.set(projectId, list);
   return list;
 }
