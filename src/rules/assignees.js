@@ -1,4 +1,4 @@
-const { octokit } = require('../github/api');
+const { octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
 const { processAssigneeRules } = require('./processors/unified-rule-processor');
 
@@ -37,7 +37,7 @@ async function getItemDetails(itemId) {
     `, {
       itemId
     });
-    
+
     return result.node;
   } catch (error) {
     log.error(`Failed to get item details: ${error.message}`);
@@ -104,7 +104,7 @@ async function getItemAssignees(projectId, itemId) {
 
   const fieldValues = result.item?.fieldValues.nodes || [];
   const assigneeValue = fieldValues.find(v => v.field?.name === 'Assignees');
-  
+
   if (!assigneeValue) {
     return [];
   }
@@ -127,27 +127,61 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
       throw new Error(`Could not get details for item ${itemId}`);
     }
 
-    const { repository, number } = itemDetails.content;
+    const { repository, number, id: assignableId } = itemDetails.content;
     const [owner, repo] = repository.nameWithOwner.split('/');
     const isPullRequest = itemDetails.type === 'PullRequest';
 
-    // Set assignees on the actual PR/Issue (this is what matters most)
-    if (isPullRequest) {
-      await octokit.rest.pulls.update({
-        owner,
-        repo,
-        pull_number: number,
-        assignees: assigneeLogins
-      });
-      log.info(`Successfully set assignees on PR: ${assigneeLogins.join(', ')}`);
-    } else {
-      await octokit.rest.issues.update({
-        owner,
-        repo,
-        issue_number: number,
-        assignees: assigneeLogins
-      });
-      log.info(`Successfully set assignees on Issue: ${assigneeLogins.join(', ')}`);
+    // Current repo-level assignees to support no-op guard and delta
+    const issueOrPrData = isPullRequest
+      ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
+      : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+    const current = (issueOrPrData.data.assignees || []).map(a => a.login);
+
+    // No-op guard
+    if (arraysEqual(current, assigneeLogins)) {
+      log.info('Assignees already up to date; skipping');
+      return;
+    }
+
+    // Compute delta to minimize calls (add and remove to exactly match target)
+    const toAdd = assigneeLogins.filter(a => !current.includes(a));
+    const toRemove = current.filter(a => !assigneeLogins.includes(a));
+
+    // Single batch-scoped cache for this operation
+    const userIdBatchCache = new Map();
+
+    // Removals first (if any)
+    if (toRemove.length > 0) {
+      const { ids: removeIds, missing: missingRemove } = await getUserIdsBatched(toRemove, userIdBatchCache);
+      if (missingRemove.length > 0) {
+        log.warning(`Some assignees to remove not found: ${missingRemove.join(', ')}`);
+      }
+      if (removeIds.length > 0) {
+        const removeMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+          removeAssigneesFromAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+            assignable { __typename }
+          }
+        }`;
+        await graphql(removeMutation, { assignableId, assigneeIds: removeIds });
+        log.info(`Successfully removed assignees: ${toRemove.join(', ')}`);
+      }
+    }
+
+    // Additions (if any)
+    if (toAdd.length > 0) {
+      const { ids: addIds, missing: missingAdd } = await getUserIdsBatched(toAdd, userIdBatchCache);
+      if (missingAdd.length > 0) {
+        log.warning(`Some assignee logins to add not found: ${missingAdd.join(', ')}`);
+      }
+      if (addIds.length > 0) {
+        const addMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+          addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+            assignable { __typename }
+          }
+        }`;
+        await graphql(addMutation, { assignableId, assigneeIds: addIds });
+        log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
+      }
     }
   } catch (error) {
     log.error(`Failed to update assignees: ${error.message}`, true);
@@ -155,11 +189,42 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
   }
 }
 
+async function getUserIdsBatched(logins, cache) {
+  const unique = [...new Set(logins.filter(Boolean))];
+  const ids = [];
+  const missingSet = new Set();
+
+  // Use provided cache or create a fresh one for this operation
+  const userIdCache = cache instanceof Map ? cache : new Map();
+
+  // Prepare vars for uncached logins
+  const uncached = unique.filter(l => !userIdCache.has(l));
+  if (uncached.length > 0) {
+    const varDecls = uncached.map((_, i) => `$l${i}: String!`).join(', ');
+    const fields = uncached.map((_, i) => `u${i}: user(login: $l${i}) { id login }`).join(' ');
+    const query = `query(${varDecls}) { ${fields} }`;
+    const variables = {};
+    uncached.forEach((l, i) => { variables[`l${i}`] = l; });
+    const res = await graphql(query, variables);
+    uncached.forEach((l, i) => {
+      const node = res[`u${i}`];
+      if (node?.id) userIdCache.set(l, node.id); else missingSet.add(l);
+    });
+  }
+
+  unique.forEach(l => {
+    const id = userIdCache.get(l);
+    if (id) ids.push(id); else missingSet.add(l);
+  });
+
+  return { ids, missing: Array.from(missingSet) };
+}
+
 /**
  * Implementation of Rule Set 5: Assignee Rules
- * 
+ *
  * Uses YAML configuration to determine assignee actions
- * 
+ *
  * @param {Object} item - The PR or Issue
  * @param {string} projectId - The project board ID
  * @param {string} itemId - The project item ID
@@ -178,17 +243,17 @@ async function processAssignees(item, projectId, itemId) {
   }
 
   const { repository, number } = itemDetails.content;
-  
+
   // Validate repository format before splitting
-  if (!repository || 
-      typeof repository.nameWithOwner !== 'string' || 
+  if (!repository ||
+      typeof repository.nameWithOwner !== 'string' ||
       !repository.nameWithOwner.includes('/')) {
     throw new Error(`Invalid repository.nameWithOwner format for item ${itemId}: ${repository?.nameWithOwner}`);
   }
-  
+
   const [owner, repo] = repository.nameWithOwner.split('/');
   const isPullRequest = itemDetails.type === 'PullRequest';
-  
+
   // Get current Issue/PR assignees
   const issueOrPrData = isPullRequest
     ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
@@ -199,7 +264,7 @@ async function processAssignees(item, projectId, itemId) {
 
   // Process assignee rules from YAML config
   const assigneeActions = await processAssigneeRules(item);
-  
+
   if (assigneeActions.length === 0) {
     return {
       changed: false,
@@ -210,12 +275,12 @@ async function processAssignees(item, projectId, itemId) {
 
   // Apply the first assignee action (assuming one assignee rule per item)
   const action = assigneeActions[0];
-  
+
   // Debug logging
   log.info(`  • Action object: ${JSON.stringify(action)}`, true);
-  
+
   let assigneeToAdd = action.params.assignee;
-  
+
   // Unified template variable substitution
   if (typeof assigneeToAdd === 'string') {
     // Support both ${item.author} and item.author formats
@@ -225,7 +290,7 @@ async function processAssignees(item, projectId, itemId) {
       assigneeToAdd = item.author?.login;
     }
   }
-  
+
   if (!assigneeToAdd) {
     return {
       changed: false,
