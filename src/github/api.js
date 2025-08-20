@@ -27,12 +27,9 @@ const graphqlWithAuthRaw = graphql.defaults({
   }
 });
 
-// Wrap with memoization + backoff for read-only queries
-const graphqlWithAuth = async (query, variables) => {
-  return withBackoff(() => memoizedGraphql(query, variables));
-};
-
+// Create memoized client first, then wrap with backoff to avoid TDZ
 const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw, { ttlMs: 60_000, maxEntries: 300 });
+const graphqlWithAuth = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
 
 // Cache field IDs per project to reduce API calls
 const fieldIdCache = new Map();
