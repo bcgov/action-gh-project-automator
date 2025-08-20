@@ -7,7 +7,15 @@ const ConfigLoader = require('./loader');
  */
 function loadBoardRules(context = {}) {
     const loader = new ConfigLoader();
-    const config = loader.load(path.join(__dirname, '../../config/rules.yml'));
+    // Prefer top-level config/rules.yml; fallback to old path during transition
+    let configPath = path.join(process.cwd(), 'config/rules.yml');
+    try {
+        var config = loader.load(configPath);
+    } catch (e) {
+        // Fallback to legacy internal path
+        configPath = path.join(__dirname, '../../config/rules.yml');
+        config = loader.load(configPath);
+    }
 
     // Pass through monitored user from context
     if (context.monitoredUser) {
