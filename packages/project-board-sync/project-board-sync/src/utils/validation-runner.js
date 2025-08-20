@@ -55,9 +55,10 @@ class ValidationRunner {
         }
       }
 
-      // 2. Configuration validation
+      // 2. Configuration validation (respect flattened config resolution)
       const loader = new ConfigLoader();
-      const config = loader.load(path.join(process.cwd(), 'config/rules.yml'));
+      const { loadBoardRules } = require('../config/board-rules');
+      const config = loadBoardRules();
       
       // Verify project configuration (supports URL, ID, or number)
       const configProjectId = config.project?.id;

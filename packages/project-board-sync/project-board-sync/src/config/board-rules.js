@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const ConfigLoader = require('./loader');
 
 /**
@@ -7,15 +8,10 @@ const ConfigLoader = require('./loader');
  */
 function loadBoardRules(context = {}) {
     const loader = new ConfigLoader();
-    // Prefer top-level config/rules.yml; fallback to old path during transition
-    let configPath = path.join(process.cwd(), 'config/rules.yml');
-    try {
-        var config = loader.load(configPath);
-    } catch (e) {
-        // Fallback to legacy internal path
-        configPath = path.join(__dirname, '../../config/rules.yml');
-        config = loader.load(configPath);
-    }
+
+    // Resolve config path with flattening preference for repo-level config
+    const resolvedPath = resolveConfigPath();
+    const config = loader.load(resolvedPath);
 
     // Pass through monitored user from context
     if (context.monitoredUser) {
@@ -136,3 +132,38 @@ function mergeRuleGroup(merged, ruleGroup) {
 module.exports = {
     loadBoardRules
 };
+
+/**
+ * Resolve the configuration file path, preferring a flattened, repo-level config.
+ * Order of precedence:
+ * 1) CONFIG_FILE env var (absolute or relative to CWD)
+ * 2) CWD/config/rules.yml
+ * 3) Walk up parent directories from CWD to find config/rules.yml
+ * 4) Legacy package-local config
+ * @returns {string}
+ */
+function resolveConfigPath() {
+    // 1) Explicit env override
+    const fromEnv = process.env.CONFIG_FILE;
+    if (fromEnv) {
+        const absoluteEnvPath = path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
+        if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
+    }
+
+    // 2) CWD/config/rules.yml
+    const cwdConfig = path.join(process.cwd(), 'config/rules.yml');
+    if (fs.existsSync(cwdConfig)) return cwdConfig;
+
+    // 3) Walk up to find repo-level config/rules.yml
+    let current = process.cwd();
+    for (let i = 0; i < 8; i += 1) {
+        const candidate = path.join(current, 'config/rules.yml');
+        if (fs.existsSync(candidate)) return candidate;
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+
+    // 4) Legacy package-local config (last resort during migration)
+    return path.join(__dirname, '../../config/rules.yml');
+}

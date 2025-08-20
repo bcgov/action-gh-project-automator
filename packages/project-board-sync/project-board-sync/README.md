@@ -14,7 +14,7 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 
 ## Configuration
 
-All automation is configured in `config/rules.yml`. The configuration includes:
+All automation is configured in a flattened repo-level `config/rules.yml`. The configuration includes:
 - Project settings
 - Monitored repositories and users
 - Business rules for automation
@@ -35,7 +35,7 @@ The tool supports multiple ways to specify the GitHub project:
    export PROJECT_ID=PVT_kwDOAA37OM4AFuzg
    ```
 
-3. **Configuration File**: Add to `config/rules.yml`
+3. **Configuration File**: Add to repo-level `config/rules.yml`
    ```yaml
    project:
      url: https://github.com/orgs/bcgov/projects/16
@@ -50,7 +50,7 @@ See `TECHNICAL.md` for implementation details and `CONTRIBUTING.md` for developm
 ## Files
 
 - `project-board-sync.js`: The main script that runs the automation
-- `config/rules.yml`: Source of truth for all automation rules
+- `../../../../config/rules.yml`: Source of truth for all automation rules
 - `TECHNICAL.md`: Implementation details and architecture
 - `CONTRIBUTING.md`: Development guidelines and processes
 - `FUTURE-IDEAS.md`: Ideas and plans for future enhancements
