@@ -79,39 +79,14 @@ async function getStatusOptions(projectId) {
  * @returns {Promise<string|null>} The column option ID or null if not found
  */
 async function getColumnOptionId(projectId, columnName) {
-  // Create a composite cache
   const cacheKey = `${projectId}:${columnName}`;
-
-  // Check if we have this column option ID cached
   if (columnOptionIdCache.has(cacheKey)) {
     return columnOptionIdCache.get(cacheKey);
   }
   try {
-    // Get all column options by field name (Status)
-    const result = await graphqlWithAuth(`
-      query($projectId: ID!, $fieldName: String!) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            field(name: $fieldName) {
-              ... on ProjectV2SingleSelectField {
-                options {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        }
-      }
-    `, {
-      projectId,
-      fieldName: 'Status'
-    });
-    // Find the option with matching name
-    const options = result.node.field.options;
+    const options = await getStatusOptions(projectId);
     const option = options.find(opt => opt.name === columnName);
     if (option) {
-      // Cache the result
       columnOptionIdCache.set(cacheKey, option.id);
       return option.id;
     }
