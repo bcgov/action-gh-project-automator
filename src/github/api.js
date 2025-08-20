@@ -496,14 +496,25 @@ async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
 
   for (let i = 0; i < updates.length; i += batchSize) {
     const slice = updates.slice(i, i + batchSize);
-    const parts = slice.map((u, idx) => {
+    // Build aliased mutation using variables per entry to avoid interpolation
+    const varDecls = [];
+    const parts = [];
+    const variables = {};
+    slice.forEach((u, idx) => {
       const alias = `m${idx}`;
-      const value = `input: { projectId: \"${projectId}\", itemId: \"${u.projectItemId}\", fieldId: \"${statusFieldId}\", value: { singleSelectOptionId: \"${u.optionId}\" } }`;
-      return `${alias}: updateProjectV2ItemFieldValue(${value}) { projectV2Item { id } }`;
+      const vName = `input${idx}`;
+      varDecls.push(`$${vName}: UpdateProjectV2ItemFieldValueInput!`);
+      parts.push(`${alias}: updateProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
+      variables[vName] = {
+        projectId,
+        itemId: u.projectItemId,
+        fieldId: statusFieldId,
+        value: { singleSelectOptionId: u.optionId }
+      };
     });
-    const mutation = `mutation { ${parts.join(' ')} }`;
+    const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     try {
-      const result = await withBackoff(() => graphqlWithAuth(mutation));
+      const result = await withBackoff(() => graphqlWithAuth(mutation, variables));
       // Collect success IDs from aliases
       for (const key of Object.keys(result || {})) {
         const item = result[key]?.projectV2Item;
