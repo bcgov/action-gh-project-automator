@@ -2,6 +2,7 @@ const { Octokit } = require('@octokit/rest');
 const { graphql } = require('@octokit/graphql');
 const { log } = require('../utils/log');
 const { shouldProceed, withBackoff } = require('../utils/rate-limit');
+const { memoizeGraphql } = require('../utils/graphql-cache');
 
 /**
  * GitHub API client setup
@@ -11,7 +12,7 @@ const octokit = new Octokit({
 });
 
 // Create authenticated GraphQL client with debug logging
-const graphqlWithAuth = graphql.defaults({
+const graphqlWithAuthRaw = graphql.defaults({
   headers: {
     authorization: `bearer ${process.env.GITHUB_TOKEN}`,
   },
@@ -25,6 +26,10 @@ const graphqlWithAuth = graphql.defaults({
     }
   }
 });
+
+// Create memoized client first, then wrap with backoff to avoid TDZ
+const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw, { ttlMs: 60_000, maxEntries: 300 });
+const graphqlWithAuth = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
 
 // Cache field IDs per project to reduce API calls
 const fieldIdCache = new Map();

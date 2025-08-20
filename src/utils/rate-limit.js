@@ -45,14 +45,16 @@ async function withBackoff(fn, { retries = 3 } = {}) {
       return await fn();
     } catch (e) {
       lastErr = e;
-      // Prefer structured detection; fallback to message check
+      // Prefer structured detection; fallback to message check; include abuse detection
+      const message = ((e && e.message) || '').toLowerCase();
       const isRate = (
         (e && (e.code === 'RATE_LIMITED' || e.name === 'RateLimitError' || e.status === 403)) ||
-        (e && e.response && e.response.headers && e.response.headers['x-ratelimit-remaining'] === '0') ||
-        ((e && e.message || '').toLowerCase().includes('rate limit'))
+        (e && e.response && e.response.headers && (e.response.headers['x-ratelimit-remaining'] === '0' || e.response.headers['retry-after'])) ||
+        message.includes('rate limit') || message.includes('abuse')
       );
       if (!isRate || attempt === retries) break;
-      const delay = backoffDelay(attempt);
+      const jitter = Math.floor(Math.random() * 250);
+      const delay = backoffDelay(attempt) + jitter;
       log.info(`Rate limited; backing off ${delay}ms (attempt ${attempt + 1}/${retries})`);
       await new Promise(r => setTimeout(r, delay));
     }
