@@ -37,7 +37,7 @@ async function getItemDetails(itemId) {
     `, {
       itemId
     });
-    
+
     return result.node;
   } catch (error) {
     log.error(`Failed to get item details: ${error.message}`);
@@ -104,7 +104,7 @@ async function getItemAssignees(projectId, itemId) {
 
   const fieldValues = result.item?.fieldValues.nodes || [];
   const assigneeValue = fieldValues.find(v => v.field?.name === 'Assignees');
-  
+
   if (!assigneeValue) {
     return [];
   }
@@ -143,44 +143,59 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
       return;
     }
 
-    // Compute delta to minimize calls
+    // Compute delta to minimize calls (add and remove to exactly match target)
     const toAdd = assigneeLogins.filter(a => !current.includes(a));
-    if (toAdd.length === 0) {
-      log.info('No new assignees to add; skipping');
-      return;
-    }
+    const toRemove = current.filter(a => !assigneeLogins.includes(a));
 
-    // Resolve user IDs in one batched GraphQL call
-    const { ids, missing } = await getUserIdsBatched(toAdd);
-    if (missing.length > 0) {
-      log.warning(`Some assignee logins not found: ${missing.join(', ')}`);
-    }
-    if (ids.length === 0) {
-      log.info('No valid assignee IDs to add; skipping');
-      return;
-    }
+    // Single batch-scoped cache for this operation
+    const userIdBatchCache = new Map();
 
-    // Use GraphQL addAssigneesToAssignable to add assignees in one call
-    const mutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-      addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
-        assignable { __typename }
+    // Removals first (if any)
+    if (toRemove.length > 0) {
+      const { ids: removeIds, missing: missingRemove } = await getUserIdsBatched(toRemove, userIdBatchCache);
+      if (missingRemove.length > 0) {
+        log.warning(`Some assignees to remove not found: ${missingRemove.join(', ')}`);
       }
-    }`;
-    await graphql(mutation, { assignableId, assigneeIds: ids });
-    log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
+      if (removeIds.length > 0) {
+        const removeMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+          removeAssigneesFromAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+            assignable { __typename }
+          }
+        }`;
+        await graphql(removeMutation, { assignableId, assigneeIds: removeIds });
+        log.info(`Successfully removed assignees: ${toRemove.join(', ')}`);
+      }
+    }
+
+    // Additions (if any)
+    if (toAdd.length > 0) {
+      const { ids: addIds, missing: missingAdd } = await getUserIdsBatched(toAdd, userIdBatchCache);
+      if (missingAdd.length > 0) {
+        log.warning(`Some assignee logins to add not found: ${missingAdd.join(', ')}`);
+      }
+      if (addIds.length > 0) {
+        const addMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+          addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+            assignable { __typename }
+          }
+        }`;
+        await graphql(addMutation, { assignableId, assigneeIds: addIds });
+        log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
+      }
+    }
   } catch (error) {
     log.error(`Failed to update assignees: ${error.message}`, true);
     throw new Error(`Failed to update assignees: ${error.message}`);
   }
 }
 
-// Cache user login -> id during run
-const userIdCache = new Map();
-
-async function getUserIdsBatched(logins) {
+async function getUserIdsBatched(logins, cache) {
   const unique = [...new Set(logins.filter(Boolean))];
   const ids = [];
-  const missing = [];
+  const missingSet = new Set();
+
+  // Use provided cache or create a fresh one for this operation
+  const userIdCache = cache instanceof Map ? cache : new Map();
 
   // Prepare vars for uncached logins
   const uncached = unique.filter(l => !userIdCache.has(l));
@@ -193,23 +208,23 @@ async function getUserIdsBatched(logins) {
     const res = await graphql(query, variables);
     uncached.forEach((l, i) => {
       const node = res[`u${i}`];
-      if (node?.id) userIdCache.set(l, node.id); else missing.push(l);
+      if (node?.id) userIdCache.set(l, node.id); else missingSet.add(l);
     });
   }
 
   unique.forEach(l => {
     const id = userIdCache.get(l);
-    if (id) ids.push(id); else if (!missing.includes(l)) missing.push(l);
+    if (id) ids.push(id); else missingSet.add(l);
   });
 
-  return { ids, missing };
+  return { ids, missing: Array.from(missingSet) };
 }
 
 /**
  * Implementation of Rule Set 5: Assignee Rules
- * 
+ *
  * Uses YAML configuration to determine assignee actions
- * 
+ *
  * @param {Object} item - The PR or Issue
  * @param {string} projectId - The project board ID
  * @param {string} itemId - The project item ID
@@ -228,17 +243,17 @@ async function processAssignees(item, projectId, itemId) {
   }
 
   const { repository, number } = itemDetails.content;
-  
+
   // Validate repository format before splitting
-  if (!repository || 
-      typeof repository.nameWithOwner !== 'string' || 
+  if (!repository ||
+      typeof repository.nameWithOwner !== 'string' ||
       !repository.nameWithOwner.includes('/')) {
     throw new Error(`Invalid repository.nameWithOwner format for item ${itemId}: ${repository?.nameWithOwner}`);
   }
-  
+
   const [owner, repo] = repository.nameWithOwner.split('/');
   const isPullRequest = itemDetails.type === 'PullRequest';
-  
+
   // Get current Issue/PR assignees
   const issueOrPrData = isPullRequest
     ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
@@ -249,7 +264,7 @@ async function processAssignees(item, projectId, itemId) {
 
   // Process assignee rules from YAML config
   const assigneeActions = await processAssigneeRules(item);
-  
+
   if (assigneeActions.length === 0) {
     return {
       changed: false,
@@ -260,12 +275,12 @@ async function processAssignees(item, projectId, itemId) {
 
   // Apply the first assignee action (assuming one assignee rule per item)
   const action = assigneeActions[0];
-  
+
   // Debug logging
   log.info(`  • Action object: ${JSON.stringify(action)}`, true);
-  
+
   let assigneeToAdd = action.params.assignee;
-  
+
   // Unified template variable substitution
   if (typeof assigneeToAdd === 'string') {
     // Support both ${item.author} and item.author formats
@@ -275,7 +290,7 @@ async function processAssignees(item, projectId, itemId) {
       assigneeToAdd = item.author?.login;
     }
   }
-  
+
   if (!assigneeToAdd) {
     return {
       changed: false,
