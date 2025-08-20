@@ -480,6 +480,45 @@ async function setItemColumn(projectId, projectItemId, optionId) {
 }
 
 /**
+ * Batch update Status (column) for multiple project items using GraphQL aliases.
+ * Each update is an object: { projectItemId: string, optionId: string }
+ * Returns an array of successful item IDs (best-effort).
+ *
+ * @param {string} projectId
+ * @param {Array<{projectItemId: string, optionId: string}>} updates
+ * @param {number} [batchSize=20]
+ * @returns {Promise<Array<string>>}
+ */
+async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
+  if (!Array.isArray(updates) || updates.length === 0) return [];
+  const statusFieldId = await getFieldId(projectId, 'Status');
+  const successes = [];
+
+  for (let i = 0; i < updates.length; i += batchSize) {
+    const slice = updates.slice(i, i + batchSize);
+    const parts = slice.map((u, idx) => {
+      const alias = `m${idx}`;
+      const value = `input: { projectId: \"${projectId}\", itemId: \"${u.projectItemId}\", fieldId: \"${statusFieldId}\", value: { singleSelectOptionId: \"${u.optionId}\" } }`;
+      return `${alias}: updateProjectV2ItemFieldValue(${value}) { projectV2Item { id } }`;
+    });
+    const mutation = `mutation { ${parts.join(' ')} }`;
+    try {
+      const result = await withBackoff(() => graphqlWithAuth(mutation));
+      // Collect success IDs from aliases
+      for (const key of Object.keys(result || {})) {
+        const item = result[key]?.projectV2Item;
+        if (item?.id) successes.push(item.id);
+      }
+    } catch (error) {
+      log.error(`[API] setItemColumnsBatch: batch failed: ${error.message}`);
+      // Continue with next batch
+    }
+  }
+
+  return successes;
+}
+
+/**
  * Get field ID with caching
  * @param {string} projectId - The project board ID
  * @param {string} fieldName - The name of the field
@@ -531,5 +570,6 @@ module.exports = {
   setItemColumn,
   getFieldId,
   getColumnOptionId,
-  getProjectItems
+  getProjectItems,
+  setItemColumnsBatch
 };

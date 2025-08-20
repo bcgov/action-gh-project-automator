@@ -1,6 +1,6 @@
 const { octokit } = require('../github/api');
 const { log, Logger } = require('../utils/log');
-const { getItemColumn, setItemColumn } = require('../github/api');
+const { getItemColumn, setItemColumn, setItemColumnsBatch } = require('../github/api');
 const { processSprintAssignment } = require('./sprints');
 const { getItemAssignees, setItemAssignees } = require('./assignees');
 
@@ -15,7 +15,7 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
   const linkedIssueResults = [];
 
   log.info(`Processing linked issues for PR #${pullRequestNumber} in ${repositoryName}`);
-  
+
   // Log PR initial state
   const prState = {
     column: currentColumn || 'None',
@@ -41,6 +41,7 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
     return { changed, reason, linkedIssues: linkedIssueResults };
   }
 
+  const pendingColumnUpdates = [];
   for (const linkedIssue of linkedIssueNodes) {
     const { id: linkedIssueId, number: linkedIssueNumber, repository: { nameWithOwner: linkedIssueRepositoryName } } = linkedIssue;
 
@@ -53,10 +54,9 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
         assignees: initialAssignees
       });
 
-      // Sync column
+      // Queue column update for batch
       if (currentColumn) {
-        await setItemColumn(projectId, linkedIssueId, currentColumn);
-        log.info(`Set linked issue #${linkedIssueNumber} column to ${currentColumn}`);
+        pendingColumnUpdates.push({ projectItemId: linkedIssueId, optionId: currentColumn });
       }
 
       // Sync assignees
@@ -84,6 +84,12 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
         log.error(`Error updating linked issue ${linkedIssueNumber} in repository ${linkedIssueRepositoryName}: ${error.message}`);
         throw error;
       }
+  }
+
+  // Perform batched column updates (if any)
+  if (pendingColumnUpdates.length > 0) {
+    const ok = await setItemColumnsBatch(projectId, pendingColumnUpdates);
+    log.info(`Batched column updates applied: ${ok.length}/${pendingColumnUpdates.length}`);
   }
 
   // Print state change summary
