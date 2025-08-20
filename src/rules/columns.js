@@ -1,4 +1,4 @@
-const { getItemColumn, setItemColumn, isItemInProject, octokit, graphql } = require('../github/api');
+const { getItemColumn, setItemColumn, setItemColumnsBatch, isItemInProject, octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
 
 // Cache column options per project ID during a single run
@@ -79,7 +79,7 @@ function getColumnOptionId(columnName, options) {
  * @param {string} projectId - The project board ID
  * @returns {Promise<{changed: boolean, newStatus?: string}>}
  */
-async function processColumnAssignment(item, projectItemId, projectId) {
+async function processColumnAssignment(item, projectItemId, projectId, batchQueue = null) {
   try {
     // First get available columns
     const options = await getColumnOptions(projectId);
@@ -123,7 +123,11 @@ async function processColumnAssignment(item, projectItemId, projectId) {
             currentStatus: currentColumn
           };
         }
-        await setItemColumn(projectId, projectItemId, optionId);
+        if (Array.isArray(batchQueue)) {
+          batchQueue.push({ projectItemId, optionId });
+        } else {
+          await setItemColumn(projectId, projectItemId, optionId);
+        }
         return {
           changed: true,
           newStatus: targetName,
@@ -198,7 +202,11 @@ async function processColumnAssignment(item, projectItemId, projectId) {
         currentStatus: currentColumn
       };
     }
-    await setItemColumn(projectId, projectItemId, optionId);
+    if (Array.isArray(batchQueue)) {
+      batchQueue.push({ projectItemId, optionId });
+    } else {
+      await setItemColumn(projectId, projectItemId, optionId);
+    }
 
     return {
       changed: true,
@@ -224,6 +232,7 @@ async function processColumnAssignment(item, projectItemId, projectId) {
 async function processColumns({ projectId, items }) {
   const processedItems = [];
   const skippedItems = [];
+  const batchQueue = [];
   
   for (const item of items) {
     try {
@@ -234,7 +243,7 @@ async function processColumns({ projectId, items }) {
         __typename: item.type || item.__typename,
         number: item.number,
         state: item.state || 'OPEN'  // Default to OPEN if state is not provided
-      }, item.projectItemId, projectId);
+      }, item.projectItemId, projectId, batchQueue);
       
       if (result.changed) {
         processedItems.push({
@@ -256,6 +265,13 @@ async function processColumns({ projectId, items }) {
     } catch (error) {
       log.error(`Failed to process column for ${item.__typename} #${item.number}: ${error.message}`);
     }
+  }
+
+  // Apply batched column updates if any
+  if (batchQueue.length > 0) {
+    const ok = await setItemColumnsBatch(projectId, batchQueue);
+    const applied = Array.isArray(ok) ? ok.length : 0;
+    log.info(`Applied ${applied}/${batchQueue.length} column updates in batch`);
   }
 
   // Log results
