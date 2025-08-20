@@ -6,8 +6,11 @@ const ConfigLoader = require('../loader');
 test('ConfigLoader', async (t) => {
   await t.test('loads valid config from rules.yml', async () => {
     const loader = new ConfigLoader();
-    const repoRoot = path.resolve(__dirname, '../../../../..');
-    const config = loader.load(path.join(repoRoot, 'config/rules.yml'));
+    const repoRoot = path.resolve(__dirname, '../../..');
+    const configPath = path.join(repoRoot, 'config/rules.yml');
+    // Ensure downstream loaders use the same config resolution during this test
+    process.env.CONFIG_FILE = configPath;
+    const config = loader.load(configPath);
 
     // Basic structure checks - no version field in new structure
     assert.ok(config.project, 'has project section');
