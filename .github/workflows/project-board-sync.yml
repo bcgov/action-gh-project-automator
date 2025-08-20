@@ -45,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Install dependencies (legacy package)
-        working-directory: packages/project-board-sync/project-board-sync
+        working-directory: packages/project-board-sync
         run: npm ci
 
       - name: Show Project Configuration
@@ -65,5 +65,5 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
-        working-directory: packages/project-board-sync/project-board-sync
+        working-directory: packages/project-board-sync
         run: npm run start
