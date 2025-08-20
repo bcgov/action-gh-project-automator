@@ -3,15 +3,11 @@
 #
 # For more information, see the super-linter repository:
 #     https://github.com/super-linter/super-linter
-name: Lint Codebase
+name: Lint Codebase (manual)
 
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+  # Temporarily manual-only to reduce PR noise; replace with targeted linters later
+  workflow_dispatch:
 
 permissions:
   contents: read

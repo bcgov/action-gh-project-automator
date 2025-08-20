@@ -1,7 +1,7 @@
 name: GH Project Board Sync
 
 on:
-  pull_request:
+  # Keep only manual dispatch and scheduled runs; avoid PR-triggered runs on this repo
   schedule:
     - cron: '*/30 * * * *' # every 30 minutes
   workflow_dispatch:
