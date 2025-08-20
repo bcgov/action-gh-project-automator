@@ -27,7 +27,7 @@ export default [
       '**/dist',
       '**/linter',
       '**/node_modules',
-      'project-board-sync/**'
+      // app moved to root; ignore nothing app-specific here
     ]
   },
   ...compat.extends(

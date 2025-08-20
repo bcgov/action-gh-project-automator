@@ -41,11 +41,7 @@ jobs:
             echo "hours=24" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install dependencies (root)
-        run: npm ci
-
-      - name: Install dependencies (app)
-        working-directory: project-board-sync
+      - name: Install dependencies
         run: npm ci
 
       - name: Show Project Configuration
@@ -65,5 +61,4 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
-        working-directory: project-board-sync
         run: npm run start
