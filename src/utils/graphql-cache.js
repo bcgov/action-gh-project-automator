@@ -49,5 +49,3 @@ function memoizeGraphql(graphqlFn, opts = {}) {
 }
 
 module.exports = { memoizeGraphql };
-
-
