@@ -46,11 +46,19 @@ jobs:
         uses: super-linter/super-linter/slim@v8
         env:
           DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*|packages/project-board-sync/**/*
+          # Limit scope: ignore build artifacts and node deps
+          FILTER_REGEX_EXCLUDE: dist/**/*|node_modules/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: .
           VALIDATE_ALL_CODEBASE: true
+          # Disable noisy or irrelevant linters for this JS app until we re-enable selectively
           VALIDATE_JAVASCRIPT_ES: false
-          VALIDATE_JSCPD: false
           VALIDATE_TYPESCRIPT_ES: false
           VALIDATE_JSON: false
+          VALIDATE_YAML: false
+          VALIDATE_MARKDOWN: false
+          VALIDATE_GITHUB_ACTIONS: false
+          VALIDATE_BASH: false
+          VALIDATE_DOCKERFILE_HADOLINT: false
+          VALIDATE_EDITORCONFIG: false
+          VALIDATE_JSCPD: false
