@@ -48,7 +48,7 @@ async function getItemSprint(projectId, itemId) {
 
   const fieldValues = result.item?.fieldValues.nodes || [];
   const sprintValue = fieldValues[0];
-  
+
   return {
     sprintId: sprintValue?.iterationId || null,
     sprintTitle: sprintValue?.title || null
@@ -64,7 +64,7 @@ async function getCurrentSprint(projectId) {
   const today = new Date().toISOString();
   log.info('Getting current sprint:');
   log.info(`  • Current date: ${today}`);
-  
+
   const result = await octokit.graphql(`
     query($projectId: ID!) {
       node(id: $projectId) {
@@ -89,7 +89,7 @@ async function getCurrentSprint(projectId) {
 
   const iterations = result?.node?.field?.configuration?.iterations || [];
   log.info(`  • Found ${iterations.length} sprints`);
-  
+
   const currentSprint = iterations.find(sprint => {
     const start = new Date(sprint.startDate);
     const end = new Date(start);
@@ -127,22 +127,31 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
   // Only process items in Next, Active, Done, or Waiting columns
   if (!ELIGIBLE_COLUMNS.includes(currentColumn)) {
     log.info(`  • Skip: Not in Next, Active, Done, or Waiting column (${currentColumn})`);
-    return { 
-      changed: false, 
-      reason: 'Not in Next, Active, Done, or Waiting column' 
+    return {
+      changed: false,
+      reason: 'Not in Next, Active, Done, or Waiting column'
     };
   }
 
   // Get current sprint assignment
-  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } = 
+  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
     await getItemSprint(projectId, projectItemId);
   log.info(`  • Current sprint: ${currentSprintTitle || 'None'} (${currentSprintId || 'None'})`);
 
   // Get active sprint
   try {
-    const { sprintId: activeSprintId, title: activeSprintTitle } = 
+    const { sprintId: activeSprintId, title: activeSprintTitle } =
       await getCurrentSprint(projectId);
     log.info(`  • Active sprint: ${activeSprintTitle} (${activeSprintId})`);
+
+    // No-op guard: if item already in active sprint, skip update
+    if (currentSprintId === activeSprintId) {
+      log.info('  • Skip: Already in active sprint');
+      return {
+        changed: false,
+        reason: 'Already in active sprint'
+      };
+    }
 
     // Check skip conditions - different rules for Done vs Active/Next
     if (currentColumn === 'Done') {
@@ -171,10 +180,10 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
         }
       }
     }`, { projectId });
-    
+
     const sprintFieldId = sprintFieldResult.node.field.id;
     log.info(`  • Action: Assigning to sprint ${activeSprintTitle}`);
-    
+
     // Set the sprint
     await octokit.graphql(`
       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
