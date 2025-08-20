@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 
 function stableKey(query, variables) {
-  const hash = crypto.createHash('sha1');
+  const hash = crypto.createHash('sha256');
   hash.update(query || '');
   // Stable stringify
   const json = JSON.stringify(variables || {}, Object.keys(variables || {}).sort());
