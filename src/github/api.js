@@ -35,6 +35,43 @@ const columnOptionIdCache = new Map();
 // Cache project items during a single run
 const projectItemsCache = new Map();
 
+// Cache Status options per project (id -> name mapping)
+const statusOptionsCache = new Map();
+
+/**
+ * Get and cache the Status field options for a project board.
+ * Caches the array of { id, name } for the duration of the run.
+ *
+ * @param {string} projectId - The ProjectV2 node ID
+ * @returns {Promise<Array<{id: string, name: string}>>} Status options list
+ */
+async function getStatusOptions(projectId) {
+  if (statusOptionsCache.has(projectId)) {
+    return statusOptionsCache.get(projectId);
+  }
+  const result = await withBackoff(() => graphqlWithAuth(`
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          field(name: "Status") {
+            ... on ProjectV2SingleSelectField {
+              options { id name }
+            }
+          }
+        }
+      }
+    }
+  `, { projectId }));
+  if (!result.node || !result.node.field) {
+    log.error(`Status field not found in project ${projectId}. Please check project configuration.`);
+    statusOptionsCache.set(projectId, []);
+    return [];
+  }
+  const list = result.node.field.options || [];
+  statusOptionsCache.set(projectId, list);
+  return list;
+}
+
 /**
  * Get the column option ID for a given column name
  * @param {string} projectId - The project board ID
@@ -42,39 +79,14 @@ const projectItemsCache = new Map();
  * @returns {Promise<string|null>} The column option ID or null if not found
  */
 async function getColumnOptionId(projectId, columnName) {
-  // Create a composite cache
   const cacheKey = `${projectId}:${columnName}`;
-
-  // Check if we have this column option ID cached
   if (columnOptionIdCache.has(cacheKey)) {
     return columnOptionIdCache.get(cacheKey);
   }
   try {
-    // Get all column options by field name (Status)
-    const result = await graphqlWithAuth(`
-      query($projectId: ID!, $fieldName: String!) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            field(name: $fieldName) {
-              ... on ProjectV2SingleSelectField {
-                options {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        }
-      }
-    `, {
-      projectId,
-      fieldName: 'Status'
-    });
-    // Find the option with matching name
-    const options = result.node.field.options;
+    const options = await getStatusOptions(projectId);
     const option = options.find(opt => opt.name === columnName);
     if (option) {
-      // Cache the result
       columnOptionIdCache.set(cacheKey, option.id);
       return option.id;
     }
@@ -410,22 +422,7 @@ async function setItemColumn(projectId, projectItemId, optionId) {
 
   // No-op guard: avoid write if already the same column (map optionId -> name once)
   try {
-    const statusOptions = await (async () => {
-      const result = await withBackoff(() => graphqlWithAuth(`
-        query($projectId: ID!) {
-          node(id: $projectId) {
-            ... on ProjectV2 {
-              field(name: "Status") {
-                ... on ProjectV2SingleSelectField {
-                  options { id name }
-                }
-              }
-            }
-          }
-        }
-      `, { projectId }));
-      return result.node?.field?.options || [];
-    })();
+    const statusOptions = await getStatusOptions(projectId);
     const desired = statusOptions.find(o => o.id === optionId);
     if (desired && desired.name) {
       const current = await getItemColumn(projectId, projectItemId);
