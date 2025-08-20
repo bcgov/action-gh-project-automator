@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const ConfigLoader = require('./loader');
 
 /**
@@ -7,7 +8,10 @@ const ConfigLoader = require('./loader');
  */
 function loadBoardRules(context = {}) {
     const loader = new ConfigLoader();
-    const config = loader.load(path.join(__dirname, '../../config/rules.yml'));
+
+    // Resolve config path with flattening preference for repo-level config
+    const resolvedPath = resolveConfigPath();
+    const config = loader.load(resolvedPath);
 
     // Pass through monitored user from context
     if (context.monitoredUser) {
@@ -45,20 +49,20 @@ function loadBoardRules(context = {}) {
  */
 function mergeRuleScopes(automation) {
     const merged = {};
-    
+
     // Initialize merged object with all rule types from both scopes
     const allRuleTypes = new Set();
-    
+
     // Collect rule types from user scope
     if (automation.user_scope?.rules) {
         Object.keys(automation.user_scope.rules).forEach(ruleType => allRuleTypes.add(ruleType));
     }
-    
+
     // Collect rule types from repository scope
     if (automation.repository_scope?.rules) {
         Object.keys(automation.repository_scope.rules).forEach(ruleType => allRuleTypes.add(ruleType));
     }
-    
+
     // Initialize all rule types with empty arrays
     allRuleTypes.forEach(ruleType => {
         merged[ruleType] = [];
@@ -66,7 +70,7 @@ function mergeRuleScopes(automation) {
 
     // Check if monitored users are properly configured
     const monitoredUsers = getMonitoredUsers(automation);
-    
+
     if (monitoredUsers && monitoredUsers.length > 0) {
         // Merge user scope rules only if monitored users are configured
         if (automation.user_scope?.rules) {
@@ -97,18 +101,18 @@ function getMonitoredUsers(automation) {
     }
 
     const monitoredUsers = automation.user_scope.monitored_users;
-    
+
     // If it's an array of strings, use it directly
     if (Array.isArray(monitoredUsers) && monitoredUsers.every(user => typeof user === 'string')) {
         return monitoredUsers;
     }
-    
+
     // Legacy support for single user object format (with warning)
     if (typeof monitoredUsers === 'object' && monitoredUsers.type === 'static') {
         console.warn('⚠️  Legacy monitored_user object format detected. Consider using monitored_users array format.');
         return [monitoredUsers.name];
     }
-    
+
     return null;
 }
 
@@ -128,3 +132,39 @@ function mergeRuleGroup(merged, ruleGroup) {
 module.exports = {
     loadBoardRules
 };
+
+/**
+ * Resolve the configuration file path, preferring a flattened, repo-level config.
+ * Order of precedence:
+ * 1) CONFIG_FILE env var (absolute or relative to CWD)
+ * 2) CWD/config/rules.yml
+ * 3) Walk up parent directories from CWD to find config/rules.yml
+ * 4) Legacy package-local config
+ * @returns {string}
+ */
+function resolveConfigPath() {
+    // 1) Explicit env override
+    const fromEnv = process.env.CONFIG_FILE;
+    if (fromEnv) {
+        const absoluteEnvPath = path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
+        if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
+    }
+
+    // 2) CWD/config/rules.yml
+    const cwdConfig = path.join(process.cwd(), 'config/rules.yml');
+    if (fs.existsSync(cwdConfig)) return cwdConfig;
+
+    // 3) Walk up to find repo-level config/rules.yml
+    const DIRECTORY_TRAVERSAL_LIMIT = 8;
+    let current = process.cwd();
+    for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
+        const candidate = path.join(current, 'config/rules.yml');
+        if (fs.existsSync(candidate)) return candidate;
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+
+    // 4) Legacy package-local config (last resort during migration)
+    return path.join(__dirname, '../../config/rules.yml');
+}

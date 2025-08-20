@@ -163,9 +163,9 @@ class EnvironmentValidator {
       rules = loadBoardRules();
     } catch (err) {
       throw new Error(
-        'Failed to load board rules from config/rules.yml: ' + err.message + '\n' +
-        'PROJECT_ID not provided and no project.id found in config/rules.yml. ' +
-        'Set PROJECT_ID or add project.id to config.'
+        'Failed to load board rules: ' + err.message + '\n' +
+        'PROJECT_ID not provided and no project.id found in configuration. ' +
+        'Set PROJECT_ID or add project.id/project.url to config.'
       );
     }
     
@@ -182,10 +182,10 @@ class EnvironmentValidator {
       // Check config for project ID or URL
       if (rules?.project?.url) {
         projectId = await this.resolveProjectFromUrl(rules.project.url);
-        projectSource = 'config/rules.yml project.url';
+        projectSource = 'configuration project.url';
       } else if (rules?.project?.id) {
         projectId = rules.project.id;
-        projectSource = 'config/rules.yml project.id';
+        projectSource = 'configuration project.id';
       }
     }
 
@@ -194,8 +194,8 @@ class EnvironmentValidator {
         'No project specified. Please provide one of:\n' +
         '  - PROJECT_URL environment variable (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
         '  - PROJECT_ID environment variable (e.g., PVT_kwDOAA37OM4AFuzg)\n' +
-        '  - project.url in config/rules.yml (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
-        '  - project.id in config/rules.yml (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
+        '  - project.url in config (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
+        '  - project.id in config (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
         'For GitHub project URLs, the system will automatically resolve the project ID.'
       );
     }
@@ -227,9 +227,13 @@ class EnvironmentValidator {
       log.info(`PROJECT_URL: ${process.env.PROJECT_URL || 'NOT SET'}`);
       
       // Test file access
-      const configPath = path.join(process.cwd(), 'config/rules.yml');
-      log.info(`Config file exists: ${fs.existsSync(configPath)}`);
-      log.info(`Config path: ${configPath}`);
+      const { loadBoardRules } = require('../config/board-rules');
+      try {
+        const rules = loadBoardRules();
+        log.info(`Loaded configuration with project: ${rules?.project?.url || rules?.project?.id || 'unknown'}`);
+      } catch (e) {
+        log.info(`Failed to load configuration in DEBUG check: ${e.message}`);
+      }
     }
     
     log.info('Validating environment variables...');

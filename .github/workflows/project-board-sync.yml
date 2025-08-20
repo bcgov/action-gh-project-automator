@@ -15,6 +15,7 @@ env:
   GITHUB_AUTHOR_DEFAULT: DerekRoberts
   PROJECT_URL: https://github.com/orgs/bcgov/projects/16
   VERBOSE: true
+  CONFIG_FILE: config/rules.yml
 
 jobs:
   sync:
@@ -41,7 +42,6 @@ jobs:
           fi
 
       - name: Install dependencies
-        working-directory: packages/project-board-sync/project-board-sync
         run: npm ci
 
       - name: Show Project Configuration
@@ -60,5 +60,5 @@ jobs:
           PROJECT_URL: ${{ env.PROJECT_URL }}
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
-        working-directory: packages/project-board-sync/project-board-sync
+          CONFIG_FILE: ${{ env.CONFIG_FILE }}
         run: npm run start
