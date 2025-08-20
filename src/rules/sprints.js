@@ -145,7 +145,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
     log.info(`  • Active sprint: ${activeSprintTitle} (${activeSprintId})`);
 
     // No-op guard: if item already in active sprint, skip update
-    if (currentSprintId === activeSprintId) {
+    if (String(currentSprintId) === String(activeSprintId)) {
       log.info('  • Skip: Already in active sprint');
       return {
         changed: false,
