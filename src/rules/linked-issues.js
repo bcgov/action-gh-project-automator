@@ -59,7 +59,7 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
         pendingColumnUpdates.push({ projectItemId: linkedIssueId, optionId: currentColumn });
       }
 
-      // Sync assignees
+      // Sync assignees with no-op guard (avoid REST update if unchanged)
       const prAssignees = assigneeNodes.map(a => a.login);
       if (prAssignees.length > 0) {
         await setItemAssignees(projectId, linkedIssueId, prAssignees);
