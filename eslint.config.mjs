@@ -27,7 +27,7 @@ export default [
       '**/dist',
       '**/linter',
       '**/node_modules',
-      'packages/project-board-sync/**'
+      'project-board-sync/**'
     ]
   },
   ...compat.extends(
