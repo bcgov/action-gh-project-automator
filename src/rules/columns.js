@@ -270,7 +270,8 @@ async function processColumns({ projectId, items }) {
   // Apply batched column updates if any
   if (batchQueue.length > 0) {
     const ok = await setItemColumnsBatch(projectId, batchQueue);
-    log.info(`Applied ${ok.length}/${batchQueue.length} column updates in batch`);
+    const applied = Array.isArray(ok) ? ok.length : 0;
+    log.info(`Applied ${applied}/${batchQueue.length} column updates in batch`);
   }
 
   // Log results
