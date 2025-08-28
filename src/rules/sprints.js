@@ -4,6 +4,19 @@ const { log } = require('../utils/log');
 const sprintFieldIdCache = new Map(); // projectId -> fieldId
 const sprintIterationsCache = new Map(); // projectId -> iterations array
 
+/**
+ * Compute sprint window [start, end) given startDate ISO and duration (days)
+ * @param {string} startDateIso
+ * @param {number} durationDays
+ * @returns {{ start: Date, end: Date }}
+ */
+function computeSprintWindow(startDateIso, durationDays) {
+  const start = new Date(startDateIso);
+  const end = new Date(start);
+  end.setDate(end.getDate() + durationDays);
+  return { start, end };
+}
+
 async function getSprintFieldId(projectId) {
   if (sprintFieldIdCache.has(projectId)) return sprintFieldIdCache.get(projectId);
   const res = await graphql(`
@@ -99,9 +112,7 @@ async function getCurrentSprint(projectId) {
   log.info(`  • Found ${iterations.length} sprints`);
 
   const currentSprint = iterations.find(sprint => {
-    const start = new Date(sprint.startDate);
-    const end = new Date(start);
-    end.setDate(end.getDate() + sprint.duration);
+    const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
     const now = new Date();
     const isCurrentSprint = now >= start && now < end;
     log.debug(`  • Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isCurrentSprint ? 'CURRENT' : 'not current'}`);
@@ -130,12 +141,27 @@ async function findSprintForDate(projectId, isoDate) {
   const when = new Date(isoDate);
   const iterations = await getSprintIterations(projectId);
   for (const sprint of iterations) {
-    const start = new Date(sprint.startDate);
-    const end = new Date(start);
-    end.setDate(end.getDate() + sprint.duration);
+    const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
     if (when >= start && when < end) return { id: sprint.id, title: sprint.title };
   }
   return null;
+}
+
+/**
+ * Extract completion date from content node
+ * @param {any} content
+ * @returns {string|null}
+ */
+function getCompletionDateFromContent(content) {
+  if (!content) return null;
+  switch (content.__typename) {
+    case 'PullRequest':
+      return content.mergedAt || content.closedAt || null;
+    case 'Issue':
+      return content.closedAt || null;
+    default:
+      return content.closedAt || null;
+  }
 }
 
 /**
@@ -158,9 +184,7 @@ async function getItemCompletionDate(projectItemId) {
     }
   `, { itemId: projectItemId });
   const content = result?.node?.content;
-  if (!content) return null;
-  if (content.__typename === 'PullRequest') return content.mergedAt || content.closedAt || null;
-  return content.closedAt || null;
+  return getCompletionDateFromContent(content);
 }
 
 /**
