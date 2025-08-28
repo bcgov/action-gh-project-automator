@@ -4,7 +4,7 @@ const { processBoardItemRules } = require('./processors/unified-rule-processor')
 
 /**
  * Implementation of Rule Set 1: Which Items are Added to the Project Board?
- * 
+ *
  * Rules from rules.yml:
  * | Item Type | Trigger Condition             | Action               | Skip Condition     |
  * |-----------|-------------------------------|----------------------|--------------------|
