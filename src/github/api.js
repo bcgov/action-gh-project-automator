@@ -31,6 +31,9 @@ const graphqlWithAuthRaw = graphql.defaults({
 const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw, { ttlMs: 60_000, maxEntries: 300 });
 const graphqlWithAuth = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
 
+// Global DRY_RUN flag to disable write mutations
+const isDryRun = process.env.DRY_RUN === 'true';
+
 // Cache field IDs per project to reduce API calls
 const fieldIdCache = new Map();
 
@@ -245,6 +248,11 @@ async function isItemInProject(nodeId, projectId) {
  * @returns {Promise<string>} - The project item ID
  */
 async function addItemToProject(nodeId, projectId) {
+  if (isDryRun) {
+    log.info(`[DRY_RUN] would add item ${nodeId} to project ${projectId}`);
+    // Return a stable pseudo project item id so downstream logic can proceed without writes
+    return `dryrun:${nodeId}`;
+  }
   const result = await withBackoff(() => graphqlWithAuth(`
     mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: {
@@ -464,6 +472,10 @@ async function setItemColumn(projectId, projectItemId, optionId) {
   };
 
   try {
+    if (isDryRun) {
+      log.info(`[DRY_RUN] would set column for itemId=${projectItemId} to optionId=${optionId}`);
+      return { dryRun: true };
+    }
     const result = await withBackoff(() => graphqlWithAuth(mutation, { input }));
     if (!result.updateProjectV2ItemFieldValue || !result.updateProjectV2ItemFieldValue.projectV2Item) {
       log.error(`[API] setItemColumn: No projectV2Item returned for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`);
@@ -493,6 +505,11 @@ async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
   if (!Array.isArray(updates) || updates.length === 0) return [];
   const statusFieldId = await getFieldId(projectId, 'Status');
   const successes = [];
+
+  if (isDryRun) {
+    log.info(`[DRY_RUN] would set ${updates.length} column updates in batches (project ${projectId})`);
+    return successes; // no writes performed
+  }
 
   for (let i = 0; i < updates.length; i += batchSize) {
     const slice = updates.slice(i, i + batchSize);
