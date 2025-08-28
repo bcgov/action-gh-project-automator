@@ -45,15 +45,13 @@ The tool supports multiple ways to specify the GitHub project:
 
 The URL resolution feature automatically extracts the organization and project number from GitHub project URLs and resolves them to the correct project ID via the GitHub API.
 
-See `TECHNICAL.md` for implementation details and `CONTRIBUTING.md` for development guidelines.
+See `.github/copilot-instructions.md` for repo-specific AI guidance and development notes.
 
 ## Files
 
 - `project-board-sync.js`: The main script that runs the automation
 - `../../../../config/rules.yml`: Source of truth for all automation rules
-- `TECHNICAL.md`: Implementation details and architecture
-- `CONTRIBUTING.md`: Development guidelines and processes
-- `FUTURE-IDEAS.md`: Ideas and plans for future enhancements
+- GitHub Issues: Roadmap and future ideas are tracked in repository Issues
 - `fetch-user-assignments.js`: Utility to find issues and PRs assigned to users
 
 ## Tests
