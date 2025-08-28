@@ -298,9 +298,19 @@ async function main() {
       }
     }
 
-    // NEW: Process sprint assignments for existing items on the board
-    log.info('Processing sprint assignments for existing project items...');
-    await processExistingItemsSprintAssignments(context.projectId);
+    // NEW: Optional sweep of existing items, gated by env and rate limit
+    if (process.env.EXISTING_ITEMS_SWEEP === 'true') {
+      const { shouldProceed } = require('./utils/rate-limit');
+      const canRunSweep = await shouldProceed(200);
+      if (canRunSweep) {
+        log.info('Processing sprint assignments for existing project items...');
+        await processExistingItemsSprintAssignments(context.projectId);
+      } else {
+        log.info('Skipping existing-items sweep due to low rate limit');
+      }
+    } else {
+      log.info('Existing-items sweep disabled (EXISTING_ITEMS_SWEEP!=true)');
+    }
 
     // Print final status and handle errors
     const endTime = new Date();

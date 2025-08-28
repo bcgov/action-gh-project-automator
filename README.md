@@ -72,6 +72,9 @@ export GITHUB_AUTHOR=your_github_username
 # Optional safety: dry-run mode (no writes)
 export DRY_RUN=true
 
+# Optional: enable sweep of existing project items (rate-limit guarded)
+export EXISTING_ITEMS_SWEEP=true
+
 # Optionally set project (choose one method):
 # Method 1: Use project URL (recommended)
 export PROJECT_URL=https://github.com/orgs/bcgov/projects/16
