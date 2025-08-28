@@ -72,31 +72,43 @@ const ELIGIBLE_COLUMNS = ['Next', 'Active', 'Done', 'Waiting'];
 async function getItemSprint(projectId, itemId) {
   // Resolve Sprint field ID to disambiguate values
   const sprintFieldId = await getSprintFieldId(projectId);
-  const result = await graphql(`
-    query($itemId: ID!) {
-      item: node(id: $itemId) {
-        ... on ProjectV2Item {
-          fieldValues(first: 20) {
-            nodes {
-              ... on ProjectV2ItemFieldIterationValue {
-                iterationId
-                title
-                field { ... on ProjectV2IterationField { id } }
+
+  let cursor = null;
+  while (true) {
+    const result = await graphql(`
+      query($itemId: ID!, $cursor: String) {
+        item: node(id: $itemId) {
+          ... on ProjectV2Item {
+            fieldValues(first: 50, after: $cursor) {
+              nodes {
+                ... on ProjectV2ItemFieldIterationValue {
+                  iterationId
+                  title
+                  field { ... on ProjectV2IterationField { id } }
+                }
               }
+              pageInfo { hasNextPage endCursor }
             }
           }
         }
       }
+    `, { itemId, cursor });
+
+    const fieldValues = result.item?.fieldValues?.nodes || [];
+    const sprintValue = fieldValues.find(v => v?.field?.id === sprintFieldId);
+    if (sprintValue) {
+      return {
+        sprintId: sprintValue.iterationId || null,
+        sprintTitle: sprintValue.title || null
+      };
     }
-  `, { itemId });
 
-  const fieldValues = result.item?.fieldValues?.nodes || [];
-  const sprintValue = fieldValues.find(v => v?.field?.id === sprintFieldId);
+    const pageInfo = result.item?.fieldValues?.pageInfo;
+    if (!pageInfo?.hasNextPage) break;
+    cursor = pageInfo.endCursor;
+  }
 
-  return {
-    sprintId: sprintValue?.iterationId || null,
-    sprintTitle: sprintValue?.title || null
-  };
+  return { sprintId: null, sprintTitle: null };
 }
 
 /**
