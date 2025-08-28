@@ -82,3 +82,11 @@ Default organization:
 - Update window: 24 hours (based on item update time)
 - API quota management: Automatically adapts to limits
 - Caching: Optimizes frequent data access
+
+## Review Comment Triage
+
+For the Accept / Defer / Dismiss policy and templates, see the shared organization guide:
+
+- copilot-upstream: `.github/copilot-upstream.md` (single source of truth)
+
+This repository follows that policy verbatim. If the upstream policy changes, this repo inherits it automatically.

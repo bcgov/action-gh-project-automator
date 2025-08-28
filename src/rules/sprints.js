@@ -4,6 +4,19 @@ const { log } = require('../utils/log');
 const sprintFieldIdCache = new Map(); // projectId -> fieldId
 const sprintIterationsCache = new Map(); // projectId -> iterations array
 
+/**
+ * Compute sprint window [start, end) given startDate ISO and duration (days)
+ * @param {string} startDateIso
+ * @param {number} durationDays
+ * @returns {{ start: Date, end: Date }}
+ */
+function computeSprintWindow(startDateIso, durationDays) {
+  const start = new Date(startDateIso);
+  const end = new Date(start);
+  end.setDate(end.getDate() + durationDays);
+  return { start, end };
+}
+
 async function getSprintFieldId(projectId) {
   if (sprintFieldIdCache.has(projectId)) return sprintFieldIdCache.get(projectId);
   const res = await graphql(`
@@ -14,6 +27,36 @@ async function getSprintFieldId(projectId) {
   const id = res?.node?.field?.id;
   if (id) sprintFieldIdCache.set(projectId, id);
   return id;
+}
+
+/**
+ * Get all sprint iterations for a project, with caching
+ * @param {string} projectId
+ * @returns {Promise<Array<{id: string, title: string, duration: number, startDate: string}>>}
+ */
+async function getSprintIterations(projectId) {
+  if (sprintIterationsCache.has(projectId)) {
+    return sprintIterationsCache.get(projectId);
+  }
+  const result = await graphql(`
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          field(name: "Sprint") {
+            ... on ProjectV2IterationField {
+              id
+              configuration {
+                iterations { id title duration startDate }
+              }
+            }
+          }
+        }
+      }
+    }
+  `, { projectId });
+  const iterations = result?.node?.field?.configuration?.iterations || [];
+  sprintIterationsCache.set(projectId, iterations);
+  return iterations;
 }
 
 
@@ -27,48 +70,45 @@ const ELIGIBLE_COLUMNS = ['Next', 'Active', 'Done', 'Waiting'];
  * @returns {Promise<{sprintId: string|null, sprintTitle: string|null}>}
  */
 async function getItemSprint(projectId, itemId) {
-  const result = await graphql(`
-    query($projectId: ID!, $itemId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          field(name: "Sprint") {
-            ... on ProjectV2IterationField {
-              id
-              configuration {
-                iterations {
-                  id
+  // Resolve Sprint field ID to disambiguate values
+  const sprintFieldId = await getSprintFieldId(projectId);
+
+  let cursor = null;
+  while (true) {
+    const result = await graphql(`
+      query($itemId: ID!, $cursor: String) {
+        item: node(id: $itemId) {
+          ... on ProjectV2Item {
+            fieldValues(first: 50, after: $cursor) {
+              nodes {
+                ... on ProjectV2ItemFieldIterationValue {
+                  iterationId
                   title
+                  field { ... on ProjectV2IterationField { id } }
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
           }
         }
       }
-      item: node(id: $itemId) {
-        ... on ProjectV2Item {
-          fieldValues(first: 1) {
-            nodes {
-              ... on ProjectV2ItemFieldIterationValue {
-                iterationId
-                title
-              }
-            }
-          }
-        }
-      }
+    `, { itemId, cursor });
+
+    const fieldValues = result.item?.fieldValues?.nodes || [];
+    const sprintValue = fieldValues.find(v => v?.field?.id === sprintFieldId);
+    if (sprintValue) {
+      return {
+        sprintId: sprintValue.iterationId || null,
+        sprintTitle: sprintValue.title || null
+      };
     }
-  `, {
-    projectId,
-    itemId
-  });
 
-  const fieldValues = result.item?.fieldValues.nodes || [];
-  const sprintValue = fieldValues[0];
+    const pageInfo = result.item?.fieldValues?.pageInfo;
+    if (!pageInfo?.hasNextPage) break;
+    cursor = pageInfo.endCursor;
+  }
 
-  return {
-    sprintId: sprintValue?.iterationId || null,
-    sprintTitle: sprintValue?.title || null
-  };
+  return { sprintId: null, sprintTitle: null };
 }
 
 /**
@@ -80,40 +120,11 @@ async function getCurrentSprint(projectId) {
   const today = new Date().toISOString();
   log.info('Getting current sprint:');
   log.info(`  • Current date: ${today}`);
-
-  const result = await graphql(`
-    query($projectId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          field(name: "Sprint") {
-            ... on ProjectV2IterationField {
-              id
-              configuration {
-                iterations {
-                  id
-                  title
-                  duration
-                  startDate
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `, { projectId });
-
-  let iterations = sprintIterationsCache.get(projectId);
-  if (!iterations) {
-    iterations = result?.node?.field?.configuration?.iterations || [];
-    sprintIterationsCache.set(projectId, iterations);
-  }
+  const iterations = await getSprintIterations(projectId);
   log.info(`  • Found ${iterations.length} sprints`);
 
   const currentSprint = iterations.find(sprint => {
-    const start = new Date(sprint.startDate);
-    const end = new Date(start);
-    end.setDate(end.getDate() + sprint.duration);
+    const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
     const now = new Date();
     const isCurrentSprint = now >= start && now < end;
     log.debug(`  • Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isCurrentSprint ? 'CURRENT' : 'not current'}`);
@@ -130,6 +141,62 @@ async function getCurrentSprint(projectId) {
     sprintId: currentSprint.id,
     title: currentSprint.title
   };
+}
+
+/**
+ * Find the sprint that contains a specific ISO date
+ * @param {string} projectId
+ * @param {string} isoDate
+ * @returns {Promise<{id: string, title: string}|null>}
+ */
+async function findSprintForDate(projectId, isoDate) {
+  const when = new Date(isoDate);
+  const iterations = await getSprintIterations(projectId);
+  for (const sprint of iterations) {
+    const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
+    if (when >= start && when < end) return { id: sprint.id, title: sprint.title };
+  }
+  return null;
+}
+
+/**
+ * Extract completion date from content node
+ * @param {any} content
+ * @returns {string|null}
+ */
+function getCompletionDateFromContent(content) {
+  if (!content) return null;
+  switch (content.__typename) {
+    case 'PullRequest':
+      return content.mergedAt || content.closedAt || null;
+    case 'Issue':
+      return content.closedAt || null;
+    default:
+      return content.closedAt || null;
+  }
+}
+
+/**
+ * Get the completion timestamp for an item (mergedAt for PRs if present, else closedAt)
+ * @param {string} projectItemId
+ * @returns {Promise<string|null>} ISO timestamp or null
+ */
+async function getItemCompletionDate(projectItemId) {
+  const result = await graphql(`
+    query($itemId: ID!) {
+      node(id: $itemId) {
+        ... on ProjectV2Item {
+          content {
+            __typename
+            ... on Issue { closedAt }
+            ... on PullRequest { closedAt mergedAt }
+          }
+        }
+      }
+    }
+  `, { itemId: projectItemId });
+  const content = result?.node?.content;
+  return getCompletionDateFromContent(content);
 }
 
 /**
@@ -199,53 +266,58 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
     await getItemSprint(projectId, projectItemId);
   log.info(`  • Current sprint: ${currentSprintTitle || 'None'} (${currentSprintId || 'None'})`);
 
-  // Get active sprint
+  // Get active sprint or historical sprint depending on column
   try {
-    const { sprintId: activeSprintId, title: activeSprintTitle } =
-      await getCurrentSprint(projectId);
-    log.info(`  • Active sprint: ${activeSprintTitle} (${activeSprintId})`);
-
-    // No-op guard: if item already in active sprint, skip update
-    if (String(currentSprintId) === String(activeSprintId)) {
-      log.info('  • Skip: Already in active sprint');
-      return {
-        changed: false,
-        reason: 'Already in active sprint'
-      };
-    }
-
-    // Check skip conditions - different rules for Done vs Active/Next
+    // For Done column, anchor to completion date; refuse defaults
     if (currentColumn === 'Done') {
-      // For Done: skip if ANY sprint is set
-      if (currentSprintId) {
-        log.info(`  • Skip: Item in Done has a sprint set (${currentSprintTitle})`);
-        return {
-          changed: false,
-          reason: `Item in Done has sprint set (${currentSprintTitle})`
-        };
+      const completedAt = await getItemCompletionDate(projectItemId);
+      if (!completedAt) {
+        const errMsg = 'Done item has no closed/merged date; refusing to default to current sprint';
+        log.error(`  • Error: ${errMsg}`);
+        throw new Error(errMsg);
       }
-    }
-    // For Active/Next: No skip conditions - always set to current sprint
+      const target = await findSprintForDate(projectId, completedAt);
+      if (!target) {
+        const errMsg = `No sprint covers completion date ${completedAt}`;
+        log.error(`  • Error: ${errMsg}`);
+        throw new Error(errMsg);
+      }
 
-    // Get the Sprint field ID
-    const sprintFieldResult = await graphql(`
-      query($projectId: ID!) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            field(name: "Sprint") {
-              ... on ProjectV2IterationField {
-                id
-              }
-            }
+      log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
+
+      if (String(currentSprintId) === String(target.id)) {
+        log.info('  • Skip: Done item already in correct historical sprint');
+        return { changed: false, reason: 'Historical sprint already set' };
+      }
+
+      // Set sprint to historical target
+      const sprintFieldId = await getSprintFieldId(projectId);
+      await graphql(`
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+          updateProjectV2ItemFieldValue(input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { iterationId: $iterationId }
+          }) {
+            projectV2Item { id }
           }
         }
-      }
-    }`, { projectId });
+      `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: target.id });
 
-    const sprintFieldId = sprintFieldResult.node.field.id;
-    log.info(`  • Action: Assigning to sprint ${activeSprintTitle}`);
+      return { changed: true, newSprint: target.id, reason: `Assigned to historical sprint (${target.title})` };
+    }
 
-    // Set the sprint
+    // For Active/Next/Waiting: use current sprint, with no-op guard
+    const { sprintId: activeSprintId, title: activeSprintTitle } = await getCurrentSprint(projectId);
+    log.info(`  • Active sprint: ${activeSprintTitle} (${activeSprintId})`);
+
+    if (String(currentSprintId) === String(activeSprintId)) {
+      log.info('  • Skip: Already in active sprint');
+      return { changed: false, reason: 'Already in active sprint' };
+    }
+
+    const sprintFieldId = await getSprintFieldId(projectId);
     await graphql(`
       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
         updateProjectV2ItemFieldValue(input: {
@@ -253,24 +325,11 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
           itemId: $itemId
           fieldId: $fieldId
           value: { iterationId: $iterationId }
-        }) {
-          projectV2Item {
-            id
-          }
-        }
+        }) { projectV2Item { id } }
       }
-    `, {
-      projectId,
-      itemId: projectItemId,
-      fieldId: sprintFieldId,
-      iterationId: activeSprintId
-    });
+    `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: activeSprintId });
 
-    return {
-      changed: true,
-      newSprint: activeSprintId,
-      reason: `Assigned to current sprint (${activeSprintTitle})`
-    };
+    return { changed: true, newSprint: activeSprintId, reason: `Assigned to current sprint (${activeSprintTitle})` };
 
   } catch (error) {
     const message = error?.message || '';
