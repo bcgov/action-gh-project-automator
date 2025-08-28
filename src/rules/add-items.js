@@ -14,6 +14,7 @@ const { processBoardItemRules } = require('./processors/unified-rule-processor')
  * | Issue     | Found in monitored repository | Add to project board | Already in project |
  */
 const VERIFY_DELAY_MS = 2000; // 2 second delay for eventual consistency
+const DRY_RUN = process.env.DRY_RUN === 'true';
 
 async function processAddItems({ org, repos, monitoredUser, projectId, windowHours }) {
   log.info(`Starting item processing for user ${monitoredUser}`);
@@ -93,11 +94,18 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
         // If we need to add to board and item isn't in project yet
         if (action.action === 'add_to_board' && !isInProject) {
           log.info('  ✨ Action Required: Add to project board', true);
-          projectItemId = await addItemToProject(item.id, projectId);
+          if (DRY_RUN) {
+            log.info(`  [DRY_RUN] Would add to project board`);
+            projectItemId = `dryrun:${item.id}`;
+          } else {
+            projectItemId = await addItemToProject(item.id, projectId);
+          }
 
           // Add delay after adding to project to handle eventual consistency
-          log.info('  ⏳ Waiting for GitHub to process the addition...', true);
-          await new Promise(resolve => setTimeout(resolve, VERIFY_DELAY_MS));
+          if (!DRY_RUN) {
+            log.info('  ⏳ Waiting for GitHub to process the addition...', true);
+            await new Promise(resolve => setTimeout(resolve, VERIFY_DELAY_MS));
+          }
         }
 
         log.info(`    • Action: ${action.action}`, true);

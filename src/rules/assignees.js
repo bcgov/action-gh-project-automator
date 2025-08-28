@@ -120,6 +120,7 @@ async function getItemAssignees(projectId, itemId) {
  * @returns {Promise<void>}
  */
 async function setItemAssignees(projectId, itemId, assigneeLogins) {
+  const DRY_RUN = process.env.DRY_RUN === 'true';
   try {
     // Get item details to get repository and number
     const itemDetails = await getItemDetails(itemId);
@@ -157,13 +158,17 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
         log.warning(`Some assignees to remove not found: ${missingRemove.join(', ')}`);
       }
       if (removeIds.length > 0) {
-        const removeMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-          removeAssigneesFromAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
-            assignable { __typename }
-          }
-        }`;
-        await graphql(removeMutation, { assignableId, assigneeIds: removeIds });
-        log.info(`Successfully removed assignees: ${toRemove.join(', ')}`);
+        if (DRY_RUN) {
+          log.info(`[DRY_RUN] would remove assignees: ${toRemove.join(', ')}`);
+        } else {
+          const removeMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+            removeAssigneesFromAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+              assignable { __typename }
+            }
+          }`;
+          await graphql(removeMutation, { assignableId, assigneeIds: removeIds });
+          log.info(`Successfully removed assignees: ${toRemove.join(', ')}`);
+        }
       }
     }
 
@@ -174,13 +179,17 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
         log.warning(`Some assignee logins to add not found: ${missingAdd.join(', ')}`);
       }
       if (addIds.length > 0) {
-        const addMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-          addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
-            assignable { __typename }
-          }
-        }`;
-        await graphql(addMutation, { assignableId, assigneeIds: addIds });
-        log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
+        if (DRY_RUN) {
+          log.info(`[DRY_RUN] would add assignees: ${toAdd.join(', ')}`);
+        } else {
+          const addMutation = `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+            addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+              assignable { __typename }
+            }
+          }`;
+          await graphql(addMutation, { assignableId, assigneeIds: addIds });
+          log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
+        }
       }
     }
   } catch (error) {
