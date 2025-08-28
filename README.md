@@ -51,7 +51,7 @@ See `.github/copilot-instructions.md` for repo-specific AI guidance and developm
 
 - `project-board-sync.js`: The main script that runs the automation
 - `../../../../config/rules.yml`: Source of truth for all automation rules
-- `FUTURE-IDEAS.md`: Ideas and plans for future enhancements
+- GitHub Issues: Roadmap and future ideas are tracked in repository Issues
 - `fetch-user-assignments.js`: Utility to find issues and PRs assigned to users
 
 ## Tests
