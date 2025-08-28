@@ -82,3 +82,20 @@ Default organization:
 - Update window: 24 hours (based on item update time)
 - API quota management: Automatically adapts to limits
 - Caching: Optimizes frequent data access
+
+## Review Comment Triage
+
+We address every review comment explicitly using one of three outcomes and respond inline on the PR:
+
+- Accept: Implement in this PR. Criteria: correctness, reduced duplication, clearer intent, safer behavior, reduced API usage, or aligns with conventions. Include a short rationale and the follow-up commit hash.
+- Defer: Schedule for a later PR. Criteria: non-trivial design, significant scope increase, unrelated to current PR, or requires tests/infra not included. Respond with why it’s out-of-scope and when/where it will be handled (e.g., tracking issue/PR).
+- Dismiss: Do not implement. Criteria: purely stylistic churn, reduces clarity, conflicts with conventions, or adds risk without clear benefit. Provide a brief, respectful rationale and invite re-open if context changes.
+
+Reply templates (suggested):
+- Accept: “Accept — Improves X without behavior change; implemented in <commit>.”
+- Defer: “Defer — Out of scope for this PR, tracked in <issue/PR>; will address after <dependency>.”
+- Dismiss: “Dismiss — Conflicts with <convention/constraint> or adds churn without benefit; happy to revisit with more context.”
+
+Scope guardrails:
+- Prefer focused PRs; avoid mixing refactors with behavioral changes unless necessary.
+- If addressing a comment substantially broadens scope, choose Defer and document the follow-up.
