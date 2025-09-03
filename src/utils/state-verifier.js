@@ -179,6 +179,14 @@ class StateVerifier {
   }
 
   static async verifyAddition(item, projectId) {
+    // In dry-run mode, we never actually add items; skip verification to avoid false failures
+    if (process.env.DRY_RUN === 'true') {
+      verifierLog.info(`[DRY_RUN] Skipping project addition verification for ${item.type} #${item.number}`);
+      return this.updateState(item, {
+        inProject: true,
+        projectItemId: item.projectItemId || `dryrun:${item.id}`
+      });
+    }
     this.tracker.startTracking(item);
     const beforeState = this.getState(item);
 
