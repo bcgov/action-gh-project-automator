@@ -299,8 +299,12 @@ async function main() {
     }
 
     // NEW: Process sprint assignments for existing items on the board
-    log.info('Processing sprint assignments for existing project items...');
-    await processExistingItemsSprintAssignments(context.projectId);
+    if (process.env.DRY_RUN === 'true') {
+      log.info('Skipping existing-items sweep in DRY_RUN mode');
+    } else {
+      log.info('Processing sprint assignments for existing project items...');
+      await processExistingItemsSprintAssignments(context.projectId);
+    }
 
     // Print final status and handle errors
     const endTime = new Date();
