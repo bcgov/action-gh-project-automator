@@ -11,17 +11,19 @@ permissions:
   issues: write
   pull-requests: write
 
+concurrency:
+  group: ${{ github.event.number }}
+  cancel-in-progress: true
+
 env:
   GITHUB_AUTHOR_DEFAULT: DerekRoberts
   PROJECT_URL: https://github.com/orgs/bcgov/projects/16
   VERBOSE: true
-  CONFIG_FILE: config/rules.yml
+  CONFIG_FILE: rules.yml
+  OVERRIDE_REPOS: nr-nerds
 
 jobs:
   sync:
-    concurrency:
-      group: project-board-sync
-      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
