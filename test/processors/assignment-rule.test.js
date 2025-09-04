@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-test('PR/Issue from monitored repository rule', async (t) => {
+test('PR assigned to monitored user rule', async (t) => {
     // Shared variables for all sub-tests
     let processBoardItemRules;
     const logMessages = [];
@@ -9,16 +9,16 @@ test('PR/Issue from monitored repository rule', async (t) => {
     // Setup test environment and mocks before each test
     t.beforeEach(() => {
         // Mock dependencies using require.cache
-        const sharedValidatorPath = require.resolve('../shared-validator');
-        const boardRulesPath = require.resolve('../../../config/board-rules');
-        const logPath = require.resolve('../../../utils/log');
+        const sharedValidatorPath = require.resolve('../../src/rules/processors/shared-validator');
+        const boardRulesPath = require.resolve('../../src/config/board-rules');
+        const logPath = require.resolve('../../src/utils/log');
         
         require.cache[sharedValidatorPath] = {
             exports: {
                 validator: {
                     validateItemCondition: (item, trigger) => {
-                        if (trigger.condition === 'item.repository === monitored.repository') {
-                            return item.repository?.name === process.env.GITHUB_REPOSITORY;
+                        if (trigger.condition === 'item.assignees.some(assignee => monitored.users.includes(assignee))') {
+                            return item.assignees?.nodes?.some(a => a.login === 'testAssignee');
                         }
                         return false;
                     },
@@ -42,16 +42,17 @@ test('PR/Issue from monitored repository rule', async (t) => {
                 loadBoardRules: () => ({
                     rules: {
                         board_items: [{
-                            name: "Items from Repository",
-                            description: "Add items from monitored repository",
+                            name: "PullRequest by Assignee",
+                            description: "Add pull requests assigned to monitored user",
                             trigger: {
-                                type: "PullRequest|Issue",
-                                condition: "item.repository === monitored.repository"
+                                type: "PullRequest",
+                                condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
                             },
                             action: "add_to_board",
                             skip_if: "item.inProject"
                         }]
-                    }
+                    },
+                    monitoredUsers: ['testAssignee']
                 })
             }
         };
@@ -67,28 +68,30 @@ test('PR/Issue from monitored repository rule', async (t) => {
         };
 
         // Set test environment
-        process.env.GITHUB_REPOSITORY = 'test-repo';
+        process.env.GITHUB_ASSIGNEE = 'testAssignee';
         
         // Clear log messages
         logMessages.length = 0;
         
         // Import after mocks are set up
-        const boardItems = require('../unified-rule-processor');
+        const boardItems = require('../../src/rules/processors/unified-rule-processor');
         processBoardItemRules = boardItems.processBoardItemRules;
     });
 
     t.afterEach(() => {
         // Clear mocks
-        delete require.cache[require.resolve('../shared-validator')];
-        delete require.cache[require.resolve('../../../config/board-rules')];
-        delete require.cache[require.resolve('../../../utils/log')];
+        delete require.cache[require.resolve('../../src/rules/processors/shared-validator')];
+        delete require.cache[require.resolve('../../src/config/board-rules')];
+        delete require.cache[require.resolve('../../src/utils/log')];
     });
 
-    await t.test('adds PR to board when from monitored repository', async () => {
+    await t.test('adds PR to board when assigned to monitored user', async () => {
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            repository: { name: 'test-repo' },
+            assignees: { 
+                nodes: [{ login: 'testAssignee' }]
+            },
             projectItems: { nodes: [] }  // Not in project
         };
 
@@ -97,30 +100,16 @@ test('PR/Issue from monitored repository rule', async (t) => {
         assert.equal(actions.length, 1);
         assert.equal(actions[0].action, 'add_to_board');
         assert.deepEqual(actions[0].params, { item: pr });
-        assert.ok(logMessages.some(msg => msg.includes('Rule Items from Repository triggered for PullRequest #123')));
+        assert.ok(logMessages.some(msg => msg.includes('Rule PullRequest by Assignee triggered for PullRequest #123')));
     });
 
-    await t.test('adds Issue to board when from monitored repository', async () => {
-        const issue = {
-            __typename: 'Issue',
-            number: 456,
-            repository: { name: 'test-repo' },
-            projectItems: { nodes: [] }  // Not in project
-        };
-
-        const actions = await processBoardItemRules(issue);
-        
-        assert.equal(actions.length, 1);
-        assert.equal(actions[0].action, 'add_to_board');
-        assert.deepEqual(actions[0].params, { item: issue });
-        assert.ok(logMessages.some(msg => msg.includes('Rule Items from Repository triggered for Issue #456')));
-    });
-
-    await t.test('skips item when already in project', async () => {
+    await t.test('skips PR when already in project', async () => {
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            repository: { name: 'test-repo' },
+            assignees: { 
+                nodes: [{ login: 'testAssignee' }]
+            },
             projectItems: { nodes: [{ id: 'some-id' }] }  // Already in project
         };
 
@@ -130,11 +119,13 @@ test('PR/Issue from monitored repository rule', async (t) => {
         assert.ok(logMessages.some(msg => msg.includes('Skipping PullRequest #123 - Already in project')));
     });
 
-    await t.test('skips item when not from monitored repository', async () => {
+    await t.test('skips PR when not assigned to monitored user', async () => {
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            repository: { name: 'other-repo' },
+            assignees: { 
+                nodes: [{ login: 'otherUser' }]
+            },
             projectItems: { nodes: [] }
         };
 

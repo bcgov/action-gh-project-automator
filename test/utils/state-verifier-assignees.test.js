@@ -15,10 +15,10 @@ test('verifyAssignees with real data (dry run)', async (t) => {
 
     // Use a real PR from the project for testing
     // This is a dry run - we won't actually modify anything
-    const { StateVerifier } = require('../state-verifier');
+    const { StateVerifier } = require('../../src/utils/state-verifier');
     
     // Get a real item from the project for testing
-    const { getItemColumn, isItemInProject } = require('../../github/api');
+    const { getItemColumn, isItemInProject } = require('../../src/github/api');
     
     // Find a real project item to test with
     // This is just for testing the logic, not making changes
@@ -52,7 +52,7 @@ test('verifyAssignees with real data (dry run)', async (t) => {
 
   await t.test('should validate function signature and behavior', async () => {
     // Test the function signature and basic behavior without making API calls
-    const { StateVerifier } = require('../state-verifier');
+    const { StateVerifier } = require('../../src/utils/state-verifier');
     
     // Test that the function exists and has the right signature
     assert.ok(typeof StateVerifier.verifyAssignees === 'function', 'verifyAssignees should be a function');

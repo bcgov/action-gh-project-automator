@@ -4,8 +4,8 @@ const {
     processBoardItemRules,
     processColumnRules,
     processSprintRules
-} = require('../unified-rule-processor');
-const { setupTestEnvironment } = require('../../../../test/setup');
+} = require('../../src/rules/processors/unified-rule-processor');
+const { setupTestEnvironment } = require('../setup');
 
 test('real scenarios', async (t) => {
     // Setup test environment

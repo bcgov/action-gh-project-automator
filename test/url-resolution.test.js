@@ -40,6 +40,7 @@ test('URL resolution functionality', async (t) => {
       } catch (error) {
         assert(error.message.includes('Invalid project URL format'), 
           'Should throw appropriate error for invalid URL');
+        return; // Successfully caught the expected error
       }
       
     } catch (error) {

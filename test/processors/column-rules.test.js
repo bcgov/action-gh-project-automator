@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { processColumnRules } = require('../unified-rule-processor');
-const { setupTestEnvironment } = require('../../../../test/setup');
-const { loadBoardRules } = require('../../../config/board-rules');
+const { processColumnRules } = require('../../src/rules/processors/unified-rule-processor');
+const { setupTestEnvironment } = require('../setup');
+const { loadBoardRules } = require('../../src/config/board-rules');
 
 test('processColumnRules', async (t) => {
     // Setup test environment
