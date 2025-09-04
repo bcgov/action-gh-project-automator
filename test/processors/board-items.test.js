@@ -19,10 +19,10 @@ const mockRules = {
 };
 
 // Override the board rules module before requiring the module under test
-require('../../../config/board-rules').loadBoardRules = () => mockRules;
+require('../../src/config/board-rules').loadBoardRules = () => mockRules;
 
 // Now require the module under test
-const { processBoardItemRules } = require('../unified-rule-processor');
+const { processBoardItemRules } = require('../../src/rules/processors/unified-rule-processor');
 
 // Set up test env
 process.env.GITHUB_AUTHOR = 'test-user';

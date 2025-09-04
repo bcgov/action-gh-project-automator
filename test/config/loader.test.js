@@ -6,7 +6,7 @@ const ConfigLoader = require('../../src/config/loader');
 test('ConfigLoader', async (t) => {
   await t.test('loads valid config from rules.yml', async () => {
     const loader = new ConfigLoader();
-    const repoRoot = path.resolve(__dirname, '../../..');
+    const repoRoot = path.resolve(__dirname, '../..');
     const configPath = path.join(repoRoot, 'config/rules.yml');
     // Ensure downstream loaders use the same config resolution during this test
     process.env.CONFIG_FILE = configPath;
