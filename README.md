@@ -35,7 +35,7 @@ The tool supports multiple ways to specify the GitHub project:
    export PROJECT_ID=PVT_kwDOAA37OM4AFuzg
    ```
 
-3. **Configuration File**: Add to repo-level `config/rules.yml`
+3. **Configuration File**: Add to repo-level `rules.yml`
    ```yaml
    project:
      url: https://github.com/orgs/bcgov/projects/16
@@ -50,7 +50,7 @@ See `.github/copilot-instructions.md` for repo-specific AI guidance and developm
 ## Files
 
 - `project-board-sync.js`: The main script that runs the automation
-- `../../../../config/rules.yml`: Source of truth for all automation rules
+- `rules.yml`: Source of truth for all automation rules (in repository root)
 - GitHub Issues: Roadmap and future ideas are tracked in repository Issues
 - `fetch-user-assignments.js`: Utility to find issues and PRs assigned to users
 
@@ -76,7 +76,7 @@ export PROJECT_URL=https://github.com/orgs/bcgov/projects/16
 # Method 2: Use project ID directly
 export PROJECT_ID=PVT_kwDOAA37OM4AFuzg
 
-# Method 3: Configure in config/rules.yml
+# Method 3: Configure in rules.yml
 # project:
 #   url: https://github.com/orgs/bcgov/projects/16
 #   # or

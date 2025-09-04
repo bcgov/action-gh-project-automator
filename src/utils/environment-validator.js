@@ -18,14 +18,14 @@ class EnvironmentValidator {
       GITHUB_TOKEN: 'GitHub personal access token with repo and project permissions',
       GITHUB_AUTHOR: 'GitHub username to monitor (e.g., DerekRoberts)'
     };
-    
+
     const missing = [];
     for (const [key, description] of Object.entries(required)) {
       if (!process.env[key]) {
         missing.push(`${key} (${description})`);
       }
     }
-    
+
     if (missing.length > 0) {
       throw new Error(
         `Missing required environment variables:\n` +
@@ -46,9 +46,9 @@ class EnvironmentValidator {
   static async validateGitHubToken() {
     try {
       const { graphql } = require('../github/api');
-      
+
       log.info('Testing GitHub token with viewer query...');
-      
+
       const result = await graphql(`
         query {
           viewer {
@@ -61,18 +61,18 @@ class EnvironmentValidator {
           }
         }
       `);
-      
+
       if (!result.viewer?.login) {
         throw new Error('Token validation failed: Could not retrieve user information');
       }
-      
+
       log.info(`✓ GitHub token validated for user: ${result.viewer.login}`);
       return result.viewer.login;
-      
+
     } catch (error) {
       log.error(`GitHub token validation error: ${error.message}`);
       log.error(`Error stack: ${error.stack}`);
-      
+
       if (error.message.includes('Bad credentials')) {
         throw new Error(
           `GitHub token validation failed: Invalid or expired token\n` +
@@ -109,12 +109,12 @@ class EnvironmentValidator {
       if (!urlMatch) {
         throw new Error(`Invalid project URL format. Expected: https://github.com/orgs/org/projects/number`);
       }
-      
+
       const [, org, projectNumber] = urlMatch;
       const { graphql } = require('../github/api');
-      
+
       log.info(`Resolving project ID from URL: ${org}/projects/${projectNumber}`);
-      
+
       const result = await graphql(`
         query($org: String!, $number: Int!) {
           organization(login: $org) {
@@ -125,21 +125,21 @@ class EnvironmentValidator {
           }
         }
       `, { org, number: parseInt(projectNumber) });
-      
+
       if (!result.organization?.projectV2?.id) {
         throw new Error(`Project not found: ${org}/projects/${projectNumber}. Check the URL and ensure you have access to this project.`);
       }
-      
+
       const projectId = result.organization.projectV2.id;
       const projectTitle = result.organization.projectV2.title;
-      
+
       log.info(`✓ Resolved project: "${projectTitle}" (${projectId})`);
       return projectId;
-      
+
     } catch (error) {
       log.error(`Project resolution error: ${error.message}`);
       log.error(`Error stack: ${error.stack}`);
-      
+
       if (error.message.includes('Project not found')) {
         throw error;
       } else if (error.message.includes('Invalid project URL')) {
@@ -168,16 +168,16 @@ class EnvironmentValidator {
         'Set PROJECT_ID or add project.id/project.url to config.'
       );
     }
-    
+
     // Check for project URL first, then direct ID, then config
     let projectId = process.env.PROJECT_ID;
     let projectSource = 'PROJECT_ID environment variable';
-    
+
     if (!projectId && process.env.PROJECT_URL) {
       projectId = await this.resolveProjectFromUrl(process.env.PROJECT_URL);
       projectSource = 'PROJECT_URL environment variable';
     }
-    
+
     if (!projectId) {
       // Check config for project ID or URL
       if (rules?.project?.url) {
@@ -194,8 +194,8 @@ class EnvironmentValidator {
         'No project specified. Please provide one of:\n' +
         '  - PROJECT_URL environment variable (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
         '  - PROJECT_ID environment variable (e.g., PVT_kwDOAA37OM4AFuzg)\n' +
-        '  - project.url in config (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
-        '  - project.id in config (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
+        '  - project.url in rules.yml (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
+        '  - project.id in rules.yml (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
         'For GitHub project URLs, the system will automatically resolve the project ID.'
       );
     }
@@ -225,7 +225,7 @@ class EnvironmentValidator {
       log.info(`GITHUB_TOKEN: ${process.env.GITHUB_TOKEN ? 'SET' : 'NOT SET'}`);
       log.info(`GITHUB_AUTHOR: ${process.env.GITHUB_AUTHOR || 'NOT SET'}`);
       log.info(`PROJECT_URL: ${process.env.PROJECT_URL || 'NOT SET'}`);
-      
+
       // Test file access
       const { loadBoardRules } = require('../config/board-rules');
       try {
@@ -235,21 +235,21 @@ class EnvironmentValidator {
         log.info(`Failed to load configuration in DEBUG check: ${e.message}`);
       }
     }
-    
+
     log.info('Validating environment variables...');
-    
+
     // Step 1: Check for required variables
     this.validateRequired();
     log.info('✓ Required environment variables present');
-    
+
     // Step 2: Validate GitHub token
     const githubUser = await this.validateGitHubToken();
     log.info('✓ GitHub token validated');
-    
+
     // Step 3: Validate optional variables
     const config = await this.validateOptional();
     log.info('✓ Optional environment variables validated');
-    
+
     // Verify GITHUB_AUTHOR matches token user (optional check)
     const expectedUser = process.env.GITHUB_AUTHOR;
     if (githubUser !== expectedUser) {
@@ -258,7 +258,7 @@ class EnvironmentValidator {
         `This might be intentional if you're monitoring another user's activity.`
       );
     }
-    
+
     return {
       githubUser,
       projectId: config.projectId,
@@ -268,4 +268,4 @@ class EnvironmentValidator {
   }
 }
 
-module.exports = { EnvironmentValidator }; 
+module.exports = { EnvironmentValidator };

@@ -245,27 +245,41 @@ async function isItemInProject(nodeId, projectId) {
  * @returns {Promise<string>} - The project item ID
  */
 async function addItemToProject(nodeId, projectId) {
-  const result = await withBackoff(() => graphqlWithAuth(`
-    mutation($projectId: ID!, $contentId: ID!) {
-      addProjectV2ItemById(input: {
-        projectId: $projectId,
-        contentId: $contentId
-      }) {
-        item {
-          id
+  log.info(`[DEBUG] Starting addItemToProject for node ${nodeId} to project ${projectId}`);
+
+  try {
+    log.info(`[DEBUG] About to call withBackoff with GraphQL mutation`);
+    const result = await withBackoff(() => {
+      log.info(`[DEBUG] Inside withBackoff, calling graphqlWithAuth`);
+      return graphqlWithAuth(`
+        mutation($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {
+            projectId: $projectId,
+            contentId: $contentId
+          }) {
+            item {
+              id
+            }
+          }
         }
-      }
+      `, {
+        projectId,
+        contentId: nodeId
+      });
+    });
+
+    log.info(`[DEBUG] GraphQL mutation completed, result:`, result);
+
+    if (!result.addProjectV2ItemById?.item?.id) {
+      throw new Error('Failed to add item to project - missing item ID in response');
     }
-  `, {
-    projectId,
-    contentId: nodeId
-  }));
 
-  if (!result.addProjectV2ItemById?.item?.id) {
-    throw new Error('Failed to add item to project - missing item ID in response');
+    log.info(`[DEBUG] Successfully added item, returning ID: ${result.addProjectV2ItemById.item.id}`);
+    return result.addProjectV2ItemById.item.id;
+  } catch (error) {
+    log.error(`[DEBUG] Error in addItemToProject: ${error.message}`);
+    throw error;
   }
-
-  return result.addProjectV2ItemById.item.id;
 }
 
 /**
