@@ -137,8 +137,8 @@ module.exports = {
  * Resolve the configuration file path, preferring a flattened, repo-level config.
  * Order of precedence:
  * 1) CONFIG_FILE env var (absolute or relative to CWD)
- * 2) CWD/config/rules.yml
- * 3) Walk up parent directories from CWD to find config/rules.yml
+ * 2) CWD/rules.yml (root level config)
+ * 3) Walk up parent directories from CWD to find rules.yml
  * 4) Legacy package-local config
  * @returns {string}
  */
@@ -150,15 +150,15 @@ function resolveConfigPath() {
         if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
     }
 
-    // 2) CWD/config/rules.yml
-    const cwdConfig = path.join(process.cwd(), 'config/rules.yml');
-    if (fs.existsSync(cwdConfig)) return cwdConfig;
+    // 2) CWD/rules.yml (root level config)
+    const rootConfig = path.join(process.cwd(), 'rules.yml');
+    if (fs.existsSync(rootConfig)) return rootConfig;
 
-    // 3) Walk up to find repo-level config/rules.yml
+    // 3) Walk up to find repo-level rules.yml
     const DIRECTORY_TRAVERSAL_LIMIT = 8;
     let current = process.cwd();
     for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
-        const candidate = path.join(current, 'config/rules.yml');
+        const candidate = path.join(current, 'rules.yml');
         if (fs.existsSync(candidate)) return candidate;
         const parent = path.dirname(current);
         if (parent === current) break;
@@ -166,5 +166,5 @@ function resolveConfigPath() {
     }
 
     // 4) Legacy package-local config (last resort during migration)
-    return path.join(__dirname, '../../config/rules.yml');
+    return path.join(__dirname, '../../rules.yml');
 }
