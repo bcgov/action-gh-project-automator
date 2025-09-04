@@ -61,4 +61,5 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
+          DRY_RUN: ${{ github.event_name == "pull_request" && "true" || "false" }}
         run: npm run start
