@@ -15,6 +15,36 @@ const { validator } = require('./shared-validator');
 const { log } = require('../../utils/log');
 
 /**
+ * Deduplicate rules by action type to eliminate redundant processing
+ * @param {Array<{action: string, params: Object}>} actions List of actions to deduplicate
+ * @returns {Array<{action: string, params: Object}>} Deduplicated actions
+ */
+function deduplicateActions(actions) {
+    const actionGroups = new Map();
+    
+    for (const action of actions) {
+        const key = action.action;
+        if (!actionGroups.has(key)) {
+            actionGroups.set(key, []);
+        }
+        actionGroups.get(key).push(action);
+    }
+    
+    // For each action type, keep only the first occurrence
+    const deduplicated = [];
+    for (const [actionType, actionList] of actionGroups) {
+        deduplicated.push(actionList[0]);
+        
+        // Log if we're deduplicating actions
+        if (actionList.length > 1) {
+            log.info(`Deduplicated ${actionList.length} ${actionType} actions for item`);
+        }
+    }
+    
+    return deduplicated;
+}
+
+/**
  * Process rules for a specific rule type
  * @param {Object} item PR or Issue to process
  * @param {string} ruleType The type of rules to process (e.g., 'columns', 'board_items')
@@ -87,7 +117,14 @@ async function processRuleType(item, ruleType) {
             }
         }
 
-        return actions;
+        // Deduplicate actions to eliminate redundant processing
+        const deduplicatedActions = deduplicateActions(actions);
+        
+        if (deduplicatedActions.length < actions.length) {
+            log.info(`Rule deduplication: ${actions.length} → ${deduplicatedActions.length} actions for ${ruleType}`);
+        }
+
+        return deduplicatedActions;
     } catch (error) {
         log.error(`Failed to process ${ruleType} rules: ${error.message}`);
         throw error;
