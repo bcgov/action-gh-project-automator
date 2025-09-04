@@ -16,7 +16,6 @@ env:
   PROJECT_URL: https://github.com/orgs/bcgov/projects/16
   VERBOSE: true
   CONFIG_FILE: rules.yml
-  OVERRIDE_REPOS: nr-nerds
 
 jobs:
   sync:
@@ -62,4 +61,5 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
+          OVERRIDE_REPOS: ${{ env.OVERRIDE_REPOS }}
         run: npm run start
