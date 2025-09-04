@@ -131,3 +131,101 @@ STRICT_MODE=true node project-sync.js
 The script is typically run via GitHub Actions on a scheduled basis (every 30 minutes).
 
 All preflight checks are run automatically at the start of the script to ensure proper configuration and connectivity before any changes are made.
+
+## AI Safety and Git Protection
+
+**For BCGov AI Test Group Teams Only**
+
+As AI coding assistants become more common in government development, protecting against accidental repository damage becomes critical. This section documents a git safety solution specifically designed for government DevOps teams working with AI.
+
+### The Problem
+
+AI coding assistants (GitHub Copilot, Cursor, etc.) operate with your credentials and can:
+- **Push directly to main branches** (bypassing PR requirements)
+- **Force push** to any branch (potentially losing work)
+- **Delete branches** without understanding the consequences
+- **Override branch protection rules** using your admin access
+
+Traditional solutions like git hooks are impractical for teams managing 80+ repositories across multiple organizations.
+
+### The Solution: Git Safety Function
+
+A bash function that intercepts dangerous git operations while maintaining full functionality for normal development work.
+
+#### Features
+
+- **Dynamic default branch detection** - works on `main`, `master`, `develop`, or any naming convention
+- **Lazy performance optimization** - only checks when needed (push operations)
+- **Portable across repos** - no per-repository configuration required
+- **Admin override available** - emergency access when needed
+
+#### Implementation
+
+Add this to your `~/.bashrc` or centralized bash configuration:
+
+```bash
+# Git Safety Function - Prevents dangerous operations by AI
+git() {
+    local args="$*"
+
+    # Only detect default branch for push operations (lazy detection)
+    if [[ "$args" == *"push"* ]]; then
+        local default_branch=$(command git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+
+        # Block pushing to default branch (any method)
+        if [[ "$args" == *"push"*"$default_branch"* ]] || ([[ "$args" == "push" ]] && [[ "$(command git branch --show-current 2>/dev/null)" = "$default_branch" ]]); then
+            echo "🚨 BLOCKED: Never push to default branch ($default_branch)! Use feature branches and PRs."
+            return 1
+        fi
+    fi
+
+    # Block deleting main branch (keep this simple for now)
+    if [[ "$args" == *"branch"*"-d"*"main"* ]] || [[ "$args" == *"branch"*"-D"*"main"* ]]; then
+        echo "🚨 BLOCKED: Never delete main branch!"
+        return 1
+    fi
+
+    # If we get here, run the normal git command
+    $(command which git) "$@"
+}
+```
+
+#### How It Works
+
+1. **Intercepts all `git` commands** via function override
+2. **Detects default branch dynamically** only when needed (push operations)
+3. **Blocks dangerous operations** with clear error messages
+4. **Allows safe operations** to pass through normally
+5. **Uses `$(command which git)`** to call the real git binary
+
+#### System-wide Protection (Recommended)
+
+**THIS PREVENTS AI PUSHING TO MAIN.** AI coding assistants get fresh shells without your personal bashrc, so they can accidentally push to main and break your projects. This solution prevents that by placing git safety in `/etc/profile.d/`, making protection available to every shell on the system automatically:
+
+```bash
+sudo mkdir -p /etc/profile.d
+sudo tee /etc/profile.d/git-safety.sh > /dev/null << 'EOF'
+#!/bin/bash
+git() {
+    local args="$*"
+    if [[ "$args" == *"push"* ]]; then
+        local default_branch=$(command git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+        if [[ "$args" == *"push"*"$default_branch"* ]] || ([[ "$args" == "push" ]] && [[ "$(command git branch --show-current 2>/dev/null)" = "$default_branch" ]]); then
+            echo "🚨 BLOCKED: Never push to default branch ($default_branch)! Use feature branches and PRs."
+            return 1
+        fi
+    fi
+    if [[ "$args" == *"branch"*"-d"*"main"* ]] || [[ "$args" == *"branch"*"-D"*"main"* ]]; then
+        echo "🚨 BLOCKED: Never delete main branch!"
+        return 1
+    fi
+    $(command which git) "$@"
+}
+export -f git
+EOF
+sudo chmod +x /etc/profile.d/git-safety.sh
+```
+
+**Result:** Every shell (including AI assistants) gets automatic protection against main branch destruction.
+
+## Additional Resources
