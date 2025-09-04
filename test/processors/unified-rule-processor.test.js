@@ -57,10 +57,10 @@ const mockConfig = {
 };
 
 // Mock the board rules module
-require('../../../config/board-rules').loadBoardRules = () => mockConfig;
+require('../../src/config/board-rules').loadBoardRules = () => mockConfig;
 
 // Mock the validator
-require('../shared-validator').validator = {
+require('../../src/rules/processors/shared-validator').validator = {
     validateItemCondition: (item, trigger) => {
         // Check type first
         const allowedTypes = trigger.type?.split('|') || [];
@@ -113,7 +113,7 @@ require('../shared-validator').validator = {
 };
 
 // Mock the log
-require('../../../utils/log').log = {
+require('../../src/utils/log').log = {
     info: () => {},
     debug: () => {},
     error: () => {},
@@ -128,7 +128,7 @@ const {
     processSprintRules,
     processAssigneeRules,
     processLinkedIssueRules
-} = require('../unified-rule-processor');
+} = require('../../src/rules/processors/unified-rule-processor');
 
 test('Unified Rule Processor - All Rule Types', async (t) => {
     await t.test('processRuleType processes column rules correctly', async () => {

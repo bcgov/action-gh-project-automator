@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { processSprintRules } = require('../unified-rule-processor');
-const { setupTestEnvironment } = require('../../../../test/setup');
+const { processSprintRules } = require('../../src/rules/processors/unified-rule-processor');
+const { setupTestEnvironment } = require('../setup');
 
 test('processSprintRules', async (t) => {
     // Setup test environment

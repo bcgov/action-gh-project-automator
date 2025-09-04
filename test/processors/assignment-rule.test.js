@@ -9,9 +9,9 @@ test('PR assigned to monitored user rule', async (t) => {
     // Setup test environment and mocks before each test
     t.beforeEach(() => {
         // Mock dependencies using require.cache
-        const sharedValidatorPath = require.resolve('../shared-validator');
-        const boardRulesPath = require.resolve('../../../config/board-rules');
-        const logPath = require.resolve('../../../utils/log');
+        const sharedValidatorPath = require.resolve('../../src/rules/processors/shared-validator');
+        const boardRulesPath = require.resolve('../../src/config/board-rules');
+        const logPath = require.resolve('../../src/utils/log');
         
         require.cache[sharedValidatorPath] = {
             exports: {
@@ -74,15 +74,15 @@ test('PR assigned to monitored user rule', async (t) => {
         logMessages.length = 0;
         
         // Import after mocks are set up
-        const boardItems = require('../unified-rule-processor');
+        const boardItems = require('../../src/rules/processors/unified-rule-processor');
         processBoardItemRules = boardItems.processBoardItemRules;
     });
 
     t.afterEach(() => {
         // Clear mocks
-        delete require.cache[require.resolve('../shared-validator')];
-        delete require.cache[require.resolve('../../../config/board-rules')];
-        delete require.cache[require.resolve('../../../utils/log')];
+        delete require.cache[require.resolve('../../src/rules/processors/shared-validator')];
+        delete require.cache[require.resolve('../../src/config/board-rules')];
+        delete require.cache[require.resolve('../../src/utils/log')];
     });
 
     await t.test('adds PR to board when assigned to monitored user', async () => {

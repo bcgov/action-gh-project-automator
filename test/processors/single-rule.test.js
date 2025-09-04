@@ -11,15 +11,15 @@ test('PR authored by monitored user rule', async (t) => {
     // Setup test environment and mocks before each test
     t.beforeEach(() => {
         // Mock our dependencies
-        const { loadBoardRules } = require('../../../config/board-rules');
+        const { loadBoardRules } = require('../../src/config/board-rules');
 
         // Set up environment with config values
         process.env.GITHUB_AUTHOR = 'DerekRoberts';
 
         // Set up fake module cache for mocks
-        const validatorPath = require.resolve('../shared-validator');
-        const rulesPath = require.resolve('../../../config/board-rules');
-        const logPath = require.resolve('../../../utils/log');
+        const validatorPath = require.resolve('../../src/rules/processors/shared-validator');
+        const rulesPath = require.resolve('../../src/config/board-rules');
+        const logPath = require.resolve('../../src/utils/log');
 
         require.cache[ validatorPath ] = {
             exports: {
@@ -77,7 +77,7 @@ test('PR authored by monitored user rule', async (t) => {
 
         // Import module under test
         try {
-            const boardItems = require('../unified-rule-processor');
+            const boardItems = require('../../src/rules/processors/unified-rule-processor');
             processBoardItemRules = boardItems.processBoardItemRules;
         } catch (err) {
             console.error('Failed to load board-items:', err);
@@ -102,9 +102,9 @@ test('PR authored by monitored user rule', async (t) => {
 
     t.afterEach(() => {
         // Clear mocks
-        delete require.cache[require.resolve('../shared-validator')];
-        delete require.cache[require.resolve('../../../config/board-rules')];
-        delete require.cache[require.resolve('../../../utils/log')];
+        delete require.cache[require.resolve('../../src/rules/processors/shared-validator')];
+        delete require.cache[require.resolve('../../src/config/board-rules')];
+        delete require.cache[require.resolve('../../src/utils/log')];
     });
 
     await t.test('adds PR to board when authored by monitored user', async () => {

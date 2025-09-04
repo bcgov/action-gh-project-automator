@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const ConfigLoader = require('../loader');
+const ConfigLoader = require('../../src/config/loader');
 
 test('ConfigLoader', async (t) => {
   await t.test('loads valid config from rules.yml', async () => {
@@ -36,7 +36,7 @@ test('ConfigLoader', async (t) => {
     assert.ok(config.automation.repository_scope.repositories.includes('nr-nerds'), 'includes current repo');
 
     // After normalization through loadBoardRules, check merged rules
-    const { loadBoardRules } = require('../board-rules');
+    const { loadBoardRules } = require('../../src/config/board-rules');
     const normalizedConfig = loadBoardRules();
 
     const ruleSections = Object.keys(normalizedConfig.rules);
