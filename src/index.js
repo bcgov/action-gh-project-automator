@@ -1,44 +1,44 @@
 /**
  * @fileoverview Project Board Sync - Central Development Reference
  * @centralReference Source of truth for project conventions
- * 
+ *
  * Development Conventions:
  * 1. Services and Major Components:
  *    - GitHub API integration (@see github/api.js)
  *    - Project Board State Management (@see utils/state-verifier.js)
  *    - Rules Processing (@see rules/*)
- * 
+ *
  * 2. Code Organization:
  *    - Business Rules: src/rules/ - Core rule implementations
  *    - Utils: src/utils/ - Common utilities and helpers
  *    - Config: src/config/ - Configuration and schema
  *    - GitHub: src/github/ - API wrappers and types
- * 
+ *
  * 3. Coding Standards:
  *    - Every rule module must implement state verification
  *    - Use state tracking for all board changes
  *    - Log all state changes via Logger class
  *    - Document public APIs with JSDoc
- * 
+ *
  * Documentation Maintenance:
  * 1. Requirements Sources:
  *    - config/rules.yml: Core business rules
  *    - CONTRIBUTING.md: Development guidelines
  *    - TECHNICAL.md: Implementation details
  *    - FUTURE-IDEAS.md: Planned enhancements
- * 
+ *
  * 2. Documentation Updates:
  *    - Update JSDoc when changing interfaces or behaviors
  *    - Keep module conventions in sync with implementations
  *    - Test cases must reflect documented requirements
  *    - Reference source requirements in major changes
- * 
+ *
  * 3. Stability Practices:
  *    - Follow module-specific update guidelines
  *    - Maintain consistent error handling
  *    - Preserve state tracking behaviors
  *    - Test all documented scenarios
- * 
+ *
  * @see rules.yml - Core business rules and configuration
  */
 
@@ -85,7 +85,7 @@ function classifyError(error) {
   if (error instanceof CriticalError) {
     return { isCritical: true, type: 'critical' };
   }
-  
+
   // Use error.code property for classification if available
   if (error && typeof error.code === 'string') {
     if (error.code === 'ITEM_NOT_ADDED') {
@@ -95,7 +95,7 @@ function classifyError(error) {
       return { isCritical: true, type: 'critical' };
     }
   }
-  
+
   // Default to critical for unknown errors
   return { isCritical: true, type: 'unknown' };
 }
@@ -115,7 +115,7 @@ StepVerification.envValidator = envValidator;
 
 /**
  * Validate required environment variables and return configuration
- * 
+ *
  * @async
  * @returns {Promise<Object>} A configuration object containing validated environment settings
  * @throws {Error} If any required variables are missing or validation fails
@@ -133,14 +133,14 @@ async function validateEnvironment() {
   try {
     // Use centralized environment validation
     const envConfig = await EnvironmentValidator.validateAll();
-    
+
     // Mark validation steps as complete
     envValidator.markStepComplete('TOKEN_CONFIGURED');
     StateVerifier.steps.markStepComplete('TOKEN_CONFIGURED');
-    
+
     envValidator.markStepComplete('PROJECT_CONFIGURED');
     StateVerifier.steps.markStepComplete('PROJECT_CONFIGURED');
-    
+
     envValidator.markStepComplete('LABELS_CONFIGURED');
     StateVerifier.steps.markStepComplete('LABELS_CONFIGURED');
 
@@ -149,7 +149,7 @@ async function validateEnvironment() {
     StateVerifier.steps.markStepComplete('DEPENDENCIES_VERIFIED');
     StateVerifier.steps.markStepComplete('STATE_VALIDATED');
     StateVerifier.steps.markStepComplete('STATE_VERIFIED');
-    
+
     return envConfig;
   } catch (error) {
     // Re-throw with enhanced context
@@ -325,15 +325,15 @@ async function main() {
       error,
       classification: classifyError(error)
     }));
-    
+
     const criticalErrors = errorClassifications
       .filter(({ classification }) => classification.isCritical)
       .map(({ error }) => error);
-    
+
     const nonCriticalErrors = errorClassifications
       .filter(({ classification }) => !classification.isCritical)
       .map(({ error }) => error);
-    
+
     if (criticalErrors.length > 0) {
       log.error(`Critical errors occurred: ${criticalErrors.length}`);
       criticalErrors.forEach(error => {
@@ -351,7 +351,7 @@ async function main() {
       log.error(`Rate limit error: ${error.message}`);
       process.exit(1); // Still a failure, but temporary
     }
-    
+
     log.error(error);
     log.printSummary();
     process.exit(1);
@@ -382,7 +382,7 @@ async function processExistingItemsSprintAssignments(projectId) {
 
         const { content, type } = itemDetails;
         const currentColumn = await getItemColumn(projectId, projectItemId);
-        
+
         // Only process items in eligible columns (Next, Active, Done, Waiting)
         const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
         if (!eligibleColumns.includes(currentColumn)) {
@@ -425,7 +425,7 @@ async function processExistingItemsSprintAssignments(projectId) {
       log.error(`Rate limit error: ${error.message}`);
       throw error; // Re-throw to fail the workflow
     }
-    
+
     log.error(`Failed to process existing items sprint assignments: ${error.message}`);
     throw error;
   }
