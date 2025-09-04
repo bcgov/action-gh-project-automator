@@ -69,9 +69,6 @@ Before running the full sync, you can validate your environment and configuratio
 export GITHUB_TOKEN=your_github_token
 export GITHUB_AUTHOR=your_github_username
 
-# Optional safety: dry-run mode (no writes)
-export DRY_RUN=true
-
 # Optionally set project (choose one method):
 # Method 1: Use project URL (recommended)
 export PROJECT_URL=https://github.com/orgs/bcgov/projects/16

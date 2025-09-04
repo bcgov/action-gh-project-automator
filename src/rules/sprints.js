@@ -292,10 +292,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
 
       // Set sprint to historical target
       const sprintFieldId = await getSprintFieldId(projectId);
-      if (process.env.DRY_RUN === 'true') {
-        log.info(`[DRY_RUN] would set historical sprint for item ${projectItemId} → ${target.id}`);
-      } else {
-        await graphql(`
+      await graphql(`
         mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
           updateProjectV2ItemFieldValue(input: {
             projectId: $projectId
@@ -306,8 +303,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
             projectV2Item { id }
           }
         }
-        `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: target.id });
-      }
+      `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: target.id });
 
       return { changed: true, newSprint: target.id, reason: `Assigned to historical sprint (${target.title})` };
     }
@@ -322,10 +318,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
     }
 
     const sprintFieldId = await getSprintFieldId(projectId);
-    if (process.env.DRY_RUN === 'true') {
-      log.info(`[DRY_RUN] would set active sprint for item ${projectItemId} → ${activeSprintId}`);
-    } else {
-      await graphql(`
+    await graphql(`
       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
         updateProjectV2ItemFieldValue(input: {
           projectId: $projectId
@@ -334,8 +327,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
           value: { iterationId: $iterationId }
         }) { projectV2Item { id } }
       }
-      `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: activeSprintId });
-    }
+    `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: activeSprintId });
 
     return { changed: true, newSprint: activeSprintId, reason: `Assigned to current sprint (${activeSprintTitle})` };
 
