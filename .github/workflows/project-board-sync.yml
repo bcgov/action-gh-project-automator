@@ -15,7 +15,8 @@ env:
   GITHUB_AUTHOR_DEFAULT: DerekRoberts
   PROJECT_URL: https://github.com/orgs/bcgov/projects/16
   VERBOSE: true
-  CONFIG_FILE: config/rules.yml
+  CONFIG_FILE: rules.yml
+  OVERRIDE_REPOS: nr-nerds
 
 jobs:
   sync:
