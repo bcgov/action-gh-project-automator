@@ -55,6 +55,7 @@ const { StepVerification } = require('./utils/verification-steps');
 const { EnvironmentValidator } = require('./utils/environment-validator');
 const { getProjectItems, getItemColumn } = require('./github/api');
 const { getItemDetails } = require('./rules/assignees');
+const { loadBoardRules } = require('./config/board-rules');
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -174,18 +175,15 @@ async function main() {
     // Validate environment and get configuration
     const envConfig = await validateEnvironment();
 
+    // Load board rules configuration
+    const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
+
     // Initialize context with validated environment config
     const context = {
       org: 'bcgov',
       repos: process.env.OVERRIDE_REPOS
         ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
-        : [
-            'action-builder-ghcr',
-            'nr-nerds',
-            'quickstart-openshift',
-            'quickstart-openshift-backends',
-            'quickstart-openshift-helpers'
-          ],
+        : boardConfig.project?.repositories || [],
       monitoredUser: process.env.GITHUB_AUTHOR,
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
