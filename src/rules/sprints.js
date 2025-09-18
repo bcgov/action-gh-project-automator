@@ -46,7 +46,7 @@ async function getSprintIterations(projectId) {
             ... on ProjectV2IterationField {
               id
               configuration {
-                iterations(first: 100) { id title duration startDate }
+                iterations { id title duration startDate }
               }
             }
           }
