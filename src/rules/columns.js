@@ -1,8 +1,42 @@
 const { getItemColumn, setItemColumn, setItemColumnsBatch, isItemInProject, octokit, graphql } = require('../github/api');
 const { log } = require('../utils/log');
+const { StateVerifier } = require('../utils/state-verifier');
 
 // Cache column options per project ID during a single run
 const columnOptionsCache = new Map();
+
+/**
+ * Validate column transition before making changes
+ * @param {string} fromColumn - Current column name
+ * @param {string} toColumn - Target column name
+ * @param {Object} item - The item being processed
+ * @returns {Object} Validation result with valid flag and details
+ */
+function validateColumnTransition(fromColumn, toColumn, item) {
+  try {
+    const validator = StateVerifier.getTransitionValidator();
+    const context = { item };
+    
+    const result = validator.validateColumnTransition(fromColumn, toColumn, context);
+    
+    if (!result.valid) {
+      log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
+      log.warn(`   Reason: ${result.reason}`);
+      if (result.recovery) {
+        log.warn(`   Recovery: ${result.recovery}`);
+      }
+      if (result.allowedTransitions) {
+        log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    log.error(`Error validating column transition: ${error.message}`);
+    // If validation fails, allow the transition (backward compatibility)
+    return { valid: true, reason: 'Validation error - allowing transition for backward compatibility' };
+  }
+}
 
 /**
  * Get status field configuration from project
@@ -123,6 +157,17 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
             currentStatus: currentColumn
           };
         }
+        // Validate transition before making changes
+        const validation = validateColumnTransition(currentColumn, targetName, item);
+        if (!validation.valid) {
+          log.info(`  • Transition blocked: ${validation.reason}`, true);
+          return {
+            changed: false,
+            reason: `Transition blocked: ${validation.reason}`,
+            currentStatus: currentColumn
+          };
+        }
+
         if (Array.isArray(batchQueue)) {
           batchQueue.push({ projectItemId, optionId });
         } else {
@@ -202,6 +247,17 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
         currentStatus: currentColumn
       };
     }
+    // Validate transition before making changes
+    const validation = validateColumnTransition(currentColumn, targetColumn, item);
+    if (!validation.valid) {
+      log.info(`  • Transition blocked: ${validation.reason}`, true);
+      return {
+        changed: false,
+        reason: `Transition blocked: ${validation.reason}`,
+        currentStatus: currentColumn
+      };
+    }
+
     if (Array.isArray(batchQueue)) {
       batchQueue.push({ projectItemId, optionId });
     } else {
