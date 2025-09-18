@@ -307,14 +307,45 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        // No sprint covers this completion date - skip gracefully
+        // No sprint covers this completion date - assign to next available sprint
         log.warning(`  • No sprint covers completion date ${completedAt}`);
-        log.info(`  • Skipping sprint assignment (no sprint configured for this date)`);
         
-        return { 
-          changed: false, 
-          reason: 'No sprint configured for this completion date' 
-        };
+        const iterations = await getSprintIterations(projectId);
+        const completionDate = new Date(completedAt);
+        
+        // Find the next sprint after the completion date (sort by start date first)
+        const sortedIterations = iterations.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        const nextSprint = sortedIterations.find(sprint => {
+          const sprintStart = new Date(sprint.startDate);
+          return sprintStart > completionDate;
+        });
+        
+        if (nextSprint) {
+          log.info(`  • Assigning to next available sprint: ${nextSprint.title} (${nextSprint.id})`);
+          
+          // Set sprint to next available sprint
+          const sprintFieldId = await getSprintFieldId(projectId);
+          await graphql(`
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { iterationId: $iterationId }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: nextSprint.id });
+
+          return { changed: true, newSprint: nextSprint.id, reason: `Assigned to next available sprint (${nextSprint.title})` };
+        } else {
+          log.warning(`  • No future sprint found - skipping sprint assignment`);
+          return { 
+            changed: false, 
+            reason: 'No sprint covers completion date and no future sprint available' 
+          };
+        }
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
