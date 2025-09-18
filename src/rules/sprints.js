@@ -46,7 +46,7 @@ async function getSprintIterations(projectId) {
             ... on ProjectV2IterationField {
               id
               configuration {
-                iterations { id title duration startDate }
+                iterations(first: 100) { id title duration startDate }
               }
             }
           }
@@ -152,10 +152,21 @@ async function getCurrentSprint(projectId) {
 async function findSprintForDate(projectId, isoDate) {
   const when = new Date(isoDate);
   const iterations = await getSprintIterations(projectId);
+
+  log.debug(`Finding sprint for date: ${isoDate} (parsed: ${when.toISOString()})`);
+  log.debug(`Checking against ${iterations.length} sprints`);
+
   for (const sprint of iterations) {
     const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
-    if (when >= start && when < end) return { id: sprint.id, title: sprint.title };
+    const isInRange = when >= start && when < end;
+    log.debug(`  Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isInRange ? 'MATCH' : 'no match'}`);
+    if (isInRange) {
+      log.debug(`  ✅ Found matching sprint: ${sprint.title} (${sprint.id})`);
+      return { id: sprint.id, title: sprint.title };
+    }
   }
+
+  log.warning(`❌ No sprint found for date ${isoDate} among ${iterations.length} available sprints`);
   return null;
 }
 
@@ -280,6 +291,13 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       if (!target) {
         const errMsg = `No sprint covers completion date ${completedAt}`;
         log.error(`  • Error: ${errMsg}`);
+        // Get iterations for debugging
+        const debugIterations = await getSprintIterations(projectId);
+        log.error(`  • Available sprints: ${debugIterations.length}`);
+        debugIterations.forEach(sprint => {
+          const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
+          log.error(`    - "${sprint.title}": ${start.toISOString()} to ${end.toISOString()}`);
+        });
         throw new Error(errMsg);
       }
 
