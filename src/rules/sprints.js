@@ -289,16 +289,30 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        const errMsg = `No sprint covers completion date ${completedAt}`;
-        log.error(`  • Error: ${errMsg}`);
-        // Get iterations for debugging
-        const debugIterations = await getSprintIterations(projectId);
-        log.error(`  • Available sprints: ${debugIterations.length}`);
-        debugIterations.forEach(sprint => {
-          const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
-          log.error(`    - "${sprint.title}": ${start.toISOString()} to ${end.toISOString()}`);
-        });
-        throw new Error(errMsg);
+        // No historical sprint found - remove sprint assignment instead of failing
+        log.warning(`  • No sprint covers completion date ${completedAt}`);
+        log.info(`  • Removing sprint assignment for historical item`);
+        
+        if (currentSprintId) {
+          // Remove the current sprint assignment
+          const sprintFieldId = await getSprintFieldId(projectId);
+          await graphql(`
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { iterationId: null }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          `, { projectId, itemId: projectItemId, fieldId: sprintFieldId });
+          
+          return { changed: true, newSprint: null, reason: 'Removed sprint assignment (no historical sprint found)' };
+        } else {
+          return { changed: false, reason: 'No sprint assignment to remove' };
+        }
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
@@ -375,5 +389,7 @@ module.exports = {
   getItemSprint,
   getCurrentSprint,
   setItemSprintsBatch,
-  getSprintFieldId
+  getSprintFieldId,
+  getSprintIterations,
+  findSprintForDate
 };
