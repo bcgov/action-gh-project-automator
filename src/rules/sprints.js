@@ -289,14 +289,9 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        // No historical sprint found - skip processing gracefully
-        log.warning(`  • No sprint covers completion date ${completedAt}`);
-        log.info(`  • Skipping sprint assignment processing (no historical sprint configured)`);
-        
-        return { 
-          changed: false, 
-          reason: 'No historical sprint configured for this completion date' 
-        };
+        const errMsg = `No sprint covers completion date ${completedAt}`;
+        log.error(`  • Error: ${errMsg}`);
+        throw new Error(errMsg);
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
