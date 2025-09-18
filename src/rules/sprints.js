@@ -67,12 +67,12 @@ async function getSprintIterations(projectId) {
       }
     }
   `, { projectId });
-  
+
   // Combine active and completed iterations
   const activeIterations = result?.node?.field?.configuration?.iterations || [];
   const completedIterations = result?.node?.field?.configuration?.completedIterations || [];
   const allIterations = [...activeIterations, ...completedIterations];
-  
+
   sprintIterationsCache.set(projectId, allIterations);
   return allIterations;
 }
@@ -307,9 +307,14 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        const errMsg = `No sprint covers completion date ${completedAt}`;
-        log.error(`  • Error: ${errMsg}`);
-        throw new Error(errMsg);
+        // No sprint covers this completion date - skip gracefully
+        log.warning(`  • No sprint covers completion date ${completedAt}`);
+        log.info(`  • Skipping sprint assignment (no sprint configured for this date)`);
+        
+        return { 
+          changed: false, 
+          reason: 'No sprint configured for this completion date' 
+        };
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
