@@ -197,6 +197,12 @@ async function main() {
     log.info('Starting Project Board Sync...');
     log.info(`User: ${context.monitoredUser}`);
     log.info(`Project: ${context.projectId}`);
+    
+    // Log concurrency context
+    const eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+    const ref = process.env.GITHUB_REF || 'unknown';
+    const runId = process.env.GITHUB_RUN_ID || 'unknown';
+    log.info(`Concurrency Context: Event=${eventName}, Ref=${ref}, RunID=${runId}`);
 
     if (process.env.OVERRIDE_REPOS) {
       log.info(`Using OVERRIDE_REPOS: ${process.env.OVERRIDE_REPOS}`);

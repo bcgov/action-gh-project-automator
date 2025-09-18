@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 env:
@@ -52,6 +52,12 @@ jobs:
           echo "  PROJECT_URL: ${{ env.PROJECT_URL }}"
           echo "  VERBOSE: ${{ env.VERBOSE }}"
           echo "  GITHUB_AUTHOR: ${{ env.GITHUB_AUTHOR_DEFAULT }}"
+          echo ""
+          echo "Workflow Context:"
+          echo "  Event: ${{ github.event_name }}"
+          echo "  Ref: ${{ github.ref }}"
+          echo "  Concurrency Group: ${{ github.workflow }}"
+          echo "  Run ID: ${{ github.run_id }}"
           echo ""
           echo "Using hardcoded project URL for development"
 
