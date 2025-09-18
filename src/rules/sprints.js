@@ -38,6 +38,8 @@ async function getSprintIterations(projectId) {
   if (sprintIterationsCache.has(projectId)) {
     return sprintIterationsCache.get(projectId);
   }
+
+  // Query both active and completed iterations
   const result = await graphql(`
     query($projectId: ID!) {
       node(id: $projectId) {
@@ -46,7 +48,18 @@ async function getSprintIterations(projectId) {
             ... on ProjectV2IterationField {
               id
               configuration {
-                iterations { id title duration startDate }
+                iterations {
+                  id
+                  title
+                  duration
+                  startDate
+                }
+                completedIterations {
+                  id
+                  title
+                  duration
+                  startDate
+                }
               }
             }
           }
@@ -54,9 +67,14 @@ async function getSprintIterations(projectId) {
       }
     }
   `, { projectId });
-  const iterations = result?.node?.field?.configuration?.iterations || [];
-  sprintIterationsCache.set(projectId, iterations);
-  return iterations;
+
+  // Combine active and completed iterations
+  const activeIterations = result?.node?.field?.configuration?.iterations || [];
+  const completedIterations = result?.node?.field?.configuration?.completedIterations || [];
+  const allIterations = [...activeIterations, ...completedIterations];
+
+  sprintIterationsCache.set(projectId, allIterations);
+  return allIterations;
 }
 
 
@@ -152,10 +170,21 @@ async function getCurrentSprint(projectId) {
 async function findSprintForDate(projectId, isoDate) {
   const when = new Date(isoDate);
   const iterations = await getSprintIterations(projectId);
+
+  log.debug(`Finding sprint for date: ${isoDate} (parsed: ${when.toISOString()})`);
+  log.debug(`Checking against ${iterations.length} sprints`);
+
   for (const sprint of iterations) {
     const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
-    if (when >= start && when < end) return { id: sprint.id, title: sprint.title };
+    const isInRange = when >= start && when < end;
+    log.debug(`  Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isInRange ? 'MATCH' : 'no match'}`);
+    if (isInRange) {
+      log.debug(`  ✅ Found matching sprint: ${sprint.title} (${sprint.id})`);
+      return { id: sprint.id, title: sprint.title };
+    }
   }
+
+  log.warning(`❌ No sprint found for date ${isoDate} among ${iterations.length} available sprints`);
   return null;
 }
 
@@ -278,9 +307,45 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        const errMsg = `No sprint covers completion date ${completedAt}`;
-        log.error(`  • Error: ${errMsg}`);
-        throw new Error(errMsg);
+        // No sprint covers this completion date - assign to next available sprint
+        log.warning(`  • No sprint covers completion date ${completedAt}`);
+        
+        const iterations = await getSprintIterations(projectId);
+        const completionDate = new Date(completedAt);
+        
+        // Find the next sprint after the completion date (sort by start date first)
+        const sortedIterations = iterations.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        const nextSprint = sortedIterations.find(sprint => {
+          const sprintStart = new Date(sprint.startDate);
+          return sprintStart > completionDate;
+        });
+        
+        if (nextSprint) {
+          log.info(`  • Assigning to next available sprint: ${nextSprint.title} (${nextSprint.id})`);
+          
+          // Set sprint to next available sprint
+          const sprintFieldId = await getSprintFieldId(projectId);
+          await graphql(`
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { iterationId: $iterationId }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: nextSprint.id });
+
+          return { changed: true, newSprint: nextSprint.id, reason: `Assigned to next available sprint (${nextSprint.title})` };
+        } else {
+          log.warning(`  • No future sprint found - skipping sprint assignment`);
+          return { 
+            changed: false, 
+            reason: 'No sprint covers completion date and no future sprint available' 
+          };
+        }
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
@@ -357,5 +422,7 @@ module.exports = {
   getItemSprint,
   getCurrentSprint,
   setItemSprintsBatch,
-  getSprintFieldId
+  getSprintFieldId,
+  getSprintIterations,
+  findSprintForDate
 };
