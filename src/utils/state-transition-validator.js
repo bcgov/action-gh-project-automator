@@ -1,38 +1,38 @@
 /**
  * @fileoverview State transition validation for project board changes
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * Module Conventions:
  * - Case-insensitive string comparison for state values
  * - State transitions are defined through explicit rules
  * - All validations provide detailed error messages
  * - Changes are tracked for state verification
- * 
+ *
  * Documentation Update Guidelines:
  * Update this documentation when:
  * - Adding new validation rules or conditions
  * - Changing state comparison behavior
  * - Modifying error message formats
  * - Adding new state tracking features
- * 
+ *
  * Maintain Stability:
  * - Document all condition formats in evaluateCondition()
  * - Keep error messages consistent with examples
  * - Update test cases for new validations
  * - Preserve case-insensitive behavior
- * 
+ *
  * Step Verification Checklist:
  * 1. Configuration Loading
  *    - ✓ rules.yml loaded and validated
  *    - ✓ column transitions defined
  *    - ✓ conditions documented
- * 
+ *
  * 2. State Change Validation
  *    - ✓ normalize column names
  *    - ✓ verify transition rules exist
  *    - ✓ evaluate conditions
  *    - ✓ track changes
- * 
+ *
  * 3. Error Handling
  *    - ✓ fail fast on invalid config
  *    - ✓ include error context
@@ -48,7 +48,7 @@ class StateTransitionValidator {
   constructor() {
     this.tracker = new StateChangeTracker();
     this.columnRules = new Map();
-    
+
     // Initialize verification steps with enhanced dependencies
     this.steps = new StepVerification([
       'CONFIG_LOADED',
@@ -57,7 +57,7 @@ class StateTransitionValidator {
       'DEPENDENCIES_VERIFIED',
       'TRANSITION_VALIDATED'
     ]);
-    
+
     // Set up step dependencies with enhanced validation
     this.steps.addStepDependencies('RULES_VALIDATED', ['CONFIG_LOADED', 'DEPENDENCIES_VERIFIED']);
     this.steps.addStepDependencies('CONDITIONS_DOCUMENTED', ['CONFIG_LOADED']);
@@ -74,14 +74,14 @@ class StateTransitionValidator {
     try {
       // Validate configuration loading step
       this.steps.validateStepCompleted('CONFIG_LOADED');
-      
+
       const sources = Array.isArray(from) ? from : [from];
       for (const source of sources) {
         const sourceLower = source.toLowerCase();
         if (!this.columnRules.has(sourceLower)) {
           this.columnRules.set(sourceLower, []);
         }
-        
+
         // Validate and document conditions
         const validatedConditions = conditions.map(condition => {
           const isValid = typeof condition === 'string' && (
@@ -99,14 +99,14 @@ class StateTransitionValidator {
             dependencies: this.getConditionDependencies(condition)
           };
         });
-        
+
         this.columnRules.get(sourceLower).push({
           to,
           conditions: validatedConditions,
           addedAt: new Date()
         });
       }
-      
+
       this.steps.markStepComplete('RULES_VALIDATED');
     } catch (error) {
       this.validationErrors.set(`${from}->${to}`, error);
@@ -128,6 +128,11 @@ class StateTransitionValidator {
 
       // Allow initial column setting
       if (!from || from === 'None') {
+        return { valid: true };
+      }
+
+      // Handle null/undefined to column
+      if (!to) {
         return { valid: true };
       }
 
@@ -267,7 +272,7 @@ class StateTransitionValidator {
         }
       };
     }
-    
+
     const errors = [];
     const validationContext = {
       startTime: Date.now(),
@@ -297,7 +302,7 @@ class StateTransitionValidator {
       if (newState.assignees) {
         const currentSet = new Set(currentState.assignees || []);
         const newSet = new Set(newState.assignees);
-        
+
         // Check for invalid removals
         const removedAssignees = Array.from(currentSet).filter(a => !newSet.has(a));
         if (removedAssignees.length > 0) {

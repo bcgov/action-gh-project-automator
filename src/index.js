@@ -178,6 +178,10 @@ async function main() {
     // Load board rules configuration
     const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
+    // Initialize transition rules for state validation
+    const { StateVerifier } = require('./utils/state-verifier');
+    StateVerifier.initializeTransitionRules(boardConfig);
+
     // Initialize context with validated environment config
     const context = {
       org: 'bcgov',
