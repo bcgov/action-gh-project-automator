@@ -289,16 +289,14 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       }
       const target = await findSprintForDate(projectId, completedAt);
       if (!target) {
-        const errMsg = `No sprint covers completion date ${completedAt}`;
-        log.error(`  • Error: ${errMsg}`);
-        // Get iterations for debugging
-        const debugIterations = await getSprintIterations(projectId);
-        log.error(`  • Available sprints: ${debugIterations.length}`);
-        debugIterations.forEach(sprint => {
-          const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
-          log.error(`    - "${sprint.title}": ${start.toISOString()} to ${end.toISOString()}`);
-        });
-        throw new Error(errMsg);
+        // No historical sprint found - skip processing gracefully
+        log.warning(`  • No sprint covers completion date ${completedAt}`);
+        log.info(`  • Skipping sprint assignment processing (no historical sprint configured)`);
+        
+        return { 
+          changed: false, 
+          reason: 'No historical sprint configured for this completion date' 
+        };
       }
 
       log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
@@ -375,5 +373,7 @@ module.exports = {
   getItemSprint,
   getCurrentSprint,
   setItemSprintsBatch,
-  getSprintFieldId
+  getSprintFieldId,
+  getSprintIterations,
+  findSprintForDate
 };
