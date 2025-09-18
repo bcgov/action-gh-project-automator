@@ -38,6 +38,8 @@ async function getSprintIterations(projectId) {
   if (sprintIterationsCache.has(projectId)) {
     return sprintIterationsCache.get(projectId);
   }
+
+  // Query both active and completed iterations
   const result = await graphql(`
     query($projectId: ID!) {
       node(id: $projectId) {
@@ -46,7 +48,18 @@ async function getSprintIterations(projectId) {
             ... on ProjectV2IterationField {
               id
               configuration {
-                iterations { id title duration startDate }
+                iterations {
+                  id
+                  title
+                  duration
+                  startDate
+                }
+                completedIterations {
+                  id
+                  title
+                  duration
+                  startDate
+                }
               }
             }
           }
@@ -54,9 +67,14 @@ async function getSprintIterations(projectId) {
       }
     }
   `, { projectId });
-  const iterations = result?.node?.field?.configuration?.iterations || [];
-  sprintIterationsCache.set(projectId, iterations);
-  return iterations;
+  
+  // Combine active and completed iterations
+  const activeIterations = result?.node?.field?.configuration?.iterations || [];
+  const completedIterations = result?.node?.field?.configuration?.completedIterations || [];
+  const allIterations = [...activeIterations, ...completedIterations];
+  
+  sprintIterationsCache.set(projectId, allIterations);
+  return allIterations;
 }
 
 
