@@ -113,6 +113,10 @@ automation:
               conditions: []
 
       # Sprint assignment rules
+      # Note: Edge cases are handled automatically:
+      # - Items completed during sprint gaps are assigned to next available sprint
+      # - Both active and completed iterations are queried from GitHub API
+      # - Graceful handling when no future sprint exists
       sprints:
         - name: 'active_sprint_assignment'
           description: 'Assign current sprint in Next/Active columns'
