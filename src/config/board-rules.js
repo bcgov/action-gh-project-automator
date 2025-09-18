@@ -150,13 +150,27 @@ function resolveConfigPath() {
         if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
     }
 
-    // 2) CWD/rules.yml (root level config)
+    // 2) CWD/config/rules.yml (old working location)
+    const configRules = path.join(process.cwd(), 'config/rules.yml');
+    if (fs.existsSync(configRules)) return configRules;
+
+    // 3) CWD/rules.yml (root level config)
     const rootConfig = path.join(process.cwd(), 'rules.yml');
     if (fs.existsSync(rootConfig)) return rootConfig;
 
-    // 3) Walk up to find repo-level rules.yml
+    // 4) Walk up to find repo-level config/rules.yml
     const DIRECTORY_TRAVERSAL_LIMIT = 8;
     let current = process.cwd();
+    for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
+        const candidate = path.join(current, 'config/rules.yml');
+        if (fs.existsSync(candidate)) return candidate;
+        const parent = path.dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+
+    // 5) Walk up to find repo-level rules.yml
+    current = process.cwd();
     for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
         const candidate = path.join(current, 'rules.yml');
         if (fs.existsSync(candidate)) return candidate;
@@ -165,6 +179,6 @@ function resolveConfigPath() {
         current = parent;
     }
 
-    // 4) Legacy package-local config (last resort during migration)
+    // 6) Legacy package-local config (last resort during migration)
     return path.join(__dirname, '../../rules.yml');
 }
