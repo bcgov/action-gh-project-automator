@@ -1,20 +1,20 @@
 /**
  * @fileoverview Central state verification and management system
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * Module Conventions:
  * - Stateful verification with retry mechanism
  * - Comprehensive state tracking across operations
  * - Progress monitoring for all verifications
  * - Transition validation integration
- * 
+ *
  * Documentation Update Guidelines:
  * Update this documentation when:
  * - Adding new verification types
  * - Modifying retry mechanisms
  * - Changing state tracking integration
  * - Adding new validation rules
- * 
+ *
  * Maintain Stability:
  * - Keep retry logic consistent
  * - Document state verification flows
@@ -98,12 +98,17 @@ class StateVerifier {
       validateRequired(rules, 'rules');
       this.steps.validateStepCompleted('TRANSITION_VALIDATOR_CONFIGURED');
 
-      if (!rules.columns) return;
+      if (!rules.rules || !rules.rules.columns) return;
 
-      for (const rule of rules.columns) {
+      // Mark required steps as complete before adding transition rules
+      const validator = this.getTransitionValidator();
+      validator.steps.markStepComplete('CONFIG_LOADED');
+      validator.steps.markStepComplete('DEPENDENCIES_VERIFIED');
+
+      for (const rule of rules.rules.columns) {
         if (rule.validTransitions) {
           for (const transition of rule.validTransitions) {
-            this.getTransitionValidator().addColumnTransitionRule(
+            validator.addColumnTransitionRule(
               transition.from,
               transition.to,
               transition.conditions
@@ -304,7 +309,7 @@ Current: "${currentColumn}"`);
         // Compare Issue/PR assignees with expected
         const missingInRepo = expectedAssignees.filter(a => !repoAssignees.includes(a));
         const extraInRepo = repoAssignees.filter(a => !expectedAssignees.includes(a));
-        
+
         if (missingInProject.length > 0 || extraInProject.length > 0 ||
           missingInRepo.length > 0 || extraInRepo.length > 0) {
           throw new Error(`Assignee mismatch for ${item.type} #${item.number}:
