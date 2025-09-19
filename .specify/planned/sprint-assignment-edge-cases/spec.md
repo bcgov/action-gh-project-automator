@@ -81,7 +81,6 @@ if (!target) {
     const sprintStart = new Date(sprint.startDate);
     return sprintStart > completionDate;
   });
-  
   if (nextSprint) {
     // Assign to next sprint
     return assignToSprint(nextSprint);

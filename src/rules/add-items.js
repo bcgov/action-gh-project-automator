@@ -13,7 +13,7 @@ const { processBoardItemRules } = require('./processors/unified-rule-processor')
  * | PR        | Found in monitored repository | Add to project board | Already in project |
  * | Issue     | Found in monitored repository | Add to project board | Already in project |
  */
-const VERIFY_DELAY_MS = 2000; // 2 second delay for eventual consistency
+const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
 async function processAddItems({ org, repos, monitoredUser, projectId, windowHours }) {
   log.info(`Starting item processing for user ${monitoredUser}`);
