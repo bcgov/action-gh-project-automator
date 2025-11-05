@@ -1,7 +1,7 @@
 /**
  * @fileoverview Shared verification step tracking and validation
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * Module Conventions:
  * - Step completion is tracked via Set
  * - Steps can have dependencies
@@ -9,7 +9,7 @@
  * - Validation failures throw errors
  */
 
-const { Logger } = require('./log');
+import { Logger } from './log.js';
 
 class StepVerification {
   constructor(requiredSteps = []) {
@@ -95,7 +95,7 @@ class StepVerification {
   printStepStatus() {
     this.log.info('\nVerification Step Status:', true);
     this.log.info('========================', true);
-    
+
     this.requiredSteps.forEach(step => {
       const completed = this.completedSteps.has(step);
       const dependencies = this.stepDependencies.get(step);
@@ -107,4 +107,4 @@ class StepVerification {
   }
 }
 
-module.exports = { StepVerification };
+export { StepVerification };

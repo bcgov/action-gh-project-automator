@@ -3,11 +3,9 @@
  * Provides validation methods used by multiple rule processors
  */
 
-const { RuleValidation } = require('./validation');
+import { RuleValidation } from './validation.js';
 
 // Create a singleton validator instance
 const validator = new RuleValidation();
 
-module.exports = {
-    validator
-};
+export { validator };

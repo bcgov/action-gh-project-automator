@@ -1,6 +1,6 @@
 /**
  * @fileoverview Shared validation utilities for rule processors
- * 
+ *
  * @directive Always run the full test suite after making changes to validation rules:
  * ```bash
  * npm test
@@ -8,22 +8,22 @@
  * This ensures that changes don't break existing rule validation logic.
  */
 
-const { loadBoardRules } = require('../../config/board-rules');
-const { log } = require('../../utils/log');
+import { loadBoardRules } from '../../config/board-rules.js';
+import { log } from '../../utils/log.js';
 
 class RuleValidation {
     constructor() {
         // Load configuration for monitored users and repositories
         const config = loadBoardRules();
-        
+
         // Initialize monitored repositories from config
         this.monitoredRepos = new Set(
             config.project?.repositories?.map(repo => `${config.project.organization}/${repo}`) || []
         );
-        
+
         // Initialize monitored users from config
         this.monitoredUsers = new Set(config.monitoredUsers || []);
-        
+
         // Simple steps tracking for validation
         // Enhanced step tracking for validation
         this.steps = {
@@ -84,28 +84,28 @@ class RuleValidation {
             }
 
             // Specific column checks
-            if (condition.condition === "item.column === 'New'" || 
+            if (condition.condition === "item.column === 'New'" ||
                 condition.condition === "item.column === \"New\"") {
                 const result = item.column === 'New';
                 log.debug(`Column check (New): ${item.column} === 'New' -> ${result}`);
                 return result;
             }
 
-            if (condition.condition === "item.column === 'Next' || item.column === 'Active'" || 
+            if (condition.condition === "item.column === 'Next' || item.column === 'Active'" ||
                 condition.condition === "item.column === \"Next\" || item.column === \"Active\"") {
                 const result = item.column === 'Next' || item.column === 'Active';
                 log.debug(`Column check (Next/Active): ${item.column} in ['Next', 'Active'] -> ${result}`);
                 return result;
             }
 
-            if (condition.condition === "item.column === 'Done'" || 
+            if (condition.condition === "item.column === 'Done'" ||
                 condition.condition === "item.column === \"Done\"") {
                 const result = item.column === 'Done';
                 log.debug(`Column check (Done): ${item.column} === 'Done' -> ${result}`);
                 return result;
             }
 
-            if (condition.condition === "item.column === 'Waiting'" || 
+            if (condition.condition === "item.column === 'Waiting'" ||
                 condition.condition === "item.column === \"Waiting\"") {
                 const result = item.column === 'Waiting';
                 log.debug(`Column check (Waiting): ${item.column} === 'Waiting' -> ${result}`);
@@ -128,7 +128,7 @@ class RuleValidation {
 
             // Column inheritance conditions
             if (condition.condition === "item.column === item.pr.column && item.assignees === item.pr.assignees") {
-                const result = item.column === item.pr?.column && 
+                const result = item.column === item.pr?.column &&
                               JSON.stringify(item.assignees) === JSON.stringify(item.pr?.assignees);
                 log.debug(`Column/assignee inheritance check: ${result}`);
                 return result;
@@ -174,7 +174,7 @@ class RuleValidation {
             }
 
             // Sprint-based skip conditions
-            if (skipIf === "item.sprint === 'current'" || 
+            if (skipIf === "item.sprint === 'current'" ||
                 skipIf === "item.sprint === \"current\"") {
                 const result = item.sprint === 'current';
                 log.debug(`Skip check (current sprint): ${item.sprint} === 'current' -> ${result}`);
@@ -196,4 +196,4 @@ class RuleValidation {
     }
 }
 
-module.exports = { RuleValidation };
+export { RuleValidation };

@@ -40,9 +40,9 @@
  *    - ✓ track validation failures
  */
 
-const { log } = require('./log');
-const { StateChangeTracker } = require('./state-changes');
-const { StepVerification } = require('./verification-steps');
+import { log } from './log.js';
+import { StateChangeTracker } from './state-changes.js';
+import { StepVerification } from './verification-steps.js';
 
 class StateTransitionValidator {
   constructor() {
@@ -364,4 +364,4 @@ class StateTransitionValidator {
   }
 }
 
-module.exports = { StateTransitionValidator };
+export { StateTransitionValidator };

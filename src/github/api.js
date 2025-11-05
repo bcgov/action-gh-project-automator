@@ -1,8 +1,8 @@
-const { Octokit } = require('@octokit/rest');
-const { graphql } = require('@octokit/graphql');
-const { log } = require('../utils/log');
-const { shouldProceed, withBackoff } = require('../utils/rate-limit');
-const { memoizeGraphql } = require('../utils/graphql-cache');
+import { Octokit } from '@octokit/rest';
+import { graphql } from '@octokit/graphql';
+import { log } from '../utils/log.js';
+import { shouldProceed, withBackoff } from '../utils/rate-limit.js';
+import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
  * GitHub API client setup
@@ -585,16 +585,4 @@ async function getFieldId(projectId, fieldName) {
   return fieldId;
 }
 
-module.exports = {
-  octokit,
-  graphql: graphqlWithAuth,
-  isItemInProject,
-  addItemToProject,
-  getRecentItems,
-  getItemColumn,
-  setItemColumn,
-  getFieldId,
-  getColumnOptionId,
-  getProjectItems,
-  setItemColumnsBatch
-};
+export { octokit, graphqlWithAuth as graphql, isItemInProject, addItemToProject, getRecentItems, getItemColumn, setItemColumn, getFieldId, getColumnOptionId, getProjectItems, setItemColumnsBatch };

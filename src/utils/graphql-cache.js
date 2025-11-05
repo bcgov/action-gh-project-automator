@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 function stableKey(query, variables) {
   const hash = crypto.createHash('sha256');
@@ -48,4 +48,4 @@ function memoizeGraphql(graphqlFn, opts = {}) {
   };
 }
 
-module.exports = { memoizeGraphql };
+export { memoizeGraphql };

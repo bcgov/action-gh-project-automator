@@ -1,13 +1,13 @@
 /**
  * @fileoverview Configuration loader for project board sync
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * @directive Always run all tests after modifying this file:
  * ```bash
  * npm test
  * ```
  * This file affects all rule processing, so full test coverage is essential.
- * 
+ *
  * Module Conventions:
  * - YAML-based configuration in rules.yml
  * - Schema validation enforced for all configs
@@ -15,11 +15,11 @@
  * - Environment variable fallbacks supported
  */
 
-const yaml = require('js-yaml');
-const fs = require('fs');
-const path = require('path');
-const Ajv = require('ajv');
-const schema = require('./schema');
+import yaml from 'js-yaml';
+import fs from 'fs';
+import path from 'path';
+import Ajv from 'ajv';
+import schema from './schema.js';
 
 class ConfigLoader {
   constructor() {
@@ -31,7 +31,7 @@ class ConfigLoader {
     try {
       const fileContents = fs.readFileSync(configPath, 'utf8');
       const config = yaml.load(fileContents);
-      
+
       if (!this.validate(config)) {
         const errors = this.validate.errors;
         throw new Error(`Invalid configuration: ${JSON.stringify(errors, null, 2)}`);
@@ -47,4 +47,4 @@ class ConfigLoader {
   }
 }
 
-module.exports = ConfigLoader;
+export default ConfigLoader;

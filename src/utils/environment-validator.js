@@ -3,10 +3,10 @@
  * Centralized validation for all required environment variables
  */
 
-const { log } = require('./log');
-const { loadBoardRules } = require('../config/board-rules');
-const path = require('path');
-const fs = require('fs');
+import { log } from './log.js';
+import { loadBoardRules } from '../config/board-rules.js';
+import path from 'path';
+import fs from 'fs';
 
 class EnvironmentValidator {
   /**
@@ -45,7 +45,7 @@ class EnvironmentValidator {
    */
   static async validateGitHubToken() {
     try {
-      const { graphql } = require('../github/api');
+      const { graphql } = await import('../github/api.js');
 
       log.info('Testing GitHub token with viewer query...');
 
@@ -111,7 +111,7 @@ class EnvironmentValidator {
       }
 
       const [, org, projectNumber] = urlMatch;
-      const { graphql } = require('../github/api');
+      const { graphql } = await import('../github/api.js');
 
       log.info(`Resolving project ID from URL: ${org}/projects/${projectNumber}`);
 
@@ -268,4 +268,4 @@ class EnvironmentValidator {
   }
 }
 
-module.exports = { EnvironmentValidator };
+export { EnvironmentValidator };

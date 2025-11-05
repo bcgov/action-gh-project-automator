@@ -22,17 +22,17 @@
  * - Test all verification paths
  */
 
-const { log, Logger } = require('./log');
+import { log, Logger } from './log.js';
 // Initialize logger
 const verifierLog = new Logger();
-const { getItemColumn, isItemInProject, octokit } = require('../github/api');
-const { getItemSprint } = require('../rules/sprints');
-const { getItemAssignees, setItemAssignees, getItemDetails } = require('../rules/assignees');
-const { StateChangeTracker } = require('./state-changes');
-const { VerificationProgress } = require('./verification-progress');
-const { StateTransitionValidator } = require('./state-transition-validator');
-const { StepVerification } = require('./verification-steps');
-const { validateRequired, validateState, ValidationError } = require('./validation');
+import { getItemColumn, isItemInProject, octokit } from '../github/api.js';
+import { getItemSprint } from '../rules/sprints.js';
+import { getItemAssignees, getItemDetails } from '../rules/assignees.js';
+import { StateChangeTracker } from './state-changes.js';
+import { VerificationProgress } from './verification-progress.js';
+import { StateTransitionValidator } from './state-transition-validator.js';
+import { StepVerification } from './verification-steps.js';
+import { validateRequired, validateState, ValidationError } from './validation.js';
 
 class StateVerifierError extends Error {
   constructor(message, context = {}) {
@@ -105,6 +105,7 @@ class StateVerifier {
       validator.steps.markStepComplete('CONFIG_LOADED');
       validator.steps.markStepComplete('DEPENDENCIES_VERIFIED');
 
+      let transitionCount = 0;
       for (const rule of rules.rules.columns) {
         if (rule.validTransitions) {
           for (const transition of rule.validTransitions) {
@@ -113,8 +114,15 @@ class StateVerifier {
               transition.to,
               transition.conditions
             );
+            transitionCount++;
           }
         }
+      }
+
+      if (transitionCount > 0) {
+        verifierLog.info(`✓ Loaded ${transitionCount} validTransitions from rules.yml`);
+      } else {
+        verifierLog.warn('⚠ No validTransitions found in rules.yml column rules');
       }
 
       this.steps.markStepComplete('RULES_INITIALIZED');
@@ -584,4 +592,4 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-module.exports = { StateVerifier };
+export { StateVerifier };

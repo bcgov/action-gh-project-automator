@@ -1,9 +1,9 @@
-const { log } = require('./log');
+import { log } from './log.js';
 
 async function getRateLimit() {
   try {
     // Late import to avoid circular dependency during module load
-    const { graphql } = require('../github/api');
+    const { graphql } = await import('../github/api.js');
     const res = await graphql(`
       query {
         rateLimit {
@@ -62,4 +62,4 @@ async function withBackoff(fn, { retries = 3 } = {}) {
   throw lastErr;
 }
 
-module.exports = { getRateLimit, shouldProceed, withBackoff };
+export { getRateLimit, shouldProceed, withBackoff };
