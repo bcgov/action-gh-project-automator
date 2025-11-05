@@ -8,7 +8,7 @@
  * Changes here can affect how linked issues are processed.
  */
 
-import { octokit, getItemColumn, setItemColumn } from '../github/api.js';
+import { getItemColumn, setItemColumn } from '../github/api.js';
 import { log } from '../utils/log.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
 import { processLinkedIssueRules } from './processors/unified-rule-processor.js';
