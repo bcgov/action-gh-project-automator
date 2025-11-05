@@ -27,7 +27,7 @@ import { log, Logger } from './log.js';
 const verifierLog = new Logger();
 import { getItemColumn, isItemInProject, octokit } from '../github/api.js';
 import { getItemSprint } from '../rules/sprints.js';
-import { getItemAssignees, setItemAssignees, getItemDetails } from '../rules/assignees.js';
+import { getItemAssignees, getItemDetails } from '../rules/assignees.js';
 import { StateChangeTracker } from './state-changes.js';
 import { VerificationProgress } from './verification-progress.js';
 import { StateTransitionValidator } from './state-transition-validator.js';
