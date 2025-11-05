@@ -64,7 +64,7 @@
 - [ ] Write test for invalid transition (should be blocked)
 - [ ] Write test for transition not in validTransitions (should be blocked)
 - [ ] Verify tests pass
-- **File**: `test/rules/columns-transition.test.js` (new)
+- **File**: `test/processors/columns-transition.test.js` (new)
 - **Dependencies**: 2.1.2
 - **Priority**: High
 
