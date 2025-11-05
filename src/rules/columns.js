@@ -1,4 +1,4 @@
-import { getItemColumn, setItemColumn, setItemColumnsBatch, isItemInProject, octokit, graphql } from '../github/api.js';
+import { getItemColumn, setItemColumn, setItemColumnsBatch, graphql } from '../github/api.js';
 import { log } from '../utils/log.js';
 import { StateVerifier } from '../utils/state-verifier.js';
 
