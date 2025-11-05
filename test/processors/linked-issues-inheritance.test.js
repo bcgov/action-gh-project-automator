@@ -11,17 +11,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupTestEnvironment } from '../setup.js';
-
-/**
- * Test arraysEqual logic (used in linked-issues-processor.js)
- * This is the helper function used for comparing assignees
- */
-function arraysEqual(a, b) {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((val, idx) => val === sortedB[idx]);
-}
+import { arraysEqual } from '../../src/rules/linked-issues-processor.js';
 
 describe('Linked Issues Inheritance Logic Tests', () => {
   test('setup: initialize test environment', async () => {
@@ -133,9 +123,10 @@ describe('Linked Issues Inheritance Logic Tests', () => {
     const linkedColumnNull = null;
     const linkedColumnUndefined = undefined;
     
-    // null/undefined should be treated as different
-    const shouldUpdateNull = prColumn && prColumn !== linkedColumnNull;
-    const shouldUpdateUndefined = prColumn && prColumn !== linkedColumnUndefined;
+    // null/undefined should be treated as different from string values
+    // Explicitly check that prColumn exists and differs from null/undefined
+    const shouldUpdateNull = prColumn != null && prColumn !== linkedColumnNull;
+    const shouldUpdateUndefined = prColumn != null && prColumn !== linkedColumnUndefined;
     
     assert.strictEqual(shouldUpdateNull, true, 'Should update when linked column is null');
     assert.strictEqual(shouldUpdateUndefined, true, 'Should update when linked column is undefined');

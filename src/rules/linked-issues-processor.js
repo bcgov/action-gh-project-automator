@@ -20,7 +20,7 @@ import { processLinkedIssueRules } from './processors/unified-rule-processor.js'
  * @param {Array} b - Second array
  * @returns {boolean}
  */
-function arraysEqual(a, b) {
+export function arraysEqual(a, b) {
   if (a.length !== b.length) return false;
   const sortedA = [...a].sort();
   const sortedB = [...b].sort();
