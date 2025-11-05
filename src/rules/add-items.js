@@ -28,8 +28,15 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   for (const item of items) {
     try {
       // Guard against incomplete items returned from search
+      // Ensure all required fields from rules.yml conditions are present
       if (!item || !item.__typename || !item.repository || !item.repository.nameWithOwner || typeof item.number !== 'number') {
-        log.warning('Skipping item with incomplete data from search results');
+        const missingFields = [];
+        if (!item) missingFields.push('item');
+        if (!item?.__typename) missingFields.push('__typename');
+        if (!item?.repository?.nameWithOwner) missingFields.push('repository.nameWithOwner');
+        if (typeof item?.number !== 'number') missingFields.push('number');
+        
+        log.warning(`Skipping item with incomplete data from search results. Missing: ${missingFields.join(', ')}`);
         continue;
       }
 
@@ -119,13 +126,33 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       log.info('  ✓ Successfully processed board actions\n', true);
 
     } catch (error) {
-      log.error(`Failed to process ${item.__typename} #${item.number}: ${error.message}`);
-      log.debug(`Error details: ${error.stack}`);
-
-      // If this is an authentication error, stop processing
-      if (error.message.includes('Bad credentials') || error.message.includes('Not authenticated')) {
-        throw new Error('GitHub authentication failed. Please check GITHUB_TOKEN environment variable.');
+      const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+      log.error(`Failed to process ${itemIdentifier}: ${error.message}`);
+      
+      if (error.stack) {
+        log.debug(`Error details: ${error.stack}`);
       }
+
+      // Classify errors for better handling
+      const errorMessage = error.message || '';
+      
+      // Critical errors that should stop processing
+      if (errorMessage.includes('Bad credentials') || 
+          errorMessage.includes('Not authenticated') ||
+          errorMessage.includes('rate limit')) {
+        throw new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+      }
+      
+      // Network/timeout errors - log but continue
+      if (errorMessage.includes('timeout') || 
+          errorMessage.includes('ECONNRESET') ||
+          errorMessage.includes('ENOTFOUND')) {
+        log.warning(`Network error processing ${itemIdentifier}: ${errorMessage}. Continuing with next item.`);
+        continue;
+      }
+      
+      // Other errors - log but continue processing
+      log.warning(`Error processing ${itemIdentifier}: ${errorMessage}. Continuing with next item.`);
     }
   }
 
