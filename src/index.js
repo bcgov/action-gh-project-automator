@@ -48,7 +48,7 @@ const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
 import { processAddItems } from './rules/add-items.js';
 import { processColumnAssignment } from './rules/columns.js';
-import { processSprintAssignment } from './rules/sprints.js';
+import { processSprintAssignment, processSprintRemoval } from './rules/sprints.js';
 import { processAssignees, getItemDetails } from './rules/assignees.js';
 import { processLinkedIssues } from './rules/linked-issues-processor.js';
 import { StepVerification } from './utils/verification-steps.js';
@@ -243,15 +243,27 @@ async function main() {
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
         }
 
-        // Assign sprint if needed
+        // Assign sprint if needed (for eligible columns)
+        const currentColumn = columnResult.newStatus || columnResult.currentStatus;
         const sprintResult = await processSprintAssignment(
           item,
           item.projectItemId,
           context.projectId,
-          columnResult.newStatus || columnResult.currentStatus
+          currentColumn
         );
         if (sprintResult.changed) {
           log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
+        }
+
+        // Remove sprint if in inactive column
+        const sprintRemovalResult = await processSprintRemoval(
+          item,
+          item.projectItemId,
+          context.projectId,
+          currentColumn
+        );
+        if (sprintRemovalResult.changed) {
+          log.info(`Removed sprint for ${itemRef} from inactive column`);
         }
 
         // Handle assignees
@@ -409,8 +421,16 @@ async function processExistingItemsSprintAssignments(projectId) {
           id: itemNodeId
         };
 
-        // Process sprint assignment
+        // Process sprint assignment (for eligible columns)
         const sprintResult = await processSprintAssignment(
+          item,
+          projectItemId,
+          projectId,
+          currentColumn
+        );
+
+        // Process sprint removal (for inactive columns)
+        const sprintRemovalResult = await processSprintRemoval(
           item,
           projectItemId,
           projectId,
@@ -421,6 +441,10 @@ async function processExistingItemsSprintAssignments(projectId) {
         if (sprintResult.changed) {
           updatedCount++;
           log.info(`Updated sprint for existing ${type} #${content.number} to ${sprintResult.newSprint}`);
+        }
+        if (sprintRemovalResult.changed) {
+          updatedCount++;
+          log.info(`Removed sprint for existing ${type} #${content.number} from inactive column`);
         }
 
       } catch (error) {
