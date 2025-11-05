@@ -54,7 +54,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         repository: { nameWithOwner: 'bcgov/test-repo' }
       };
 
-      const isAuthored = item.author && monitoredUsers.includes(item.author.login);
+      const isAuthored = !!(item.author && monitoredUsers.includes(item.author.login));
       
       assert.strictEqual(isAuthored, false, 'Should not match PR with no author');
     });
@@ -229,10 +229,10 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       ];
 
       incompleteItems.forEach((item, index) => {
-        const isValid = item && 
+        const isValid = !!(item && 
                        item.__typename && 
                        item.repository?.nameWithOwner && 
-                       typeof item.number === 'number';
+                       typeof item.number === 'number');
         
         assert.strictEqual(isValid, false, `Incomplete item ${index} should be invalid`);
       });
