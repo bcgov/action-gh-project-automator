@@ -14,6 +14,20 @@ import { getItemAssignees, setItemAssignees } from './assignees.js';
 import { processLinkedIssueRules } from './processors/unified-rule-processor.js';
 
 /**
+ * Compare two arrays for equality (sorted)
+ * More efficient than JSON.stringify for array comparison
+ * @param {Array} a - First array
+ * @param {Array} b - Second array
+ * @returns {boolean}
+ */
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((val, idx) => val === sortedB[idx]);
+}
+
+/**
  * Process linked issues using rule-based system
  * @param {Object} pullRequest The pull request object with projectItemId
  * @param {string} projectId The project ID
@@ -81,7 +95,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
             // Evaluate skip condition from rules.yml
             // skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
             const columnsMatch = linkedIssueColumn === prActualColumn;
-            const assigneesMatch = JSON.stringify([...linkedIssueAssignees].sort()) === JSON.stringify([...prActualAssignees].sort());
+            const assigneesMatch = arraysEqual(linkedIssueAssignees, prActualAssignees);
             
             if (columnsMatch && assigneesMatch) {
                 log.info(`Skipping linked issue #${linkedIssueNumber} - column and assignees already match PR`);
@@ -112,9 +126,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                     case 'inherit_assignees':
                         // Inherit PR's actual assignees if different
                         if (prActualAssignees.length > 0) {
-                            const assigneesSorted = [...prActualAssignees].sort();
-                            const linkedSorted = [...linkedIssueAssignees].sort();
-                            if (JSON.stringify(assigneesSorted) !== JSON.stringify(linkedSorted)) {
+                            if (!arraysEqual(prActualAssignees, linkedIssueAssignees)) {
                                 await setItemAssignees(projectId, linkedIssueId, prActualAssignees);
                                 log.info(`Set linked issue #${linkedIssueNumber} assignees to: ${prActualAssignees.join(', ')} (inherited from PR)`);
                                 changed = true;

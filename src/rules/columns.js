@@ -15,23 +15,31 @@ const columnOptionsCache = new Map();
  * @throws {Error} If validation fails critically (no fallback)
  */
 function validateColumnTransition(fromColumn, toColumn, item) {
-  const validator = StateVerifier.getTransitionValidator();
-  const context = { item };
+  try {
+    const validator = StateVerifier.getTransitionValidator();
+    const context = { item };
 
-  const result = validator.validateColumnTransition(fromColumn, toColumn, context);
+    const result = validator.validateColumnTransition(fromColumn, toColumn, context);
 
-  if (!result.valid) {
-    log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
-    log.warn(`   Reason: ${result.reason}`);
-    if (result.recovery) {
-      log.warn(`   Recovery: ${result.recovery}`);
+    if (!result.valid) {
+      log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
+      log.warn(`   Reason: ${result.reason}`);
+      if (result.recovery) {
+        log.warn(`   Recovery: ${result.recovery}`);
+      }
+      if (result.allowedTransitions) {
+        log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
+      }
     }
-    if (result.allowedTransitions) {
-      log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
-    }
+
+    return result;
+  } catch (error) {
+    // Log the error but still throw - we want strict validation
+    // This ensures transitions are only allowed if explicitly declared in rules.yml
+    log.error(`Critical error validating column transition: ${error.message}`);
+    log.error(`Transition from "${fromColumn}" to "${toColumn}" blocked due to validation error`);
+    throw new Error(`Column transition validation failed: ${error.message}. Transition blocked for safety.`);
   }
-
-  return result;
 }
 
 /**
