@@ -1,41 +1,37 @@
-const { getItemColumn, setItemColumn, setItemColumnsBatch, isItemInProject, octokit, graphql } = require('../github/api');
-const { log } = require('../utils/log');
-const { StateVerifier } = require('../utils/state-verifier');
+import { getItemColumn, setItemColumn, setItemColumnsBatch, isItemInProject, octokit, graphql } from '../github/api.js';
+import { log } from '../utils/log.js';
+import { StateVerifier } from '../utils/state-verifier.js';
 
 // Cache column options per project ID during a single run
 const columnOptionsCache = new Map();
 
 /**
  * Validate column transition before making changes
+ * Enforces validTransitions from rules.yml strictly
  * @param {string} fromColumn - Current column name
  * @param {string} toColumn - Target column name
  * @param {Object} item - The item being processed
  * @returns {Object} Validation result with valid flag and details
+ * @throws {Error} If validation fails critically (no fallback)
  */
 function validateColumnTransition(fromColumn, toColumn, item) {
-  try {
-    const validator = StateVerifier.getTransitionValidator();
-    const context = { item };
-    
-    const result = validator.validateColumnTransition(fromColumn, toColumn, context);
-    
-    if (!result.valid) {
-      log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
-      log.warn(`   Reason: ${result.reason}`);
-      if (result.recovery) {
-        log.warn(`   Recovery: ${result.recovery}`);
-      }
-      if (result.allowedTransitions) {
-        log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
-      }
+  const validator = StateVerifier.getTransitionValidator();
+  const context = { item };
+
+  const result = validator.validateColumnTransition(fromColumn, toColumn, context);
+
+  if (!result.valid) {
+    log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
+    log.warn(`   Reason: ${result.reason}`);
+    if (result.recovery) {
+      log.warn(`   Recovery: ${result.recovery}`);
     }
-    
-    return result;
-  } catch (error) {
-    log.error(`Error validating column transition: ${error.message}`);
-    // If validation fails, allow the transition (backward compatibility)
-    return { valid: true, reason: 'Validation error - allowing transition for backward compatibility' };
+    if (result.allowedTransitions) {
+      log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
+    }
   }
+
+  return result;
 }
 
 /**
@@ -81,7 +77,7 @@ async function getColumnOptions(projectId) {
 
   // Cache the result
   columnOptionsCache.set(projectId, columnMap);
-  
+
   return columnMap;
 }
 
@@ -117,7 +113,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
   try {
     // First get available columns
     const options = await getColumnOptions(projectId);
-    
+
     // Get current column
     const currentColumn = await getItemColumn(projectId, projectItemId);
     const currentColumnLower = currentColumn ? currentColumn.toLowerCase() : null;
@@ -208,13 +204,13 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
     // Skip if no target column determined
     if (!targetColumn) {
       log.info('  • Result: No target column determined', true);
-      return { 
-        changed: false, 
+      return {
+        changed: false,
         reason: 'No column change needed',
         currentStatus: currentColumn
       };
     }
-    
+
     // If already in Done column, do not change (handled by GitHub)
     if (currentColumnLower === 'done') {
       log.info('  • Already in Done column, handled by GitHub', true);
@@ -277,7 +273,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
 
 /**
  * Implementation of Rule Set 2: Which Columns Items Go To?
- * 
+ *
  * Rules from rules.yml:
  * | Item Type | Trigger Condition | Action        | Skip Condition         |
  * |-----------|-------------------|---------------|------------------------|
@@ -289,7 +285,7 @@ async function processColumns({ projectId, items }) {
   const processedItems = [];
   const skippedItems = [];
   const batchQueue = [];
-  
+
   for (const item of items) {
     try {
       log.debug(`Processing column assignment for ${item.type || item.__typename} #${item.number}`);
@@ -300,7 +296,7 @@ async function processColumns({ projectId, items }) {
         number: item.number,
         state: item.state || 'OPEN'  // Default to OPEN if state is not provided
       }, item.projectItemId, projectId, batchQueue);
-      
+
       if (result.changed) {
         processedItems.push({
           type: item.__typename,
@@ -342,8 +338,4 @@ async function processColumns({ projectId, items }) {
   return { processedItems, skippedItems };
 }
 
-module.exports = {
-  processColumns,
-  processColumnAssignment,
-  getColumnOptions
-};
+export { processColumns, processColumnAssignment, getColumnOptions };
