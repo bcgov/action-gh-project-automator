@@ -1,6 +1,6 @@
-const { octokit, graphql } = require('../github/api');
-const { log } = require('../utils/log');
-const { processAssigneeRules } = require('./processors/unified-rule-processor');
+import { octokit, graphql } from '../github/api.js';
+import { log } from '../utils/log.js';
+import { processAssigneeRules } from './processors/unified-rule-processor.js';
 
 /**
  * Get details about a project item including its linked content
@@ -322,10 +322,4 @@ async function processAssignees(item, projectId, itemId) {
   };
 }
 
-const moduleExports = {
-  processAssignees,
-  getItemAssignees,
-  setItemAssignees,
-  getItemDetails
-};
-module.exports = moduleExports;
+export { processAssignees, getItemAssignees, setItemAssignees, getItemDetails };

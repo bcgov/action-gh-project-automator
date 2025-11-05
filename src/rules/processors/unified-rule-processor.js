@@ -1,6 +1,6 @@
 /**
  * @fileoverview Unified processor for all rule types
- * 
+ *
  * @directive Always run tests after modifying this file:
  * ```bash
  * npm test -- processors/unified-rule-processor.test.js
@@ -10,9 +10,9 @@
  * Changes here can affect all rule processing logic.
  */
 
-const { loadBoardRules } = require('../../config/board-rules');
-const { validator } = require('./shared-validator');
-const { log } = require('../../utils/log');
+import { loadBoardRules } from '../../config/board-rules.js';
+import { validator } from './shared-validator.js';
+import { log } from '../../utils/log.js';
 
 /**
  * Deduplicate rules by action type to eliminate redundant processing
@@ -21,7 +21,7 @@ const { log } = require('../../utils/log');
  */
 function deduplicateActions(actions) {
     const actionGroups = new Map();
-    
+
     for (const action of actions) {
         const key = action.action;
         if (!actionGroups.has(key)) {
@@ -29,18 +29,18 @@ function deduplicateActions(actions) {
         }
         actionGroups.get(key).push(action);
     }
-    
+
     // For each action type, keep only the first occurrence
     const deduplicated = [];
     for (const [actionType, actionList] of actionGroups) {
         deduplicated.push(actionList[0]);
-        
+
         // Log if we're deduplicating actions
         if (actionList.length > 1) {
             log.info(`Deduplicated ${actionList.length} ${actionType} actions for item`);
         }
     }
-    
+
     return deduplicated;
 }
 
@@ -57,7 +57,7 @@ async function processRuleType(item, ruleType) {
         validator.steps.markStepComplete('RULE_CONFIG_LOADED');
 
         const rules = config.rules[ruleType] || [];
-        
+
         for (const rule of rules) {
             try {
                 // Special handling for board_items rules
@@ -81,18 +81,18 @@ async function processRuleType(item, ruleType) {
                 if (validator.validateItemCondition(item, rule.trigger)) {
                     const action = formatAction(rule, ruleType);
                     const params = { item };
-                    
+
                     // Special handling for assignee rules
                     if (ruleType === 'assignees') {
                         params.assignee = rule.value;
                     }
-                    
+
                     // Special handling for linked issues rules
                     if (ruleType === 'linked_issues') {
                         const ruleActions = Array.isArray(rule.action) ? rule.action : [rule.action];
                         params.rule = rule.name;
                         params.actions = ruleActions;
-                        
+
                         // Create separate action for each rule action
                         for (const actionItem of ruleActions) {
                             actions.push({
@@ -102,7 +102,7 @@ async function processRuleType(item, ruleType) {
                         }
                         continue; // Skip the default action push below
                     }
-                    
+
                     actions.push({
                         action,
                         params
@@ -119,7 +119,7 @@ async function processRuleType(item, ruleType) {
 
         // Deduplicate actions to eliminate redundant processing
         const deduplicatedActions = deduplicateActions(actions);
-        
+
         if (deduplicatedActions.length < actions.length) {
             log.info(`Rule deduplication: ${actions.length} → ${deduplicatedActions.length} actions for ${ruleType}`);
         }
@@ -173,7 +173,7 @@ async function processAllRules(item) {
         // Process all rule types dynamically from configuration
         const config = loadBoardRules();
         const ruleTypes = Object.keys(config.rules || {});
-        
+
         for (const ruleType of ruleTypes) {
             const ruleActions = await processRuleType(item, ruleType);
             actions.push(...ruleActions);
@@ -207,12 +207,4 @@ async function processLinkedIssueRules(item) {
     return await processRuleType(item, 'linked_issues');
 }
 
-module.exports = {
-    processAllRules,
-    processRuleType,
-    processBoardItemRules,
-    processColumnRules,
-    processSprintRules,
-    processAssigneeRules,
-    processLinkedIssueRules
-}; 
+export { processAllRules, processRuleType, processBoardItemRules, processColumnRules, processSprintRules, processAssigneeRules, processLinkedIssueRules };

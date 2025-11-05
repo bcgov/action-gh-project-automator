@@ -1,20 +1,20 @@
 /**
  * @fileoverview Tracks state changes during item synchronization
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * Module Conventions:
  * - Each item's state history is preserved for the duration of sync
  * - Timing statistics are tracked for performance monitoring
  * - All state changes are recorded with before/after values
  * - Error tracking includes attempt counts and timestamps
- * 
+ *
  * Documentation Update Guidelines:
  * Update this documentation when:
  * - Adding new types of state tracking
  * - Modifying timing statistics collection
  * - Changing error tracking behavior
  * - Adding new summary report formats
- * 
+ *
  * Maintain Stability:
  * - Preserve state history format for reporting
  * - Keep timing statistics consistent
@@ -46,7 +46,7 @@ class StateChangeTracker {
     const key = `${item.type}#${item.number}`;
     this.startTimes.set(key, Date.now());
     this.changes.set(key, []);
-    
+
     // Initialize with meaningful initial state
     const initialState = {
       inProject: item.projectItems?.nodes?.length > 0,
@@ -61,17 +61,17 @@ class StateChangeTracker {
   recordChange(item, type, before, after, attemptCount = 1) {
     const key = `${item.type}#${item.number}`;
     const changes = this.changes.get(key) || [];
-    
+
     // Get the last known state
     const lastChange = changes[changes.length - 1];
     const currentState = lastChange ? lastChange.after : {};
-    
+
     // Create new state by merging current with after
     const newState = {
       ...currentState,
       ...after
     };
-    
+
     changes.push({
       type,
       timestamp: new Date(),
@@ -82,7 +82,7 @@ class StateChangeTracker {
     });
 
     this.changes.set(key, changes);
-    
+
     // Update timing stats
     this.updateTimingStats(type, changes[changes.length - 1].duration, attemptCount);
   }
@@ -131,7 +131,7 @@ class StateChangeTracker {
   printSummary() {
     const { Logger } = require('./log');
     const log = new Logger();
-    
+
     log.info('\n📊 State Change Summary', true);
     log.info('═══════════════════════\n', true);
 
@@ -143,7 +143,7 @@ class StateChangeTracker {
       for (const change of changes) {
         const duration = (change.duration / 1000).toFixed(1);
         log.info(`  • ${change.type} (${duration}s, ${change.attemptCount} attempts)`, true);
-        
+
         // Print state differences in a readable format
         if (typeof change.before === 'object') {
           const diffs = this.getDiffs(change.before, change.after);
@@ -159,12 +159,12 @@ class StateChangeTracker {
     log.info('⏱️  Timing Statistics', true);
     log.info('══════════════════\n', true);
     log.info(`Total Duration: ${(this.timingStats.totalDuration / 1000).toFixed(1)}s\n`, true);
-    
+
     Object.keys(this.timingStats.verificationCounts).forEach(type => {
       const count = this.timingStats.verificationCounts[type];
       const avgDuration = this.timingStats.averageDurations[type];
       const maxRetries = this.timingStats.maxRetries[type];
-      
+
       log.info(`${type}:`, true);
       log.info(`  Count: ${count}`, true);
       log.info(`  Avg Duration: ${(avgDuration / 1000).toFixed(1)}s`, true);
@@ -223,6 +223,4 @@ class StateChangeTracker {
   }
 }
 
-module.exports = {
-  StateChangeTracker
-};
+export { StateChangeTracker };

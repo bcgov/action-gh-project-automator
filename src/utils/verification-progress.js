@@ -1,20 +1,20 @@
 /**
  * @fileoverview Tracks progress and performance of verification operations
  * @see /src/index.js for project conventions and architecture
- * 
+ *
  * Module Conventions:
  * - Progress tracking includes step-by-step verification
  * - API performance metrics are collected per endpoint
  * - Operation progress is tracked with success/failure
  * - Detailed timing statistics are maintained
- * 
+ *
  * Documentation Update Guidelines:
  * Update this documentation when:
  * - Adding new progress tracking metrics
  * - Modifying API timing collection
  * - Changing progress reporting format
  * - Adding new operation types
- * 
+ *
  * Maintain Stability:
  * - Keep API timing format consistent
  * - Preserve progress step tracking
@@ -94,7 +94,7 @@ class VerificationProgress {
     for (const [key, operation] of this.operationProgress) {
       const progress = (operation.currentStep / operation.totalSteps * 100).toFixed(0);
       const duration = ((Date.now() - operation.startTime) / 1000).toFixed(1);
-      
+
       console.log(`${operation.type}: ${operation.itemRef}`);
       console.log(`Progress: ${progress}% (${operation.currentStep}/${operation.totalSteps})`);
       console.log(`Duration: ${duration}s\n`);
@@ -126,6 +126,4 @@ class VerificationProgress {
   }
 }
 
-module.exports = {
-  VerificationProgress
-};
+export { VerificationProgress };

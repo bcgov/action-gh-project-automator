@@ -1,10 +1,10 @@
-const { isItemInProject, addItemToProject, getRecentItems } = require('../github/api');
-const { log } = require('../utils/log');
-const { processBoardItemRules } = require('./processors/unified-rule-processor');
+import { isItemInProject, addItemToProject, getRecentItems } from '../github/api.js';
+import { log } from '../utils/log.js';
+import { processBoardItemRules } from './processors/unified-rule-processor.js';
 
 /**
  * Implementation of Rule Set 1: Which Items are Added to the Project Board?
- * 
+ *
  * Rules from rules.yml:
  * | Item Type | Trigger Condition             | Action               | Skip Condition     |
  * |-----------|-------------------------------|----------------------|--------------------|
@@ -232,8 +232,4 @@ function shouldAddItemToProject(item, monitoredUser, monitoredRepos) {
 }
 
 // Export all functions for use in tests and main app
-module.exports = {
-  processAddItems,
-  processItemForProject,
-  shouldAddItemToProject
-};
+export { processAddItems, processItemForProject, shouldAddItemToProject };

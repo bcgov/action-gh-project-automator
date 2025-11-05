@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "GitHub project board automation based on configurable rules",
   "main": "src/index.js",
-  "type": "commonjs",
+  "type": "module",
   "engines": {
     "node": ">=20.0.0"
   },

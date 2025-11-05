@@ -1,6 +1,6 @@
 /**
  * @fileoverview JSON Schema for project board sync configuration
- * 
+ *
  * @directive Always run schema validation tests after changes:
  * ```bash
  * npm test -- config/loader.test.js
@@ -176,4 +176,4 @@ const schema = {
   }
 };
 
-module.exports = schema;
+export default schema;

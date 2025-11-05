@@ -42,20 +42,18 @@
  * @see rules.yml - Core business rules and configuration
  */
 
-const { getRecentItems } = require('./github/api');
-const Logger = require('./utils/log').Logger;
+import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
+import { Logger } from './utils/log.js';
 const log = new Logger();
-const { StateVerifier } = require('./utils/state-verifier');
-const { processAddItems } = require('./rules/add-items');
-const { processColumnAssignment } = require('./rules/columns');
-const { processSprintAssignment } = require('./rules/sprints');
-const { processAssignees } = require('./rules/assignees');
-const { processLinkedIssues } = require('./rules/linked-issues-processor');
-const { StepVerification } = require('./utils/verification-steps');
-const { EnvironmentValidator } = require('./utils/environment-validator');
-const { getProjectItems, getItemColumn } = require('./github/api');
-const { getItemDetails } = require('./rules/assignees');
-const { loadBoardRules } = require('./config/board-rules');
+import { StateVerifier } from './utils/state-verifier.js';
+import { processAddItems } from './rules/add-items.js';
+import { processColumnAssignment } from './rules/columns.js';
+import { processSprintAssignment } from './rules/sprints.js';
+import { processAssignees, getItemDetails } from './rules/assignees.js';
+import { processLinkedIssues } from './rules/linked-issues-processor.js';
+import { StepVerification } from './utils/verification-steps.js';
+import { EnvironmentValidator } from './utils/environment-validator.js';
+import { loadBoardRules } from './config/board-rules.js';
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -122,7 +120,7 @@ StepVerification.envValidator = envValidator;
  * @throws {Error} If any required variables are missing or validation fails
  */
 async function validateEnvironment() {
-  const { StateVerifier } = require('./utils/state-verifier');
+  // StateVerifier is already imported at the top
 
   // Initialize base state tracking
   StateVerifier.steps.markStepComplete('STATE_TRACKING_INITIALIZED');
@@ -179,7 +177,7 @@ async function main() {
     const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
     // Initialize transition rules for state validation
-    const { StateVerifier } = require('./utils/state-verifier');
+    // StateVerifier is already imported at the top
     StateVerifier.initializeTransitionRules(boardConfig);
 
     // Initialize context with validated environment config
@@ -197,7 +195,7 @@ async function main() {
     log.info('Starting Project Board Sync...');
     log.info(`User: ${context.monitoredUser}`);
     log.info(`Project: ${context.projectId}`);
-    
+
     // Log concurrency context
     const eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
     const ref = process.env.GITHUB_REF || 'unknown';
@@ -446,17 +444,11 @@ async function processExistingItemsSprintAssignments(projectId) {
 }
 
 // Run if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(err => {
     log.error('Unhandled error:', err);
     process.exit(1);
   });
 }
 
-module.exports = {
-  main,
-  validateEnvironment,
-  ItemNotAddedError,
-  CriticalError,
-  classifyError
-};
+export { main, validateEnvironment, ItemNotAddedError, CriticalError, classifyError };

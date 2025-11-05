@@ -1,5 +1,5 @@
-const { graphql } = require('../github/api');
-const { log } = require('../utils/log');
+import { graphql } from '../github/api.js';
+import { log } from '../utils/log.js';
 // Cache Sprint field ID and iterations per project during a run
 const sprintFieldIdCache = new Map(); // projectId -> fieldId
 const sprintIterationsCache = new Map(); // projectId -> iterations array
@@ -309,20 +309,20 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       if (!target) {
         // No sprint covers this completion date - assign to next available sprint
         log.warning(`  • No sprint covers completion date ${completedAt}`);
-        
+
         const iterations = await getSprintIterations(projectId);
         const completionDate = new Date(completedAt);
-        
+
         // Find the next sprint after the completion date (sort by start date first)
         const sortedIterations = iterations.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
         const nextSprint = sortedIterations.find(sprint => {
           const sprintStart = new Date(sprint.startDate);
           return sprintStart > completionDate;
         });
-        
+
         if (nextSprint) {
           log.info(`  • Assigning to next available sprint: ${nextSprint.title} (${nextSprint.id})`);
-          
+
           // Set sprint to next available sprint
           const sprintFieldId = await getSprintFieldId(projectId);
           await graphql(`
@@ -341,9 +341,9 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
           return { changed: true, newSprint: nextSprint.id, reason: `Assigned to next available sprint (${nextSprint.title})` };
         } else {
           log.warning(`  • No future sprint found - skipping sprint assignment`);
-          return { 
-            changed: false, 
-            reason: 'No sprint covers completion date and no future sprint available' 
+          return {
+            changed: false,
+            reason: 'No sprint covers completion date and no future sprint available'
           };
         }
       }
@@ -417,12 +417,4 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
   }
 }
 
-module.exports = {
-  processSprintAssignment,
-  getItemSprint,
-  getCurrentSprint,
-  setItemSprintsBatch,
-  getSprintFieldId,
-  getSprintIterations,
-  findSprintForDate
-};
+export { processSprintAssignment, getItemSprint, getCurrentSprint, setItemSprintsBatch, getSprintFieldId, getSprintIterations, findSprintForDate };

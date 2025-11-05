@@ -1,6 +1,6 @@
-const path = require('path');
-const fs = require('fs');
-const ConfigLoader = require('./loader');
+import path from 'path';
+import fs from 'fs';
+import ConfigLoader from './loader.js';
 
 /**
  * Load the board rules configuration and normalize it for backward compatibility.
@@ -129,9 +129,7 @@ function mergeRuleGroup(merged, ruleGroup) {
     });
 }
 
-module.exports = {
-    loadBoardRules
-};
+export { loadBoardRules };
 
 /**
  * Resolve the configuration file path, preferring a flattened, repo-level config.

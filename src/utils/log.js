@@ -65,7 +65,7 @@ class Logger {
         formattedState[key] = value.length === 0 ? [] : value;
         continue;
       }
-      
+
       // Special handling for other values
       if (value === undefined || value === null) {
         formattedState[key] = 'Not Set';
@@ -97,7 +97,7 @@ class Logger {
 
     const before = states[0].state;
     const after = states[states.length - 1].state;
-    
+
     const changes = {};
     Object.keys(before).forEach(key => {
       if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
@@ -107,7 +107,7 @@ class Logger {
         };
       }
     });
-    
+
     return Object.keys(changes).length ? changes : null;
   }
 
@@ -117,7 +117,7 @@ class Logger {
   printStateSummary() {
     console.log('\nState Changes Summary:');
     const uniqueItems = [...new Set(this.logs.states.map(s => s.itemId))];
-    
+
     for (const itemId of uniqueItems) {
       const changes = this.getStateChanges(itemId);
       if (changes) {
@@ -132,7 +132,7 @@ class Logger {
   printSummary() {
     console.log('\n📊 Execution Summary');
     console.log('══════════════════\n');
-    
+
     const stats = {
       total: this.logs.infos.length + this.logs.unchanged.length + this.logs.skipped.length,
       errors: this.logs.errors.length,
@@ -141,7 +141,7 @@ class Logger {
       skipped: this.logs.skipped.length,
       stateChanges: this.logs.states.length
     };
-    
+
     console.log(`Total Items Processed: ${stats.total}`);
     console.log(`├─ State Changes: ${stats.stateChanges}`);
     console.log(`├─ Unchanged: ${stats.unchanged}`);
@@ -165,7 +165,4 @@ class Logger {
 // Create a default logger instance
 const defaultLogger = new Logger();
 
-module.exports = {
-  Logger,
-  log: defaultLogger
-};
+export { Logger, defaultLogger as log };

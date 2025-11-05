@@ -1,7 +1,7 @@
 /**
  * @fileoverview Input validation and type checking utilities
  */
-const { log } = require('./log');
+import { log } from './log.js';
 
 class ValidationError extends Error {
   constructor(message, context = {}) {
@@ -73,14 +73,14 @@ function validateState(state, rules, context = {}) {
     // Validate column enum values
     if (state.column) {
       validateEnum(
-        state.column, 
+        state.column,
         rules.columns.map(r => r.name),
         'column',
         context
       );
     }
 
-    // Validate sprint values  
+    // Validate sprint values
     if (state.sprint) {
       validateEnum(
         state.sprint,
@@ -99,7 +99,7 @@ function validateState(state, rules, context = {}) {
           'Convert single assignee string to array if needed'
         ]
       });
-      
+
       state.assignees.forEach((assignee, index) => {
         validateType(assignee, 'string', `assignees[${index}]`, {
           ...context,
@@ -133,7 +133,7 @@ function validateRules(rules) {
   rules.columns.forEach((rule, index) => {
     validateRequired(rule.name, `rules.columns[${index}].name`);
     validateType(rule.name, 'string', `rules.columns[${index}].name`);
-    
+
     if (rule.validTransitions) {
       validateType(rule.validTransitions, 'array', `rules.columns[${index}].validTransitions`);
       rule.validTransitions.forEach((transition, tIndex) => {
@@ -144,11 +144,4 @@ function validateRules(rules) {
   });
 }
 
-module.exports = {
-  ValidationError,
-  validateRequired,
-  validateType,
-  validateEnum,
-  validateState,
-  validateRules
-};
+export { ValidationError, validateRequired, validateType, validateEnum, validateState, validateRules };
