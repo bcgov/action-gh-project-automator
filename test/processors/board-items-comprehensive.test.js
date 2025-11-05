@@ -154,7 +154,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         repository: { nameWithOwner: 'bcgov/nr-nerds' }
       };
 
-      const condition = 'monitored.repos.includes(item.repository)';
+      // Rule condition: monitored.repos.includes(item.repository)
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
       
       assert.strictEqual(isMonitored, true, 'Should match Issue from monitored repository');
