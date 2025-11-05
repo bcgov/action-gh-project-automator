@@ -231,7 +231,7 @@ Each section maps:
 
 **Status**: ✅ **Fully Implemented** - Matches `rules.yml` declaration
 
-**Known Gap**: Sprint removal for inactive columns (New, Parked, Backlog) is not implemented (Issue #66)
+**Known Gap**: Sprint removal for inactive columns (New, Parked, Backlog) is not implemented ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
 
 ## 4. Assignee Rules
 
@@ -372,7 +372,7 @@ Each section maps:
 
 ### Missing Features
 
-1. **Sprint Removal** (Issue #66)
+1. **Sprint Removal** ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
    - Not declared in `rules.yml` but documented as needed
    - Should remove sprint from items in inactive columns (New, Parked, Backlog)
 

@@ -209,7 +209,7 @@
 - **Value**: `"current"`
 - **Skip Condition**: `"item.sprint === 'current'"`
 
-**Note**: Sprint removal for inactive columns (New, Parked, Backlog) is not implemented (Issue #66).
+**Note**: Sprint removal for inactive columns (New, Parked, Backlog) is not implemented ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66)).
 
 ### 4. Assignee Rules (`assignees`)
 
@@ -294,7 +294,7 @@ Conditions are JavaScript-like expressions evaluated in a context with:
 ### Not Implemented
 - ❌ `inherit_column` action for linked issues
 - ❌ `inherit_assignees` action for linked issues
-- ❌ Sprint removal for inactive columns (Issue #66)
+- ❌ Sprint removal for inactive columns ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
 
 ## Configuration Requirements
 

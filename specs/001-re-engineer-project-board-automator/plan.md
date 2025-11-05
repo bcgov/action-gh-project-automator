@@ -160,7 +160,7 @@
 **Current State**: ✅ Working, but can add sprint removal
 
 **Improvements**:
-- Add sprint removal for inactive columns (Issue #66)
+- Add sprint removal for inactive columns ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
 - Improve edge case handling
 - Add comprehensive tests
 

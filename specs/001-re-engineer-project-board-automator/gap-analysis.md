@@ -81,7 +81,7 @@
 
 ### 3. Not Declared but Documented as Needed ❌
 
-**Sprint Removal** (Issue #66):
+**Sprint Removal** ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66)):
 - Not in `rules.yml` but documented as needed
 - Should remove sprint from items in inactive columns (New, Parked, Backlog)
 
@@ -206,7 +206,7 @@ skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees
 
 **Location**: Not implemented anywhere
 
-**Required Behavior** (from Issue #66):
+**Required Behavior** (from [Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66)):
 - Remove sprint from items in inactive columns (New, Parked, Backlog)
 - Should be a rule in `rules.yml` sprints section
 
