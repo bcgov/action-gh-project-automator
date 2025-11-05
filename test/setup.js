@@ -3,10 +3,10 @@
  * Ensures all tests have proper state tracking and environment setup
  */
 
-const { StateVerifier } = require('../src/utils/state-verifier');
+import { StateVerifier } from '../src/utils/state-verifier.js';
 
 // Initialize state tracking for tests
-function setupTestEnvironment() {
+export function setupTestEnvironment() {
     // Mark basic steps as complete for tests in correct dependency order
     StateVerifier.steps.markStepComplete('STATE_TRACKING_INITIALIZED');
     StateVerifier.steps.markStepComplete('VERIFICATION_PROGRESS_SETUP');
@@ -23,7 +23,4 @@ function setupTestEnvironment() {
     if (!process.env.GITHUB_TOKEN) {
         process.env.GITHUB_TOKEN = 'test-token';
     }
-}
-
-// Export for use in test files
-module.exports = { setupTestEnvironment }; 
+} 
