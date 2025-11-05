@@ -431,15 +431,14 @@ async function removeItemSprint(projectId, projectItemId) {
       return false;
     }
 
-    // Remove sprint by setting value to null
-    // Note: GitHub's GraphQL API accepts value: null to clear iteration fields
+    // Clear sprint field using GitHub's dedicated clear mutation
+    // This is the correct way to clear iteration field values per GitHub GraphQL API
     await graphql(`
       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
-        updateProjectV2ItemFieldValue(input: {
+        clearProjectV2ItemFieldValue(input: {
           projectId: $projectId
           itemId: $itemId
           fieldId: $fieldId
-          value: null
         }) {
           projectV2Item { id }
         }
