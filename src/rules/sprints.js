@@ -417,4 +417,105 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
   }
 }
 
-export { processSprintAssignment, getItemSprint, getCurrentSprint, setItemSprintsBatch, getSprintFieldId, getSprintIterations, findSprintForDate };
+/**
+ * Remove sprint assignment from a project item
+ * @param {string} projectId - The project board ID
+ * @param {string} projectItemId - The project item ID
+ * @returns {Promise<boolean>} True if sprint was removed successfully
+ */
+async function removeItemSprint(projectId, projectItemId) {
+  try {
+    const sprintFieldId = await getSprintFieldId(projectId);
+    if (!sprintFieldId) {
+      log.warning(`Sprint field not found for project ${projectId}. Cannot remove sprint.`);
+      return false;
+    }
+
+    // Clear sprint field using GitHub's dedicated clear mutation
+    // This is the correct way to clear iteration field values per GitHub GraphQL API
+    await graphql(`
+      mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+        clearProjectV2ItemFieldValue(input: {
+          projectId: $projectId
+          itemId: $itemId
+          fieldId: $fieldId
+        }) {
+          projectV2Item { id }
+        }
+      }
+    `, { projectId, itemId: projectItemId, fieldId: sprintFieldId });
+
+    return true;
+  } catch (error) {
+    log.error(`Failed to remove sprint from item ${projectItemId}: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Process sprint removal for items in inactive columns
+ * @param {Object} item - The issue or PR
+ * @param {string} projectItemId - The project item ID
+ * @param {string} projectId - The project board ID
+ * @param {string} currentColumn - The item's current column name
+ * @returns {Promise<{changed: boolean, reason?: string}>}
+ */
+async function processSprintRemoval(item, projectItemId, projectId, currentColumn) {
+  log.info(`Processing sprint removal for ${item.__typename} #${item.number}:`);
+  log.info(`  • Current column: ${currentColumn}`);
+
+  // Only process items in inactive columns (New, Parked, Backlog)
+  const inactiveColumns = ['New', 'Parked', 'Backlog'];
+  if (!inactiveColumns.includes(currentColumn)) {
+    log.info(`  • Skip: Not in inactive column (${currentColumn})`);
+    return {
+      changed: false,
+      reason: 'Not in inactive column'
+    };
+  }
+
+  // Get current sprint assignment
+  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
+    await getItemSprint(projectId, projectItemId);
+  log.info(`  • Current sprint: ${currentSprintTitle || 'None'} (${currentSprintId || 'None'})`);
+
+  // Skip if no sprint is set
+  if (!currentSprintId) {
+    log.info('  • Skip: No sprint assigned');
+    return {
+      changed: false,
+      reason: 'No sprint assigned'
+    };
+  }
+
+  try {
+    // Remove sprint
+    await removeItemSprint(projectId, projectItemId);
+    log.info(`  • Removed sprint: ${currentSprintTitle} (${currentSprintId})`);
+
+    return {
+      changed: true,
+      reason: `Removed sprint from inactive column (${currentColumn})`
+    };
+  } catch (error) {
+    const message = error?.message || '';
+    // Gracefully skip if there is no sprint configured or Sprint field not found
+    if (
+      message.includes('field(name: "Sprint")') ||
+      message.includes('Cannot read properties of undefined') ||
+      message.includes('Sprint field not found')
+    ) {
+      log.info('  • Skip: Sprint field not configured');
+      return {
+        changed: false,
+        reason: 'Sprint field not configured'
+      };
+    }
+
+    log.error(`  • Error: Failed to remove sprint: ${message}`);
+    if (error.stack) log.error(error.stack);
+    throw error;
+  }
+}
+
+export { processSprintAssignment, processSprintRemoval, getItemSprint, getCurrentSprint, setItemSprintsBatch, getSprintFieldId, getSprintIterations, findSprintForDate, removeItemSprint };

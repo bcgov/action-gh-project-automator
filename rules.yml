@@ -146,6 +146,14 @@ automation:
           value: "current"
           skip_if: "item.sprint === 'current'"
 
+        - name: "remove_sprint_inactive_columns"
+          description: "Remove sprint from items in inactive columns (New, Parked, Backlog)"
+          trigger:
+            type: ["PullRequest", "Issue"]
+            condition: "item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog'"
+          action: "remove_sprint"
+          skip_if: "item.sprint == null"
+
       # Linked issue rules
       linked_issues:
         - name: "linked_issue_inheritance"
