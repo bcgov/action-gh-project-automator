@@ -31,10 +31,13 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       // Ensure all required fields from rules.yml conditions are present
       if (!item || !item.__typename || !item.repository || !item.repository.nameWithOwner || typeof item.number !== 'number') {
         const missingFields = [];
-        if (!item) missingFields.push('item');
-        if (!item?.__typename) missingFields.push('__typename');
-        if (!item?.repository?.nameWithOwner) missingFields.push('repository.nameWithOwner');
-        if (typeof item?.number !== 'number') missingFields.push('number');
+        if (!item) {
+          missingFields.push('item');
+        } else {
+          if (!item.__typename) missingFields.push('__typename');
+          if (!item.repository?.nameWithOwner) missingFields.push('repository.nameWithOwner');
+          if (typeof item.number !== 'number') missingFields.push('number');
+        }
         
         log.warning(`Skipping item with incomplete data from search results. Missing: ${missingFields.join(', ')}`);
         continue;

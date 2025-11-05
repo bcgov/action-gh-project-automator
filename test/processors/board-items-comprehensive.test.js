@@ -26,7 +26,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         repository: { nameWithOwner: 'bcgov/test-repo' }
       };
 
-      const condition = 'monitored.users.includes(item.author)';
+      // Rule condition: monitored.users.includes(item.author)
       // Simulate condition evaluation
       const isAuthored = monitoredUsers.includes(item.author.login);
       
@@ -75,7 +75,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         repository: { nameWithOwner: 'bcgov/test-repo' }
       };
 
-      const condition = 'item.assignees.some(assignee => monitored.users.includes(assignee))';
+      // Rule condition: item.assignees.some(assignee => monitored.users.includes(assignee))
       // Simulate condition evaluation
       const isAssigned = item.assignees.nodes.some(a => monitoredUsers.includes(a.login));
       
@@ -125,7 +125,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         repository: { nameWithOwner: 'bcgov/nr-nerds' }
       };
 
-      const condition = 'monitored.repos.includes(item.repository)';
+      // Rule condition: monitored.repos.includes(item.repository)
       // Simulate condition evaluation
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
       
@@ -184,7 +184,7 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         }
       };
 
-      const skipCondition = 'item.inProject';
+      // Skip condition: item.inProject
       const isInProject = item.projectItems?.nodes?.length > 0;
       
       assert.strictEqual(isInProject, true, 'Should detect item is in project');
