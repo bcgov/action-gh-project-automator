@@ -243,27 +243,33 @@ async function main() {
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
         }
 
-        // Assign sprint if needed (for eligible columns)
+        // Process sprint assignment or removal based on column
         const currentColumn = columnResult.newStatus || columnResult.currentStatus;
-        const sprintResult = await processSprintAssignment(
-          item,
-          item.projectItemId,
-          context.projectId,
-          currentColumn
-        );
-        if (sprintResult.changed) {
-          log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
-        }
-
-        // Remove sprint if in inactive column
-        const sprintRemovalResult = await processSprintRemoval(
-          item,
-          item.projectItemId,
-          context.projectId,
-          currentColumn
-        );
-        if (sprintRemovalResult.changed) {
-          log.info(`Removed sprint for ${itemRef} from inactive column`);
+        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        const inactiveColumns = ['New', 'Parked', 'Backlog'];
+        
+        if (eligibleColumns.includes(currentColumn)) {
+          // Assign sprint for eligible columns
+          const sprintResult = await processSprintAssignment(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
+          if (sprintResult.changed) {
+            log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
+          }
+        } else if (inactiveColumns.includes(currentColumn)) {
+          // Remove sprint for inactive columns
+          const sprintRemovalResult = await processSprintRemoval(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
+          if (sprintRemovalResult.changed) {
+            log.info(`Removed sprint for ${itemRef} from inactive column`);
+          }
         }
 
         // Handle assignees
@@ -421,30 +427,38 @@ async function processExistingItemsSprintAssignments(projectId) {
           id: itemNodeId
         };
 
-        // Process sprint assignment (for eligible columns)
-        const sprintResult = await processSprintAssignment(
-          item,
-          projectItemId,
-          projectId,
-          currentColumn
-        );
-
-        // Process sprint removal (for inactive columns)
-        const sprintRemovalResult = await processSprintRemoval(
-          item,
-          projectItemId,
-          projectId,
-          currentColumn
-        );
-
-        processedCount++;
-        if (sprintResult.changed) {
-          updatedCount++;
-          log.info(`Updated sprint for existing ${type} #${content.number} to ${sprintResult.newSprint}`);
-        }
-        if (sprintRemovalResult.changed) {
-          updatedCount++;
-          log.info(`Removed sprint for existing ${type} #${content.number} from inactive column`);
+        // Process sprint assignment or removal based on column
+        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        const inactiveColumns = ['New', 'Parked', 'Backlog'];
+        
+        if (eligibleColumns.includes(currentColumn)) {
+          // Assign sprint for eligible columns
+          const sprintResult = await processSprintAssignment(
+            item,
+            projectItemId,
+            projectId,
+            currentColumn
+          );
+          processedCount++;
+          if (sprintResult.changed) {
+            updatedCount++;
+            log.info(`Updated sprint for existing ${type} #${content.number} to ${sprintResult.newSprint}`);
+          }
+        } else if (inactiveColumns.includes(currentColumn)) {
+          // Remove sprint for inactive columns
+          const sprintRemovalResult = await processSprintRemoval(
+            item,
+            projectItemId,
+            projectId,
+            currentColumn
+          );
+          processedCount++;
+          if (sprintRemovalResult.changed) {
+            updatedCount++;
+            log.info(`Removed sprint for existing ${type} #${content.number} from inactive column`);
+          }
+        } else {
+          processedCount++;
         }
 
       } catch (error) {

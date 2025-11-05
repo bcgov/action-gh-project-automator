@@ -42,7 +42,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from New column');
@@ -54,7 +54,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from Parked column');
@@ -66,7 +66,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from Backlog column');
@@ -78,7 +78,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, false, 'Should skip when no sprint is set');
@@ -90,7 +90,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, false, 'Should skip when in eligible column');
@@ -102,7 +102,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, false, 'Should skip when in Done column');
@@ -114,7 +114,7 @@ describe('Sprint Removal Logic Tests', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     
     const isInactive = inactiveColumns.includes(currentColumn);
-    const hasSprint = currentSprintId != null;
+    const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
     
     assert.strictEqual(shouldRemove, false, 'Should skip when sprint is undefined');
@@ -126,7 +126,7 @@ describe('Sprint Removal Logic Tests', () => {
     
     inactiveColumns.forEach(column => {
       const isInactive = inactiveColumns.includes(column);
-      const hasSprint = currentSprintId != null;
+      const hasSprint = currentSprintId != null && currentSprintId !== undefined;
       const shouldRemove = isInactive && hasSprint;
       
       assert.strictEqual(shouldRemove, true, `Should remove sprint from ${column} column`);
@@ -140,7 +140,7 @@ describe('Sprint Removal Logic Tests', () => {
     
     eligibleColumns.forEach(column => {
       const isInactive = inactiveColumns.includes(column);
-      const hasSprint = currentSprintId != null;
+      const hasSprint = currentSprintId != null && currentSprintId !== undefined;
       const shouldRemove = isInactive && hasSprint;
       
       assert.strictEqual(shouldRemove, false, `Should not remove sprint from ${column} column`);
