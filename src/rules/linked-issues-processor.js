@@ -22,7 +22,7 @@ import { processLinkedIssueRules } from './processors/unified-rule-processor.js'
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint) {
-    const { id: pullRequestId, number: pullRequestNumber, repository: { nameWithOwner: repositoryName }, state, merged, projectItemId } = pullRequest;
+    const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName }, state, merged, projectItemId } = pullRequest;
     const linkedIssueNodes = pullRequest.linkedIssues?.nodes || [];
 
     let changed = false;
