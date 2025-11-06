@@ -353,9 +353,9 @@ async function processAssignees(item, projectId, itemId) {
                            errorMessage.includes('ENOTFOUND');
     
     if (isNetworkError) {
-      // Log as warning for consistency with columns.js pattern (line 308)
-      // Network errors that cause re-throwing are logged as warnings in the codebase
-      log.warning(`Network error processing assignees for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
+      // Network errors that cause re-throwing are logged as errors since they stop processing
+      // This differs from network errors that allow continuing (which use log.warning())
+      log.error(`Network error processing assignees for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
       throw error; // Re-throw network errors so they can be handled by caller
     }
     

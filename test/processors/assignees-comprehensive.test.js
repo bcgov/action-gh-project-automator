@@ -5,9 +5,12 @@
  * 
  * Also tests condition evaluation, skip conditions, and edge cases
  * 
- * Note: This file uses ES module syntax (import) because the project uses
- * "type": "module" in package.json. Other test files using CommonJS (require)
- * are outdated and need conversion to ES modules.
+ * @module test/processors/assignees-comprehensive.test.js
+ * @type {ESModule}
+ * 
+ * Note: This file uses ES module syntax (import) per package.json "type": "module".
+ * Other test files using CommonJS (require) fail tests and need conversion to ES modules.
+ * This is the correct format for this project.
  */
 
 import { test, describe } from 'node:test';
