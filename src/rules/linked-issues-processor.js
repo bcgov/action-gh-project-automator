@@ -12,6 +12,7 @@ import { getItemColumn, setItemColumn } from '../github/api.js';
 import { log } from '../utils/log.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
 import { processLinkedIssueRules } from './processors/unified-rule-processor.js';
+import { handleClassifiedError } from '../utils/error-classifier.js';
 
 /**
  * Compare two arrays for equality (sorted)
@@ -154,8 +155,8 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
             });
 
         } catch (error) {
-            log.error(`Error updating linked issue ${linkedIssueNumber} in repository ${linkedIssueRepositoryName}: ${error.message}`);
-            throw error;
+            const itemIdentifier = `Linked Issue #${linkedIssueNumber} in ${linkedIssueRepositoryName}`;
+            handleClassifiedError(error, itemIdentifier, log);
         }
     }
 

@@ -22,6 +22,8 @@
  * - Test state change tracking flows
  */
 
+import { Logger } from './log.js';
+
 /**
  * Tracks state changes during item synchronization
  */
@@ -129,7 +131,6 @@ class StateChangeTracker {
    * Print a summary of state changes with enhanced statistics
    */
   printSummary() {
-    const { Logger } = require('./log');
     const log = new Logger();
 
     log.info('\n📊 State Change Summary', true);
