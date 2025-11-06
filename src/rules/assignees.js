@@ -285,6 +285,7 @@ async function processAssignees(item, projectId, itemId) {
     // Unified template variable substitution
     if (typeof assigneeToAdd === 'string') {
       // Support both ${item.author} and item.author formats
+      // Note: Checking for literal string '${item.author}', not a template literal
       if (assigneeToAdd.includes('${item.author}')) {
         assigneeToAdd = assigneeToAdd.replace('${item.author}', item.author?.login || '');
       } else if (assigneeToAdd === 'item.author') {
@@ -352,6 +353,8 @@ async function processAssignees(item, projectId, itemId) {
                            errorMessage.includes('ENOTFOUND');
     
     if (isNetworkError) {
+      // Log as warning for consistency with columns.js pattern (line 308)
+      // Network errors that cause re-throwing are logged as warnings in the codebase
       log.warning(`Network error processing assignees for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
       throw error; // Re-throw network errors so they can be handled by caller
     }

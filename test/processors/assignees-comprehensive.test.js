@@ -4,6 +4,10 @@
  * - assign_authored_prs (Add PR author as assignee)
  * 
  * Also tests condition evaluation, skip conditions, and edge cases
+ * 
+ * Note: This file uses ES module syntax (import) because the project uses
+ * "type": "module" in package.json. Other test files using CommonJS (require)
+ * are outdated and need conversion to ES modules.
  */
 
 import { test, describe } from 'node:test';
