@@ -19,12 +19,13 @@
 export function classifyError(error) {
   const errorMessage = error?.message || '';
   const errorCode = error?.code || '';
+  const errorMessageLower = errorMessage.toLowerCase();
   
   // Critical errors that should stop processing
-  const isAuthError = errorMessage.includes('Bad credentials') || 
-                      errorMessage.includes('Not authenticated');
+  const isAuthError = errorMessageLower.includes('bad credentials') || 
+                      errorMessageLower.includes('not authenticated');
   
-  const isRateLimitError = errorMessage.includes('rate limit');
+  const isRateLimitError = errorMessageLower.includes('rate limit');
   
   // Network/timeout errors - check error code first (more reliable), then message
   const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
