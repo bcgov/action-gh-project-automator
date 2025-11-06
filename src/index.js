@@ -305,14 +305,8 @@ async function main() {
 
           if (linkedResult.processed > 0) {
             log.info(`[Main] Processed ${linkedResult.processed} linked issues for ${item.type} #${item.number}`);
-            // Verify linked issues are in the correct state
-            await StateVerifier.verifyLinkedIssues(
-              item,
-              context.projectId,
-              linkedResult.processedIssues || [],
-              targetColumn,
-              targetSprint
-            );
+            // Note: verifyLinkedIssues doesn't exist yet - linked issues are verified individually
+            // during processing, and the result is logged above
           }
         }
 
