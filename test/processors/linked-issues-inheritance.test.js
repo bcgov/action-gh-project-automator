@@ -135,7 +135,6 @@ describe('Linked Issues Inheritance Logic Tests', () => {
   describe('error handling scenarios', () => {
     test('should identify authentication errors', () => {
       const errorMessage = 'Bad credentials';
-      const errorCode = '';
       
       const isAuthError = errorMessage.includes('Bad credentials') || 
                           errorMessage.includes('Not authenticated');
@@ -145,7 +144,6 @@ describe('Linked Issues Inheritance Logic Tests', () => {
 
     test('should identify rate limit errors', () => {
       const errorMessage = 'API rate limit exceeded';
-      const errorCode = '';
       
       const isRateLimitError = errorMessage.includes('rate limit');
       
@@ -158,22 +156,15 @@ describe('Linked Issues Inheritance Logic Tests', () => {
       
       const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
       const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                             errorMessage.includes('timeout') ||
-                             errorMessage.includes('ECONNRESET') ||
-                             errorMessage.includes('ENOTFOUND');
+                             errorMessage.toLowerCase().includes('timeout');
       
       assert.strictEqual(isNetworkError, true, 'Should identify network errors by code');
     });
 
     test('should identify network errors by message', () => {
       const errorMessage = 'Request timeout';
-      const errorCode = '';
       
-      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
-      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                             errorMessage.includes('timeout') ||
-                             errorMessage.includes('ECONNRESET') ||
-                             errorMessage.includes('ENOTFOUND');
+      const isNetworkError = errorMessage.toLowerCase().includes('timeout');
       
       assert.strictEqual(isNetworkError, true, 'Should identify network errors by message');
     });
