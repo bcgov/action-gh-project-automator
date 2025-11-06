@@ -8,9 +8,17 @@
  * @module test/processors/assignees-comprehensive.test.js
  * @type {ESModule}
  * 
- * Note: This file uses ES module syntax (import) per package.json "type": "module".
- * Other test files using CommonJS (require) fail tests and need conversion to ES modules.
- * This is the correct format for this project.
+ * Migration Note:
+ * - This file uses ES module syntax (import) per package.json "type": "module"
+ * - Legacy test files (assignment-rule.test.js, unified-rule-processor.test.js, etc.)
+ *   use CommonJS (require) and fail with "require is not defined" errors
+ * - These legacy files are being migrated to ES modules in Phase 3 processor rebuilds
+ * - This file follows the correct, modern pattern used by other comprehensive test files:
+ *   - board-items-comprehensive.test.js
+ *   - columns-rules-comprehensive.test.js
+ *   - linked-issues-inheritance.test.js
+ *   - sprint-removal.test.js
+ * - DO NOT change to CommonJS - it would break the build
  */
 
 import { test, describe } from 'node:test';
