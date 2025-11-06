@@ -322,7 +322,7 @@ async function processAssignees(item, projectId, itemId) {
       reason: `Added ${assigneeToAdd} as assignee`
     };
   } catch (error) {
-    const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+    const itemIdentifier = item ? `${item.__typename || item.type} #${item.number || 'unknown'}` : 'unknown item';
     log.error(`Failed to process assignees for ${itemIdentifier}: ${error.message}`);
     
     if (error.stack) {
@@ -336,8 +336,7 @@ async function processAssignees(item, projectId, itemId) {
     // Critical errors that should stop processing
     const isAuthError = errorMessage.includes('Bad credentials') || 
                         errorMessage.includes('Not authenticated');
-    const isRateLimitError = errorMessage.includes('rate limit') || 
-                             (errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate'));
+    const isRateLimitError = errorMessage.includes('rate limit');
     
     if (isAuthError || isRateLimitError) {
       const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
