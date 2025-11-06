@@ -61,13 +61,11 @@ export function handleClassifiedError(error, itemIdentifier, log) {
   
   // Network/timeout errors - re-throw for upstream handling
   if (classification.isNetworkError) {
-    // Network errors that cause re-throwing are logged as errors since they stop processing
-    log.error(`Network error processing ${itemIdentifier}: ${error.message || error.code}. Re-throwing for upstream handling.`);
-    throw error; // Re-throw network errors so they can be handled by caller
+    // Re-throw so the caller can decide whether to retry or continue
+    throw error;
   }
   
-  // Other errors - log and re-throw for upstream handling
-  log.error(`Unhandled error processing ${itemIdentifier}: ${error.message || error.code}. Re-throwing for upstream handling.`);
+  // Other errors - re-throw for upstream handling
   throw error;
 }
 
