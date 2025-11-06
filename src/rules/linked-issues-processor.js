@@ -154,7 +154,42 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
             });
 
         } catch (error) {
-            log.error(`Error updating linked issue ${linkedIssueNumber} in repository ${linkedIssueRepositoryName}: ${error.message}`);
+            const itemIdentifier = `Linked Issue #${linkedIssueNumber} in ${linkedIssueRepositoryName}`;
+            log.error(`Failed to process ${itemIdentifier}: ${error.message}`);
+            
+            if (error.stack) {
+                log.debug(`Error details: ${error.stack}`);
+            }
+
+            // Classify errors for better handling
+            const errorMessage = error.message || '';
+            const errorCode = error.code || '';
+            
+            // Critical errors that should stop processing
+            const isAuthError = errorMessage.includes('Bad credentials') || 
+                                errorMessage.includes('Not authenticated');
+            const isRateLimitError = errorMessage.includes('rate limit');
+            
+            if (isAuthError || isRateLimitError) {
+                const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+                apiError.cause = error;
+                throw apiError;
+            }
+            
+            // Network/timeout errors - re-throw for upstream handling
+            const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+            const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                                   errorMessage.includes('timeout') ||
+                                   errorMessage.includes('ECONNRESET') ||
+                                   errorMessage.includes('ENOTFOUND');
+            
+            if (isNetworkError) {
+                // Network errors that cause re-throwing are logged as errors since they stop processing
+                log.error(`Network error processing ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
+                throw error; // Re-throw network errors so they can be handled by caller
+            }
+            
+            // Other errors - re-throw for upstream handling
             throw error;
         }
     }

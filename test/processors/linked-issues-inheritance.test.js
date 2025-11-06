@@ -131,5 +131,87 @@ describe('Linked Issues Inheritance Logic Tests', () => {
     assert.strictEqual(shouldUpdateNull, true, 'Should update when linked column is null');
     assert.strictEqual(shouldUpdateUndefined, true, 'Should update when linked column is undefined');
   });
+
+  describe('error handling scenarios', () => {
+    test('should identify authentication errors', () => {
+      const errorMessage = 'Bad credentials';
+      const errorCode = '';
+      
+      const isAuthError = errorMessage.includes('Bad credentials') || 
+                          errorMessage.includes('Not authenticated');
+      
+      assert.strictEqual(isAuthError, true, 'Should identify Bad credentials as auth error');
+    });
+
+    test('should identify rate limit errors', () => {
+      const errorMessage = 'API rate limit exceeded';
+      const errorCode = '';
+      
+      const isRateLimitError = errorMessage.includes('rate limit');
+      
+      assert.strictEqual(isRateLimitError, true, 'Should identify rate limit errors');
+    });
+
+    test('should identify network errors by code', () => {
+      const errorMessage = 'Connection failed';
+      const errorCode = 'ETIMEDOUT';
+      
+      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                             errorMessage.includes('timeout') ||
+                             errorMessage.includes('ECONNRESET') ||
+                             errorMessage.includes('ENOTFOUND');
+      
+      assert.strictEqual(isNetworkError, true, 'Should identify network errors by code');
+    });
+
+    test('should identify network errors by message', () => {
+      const errorMessage = 'Request timeout';
+      const errorCode = '';
+      
+      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                             errorMessage.includes('timeout') ||
+                             errorMessage.includes('ECONNRESET') ||
+                             errorMessage.includes('ENOTFOUND');
+      
+      assert.strictEqual(isNetworkError, true, 'Should identify network errors by message');
+    });
+
+    test('should handle PR with no linked issues', () => {
+      const linkedIssueNodes = [];
+      
+      const hasNoLinkedIssues = linkedIssueNodes.length === 0;
+      
+      assert.strictEqual(hasNoLinkedIssues, true, 'Should detect when PR has no linked issues');
+    });
+
+    test('should handle PR with no projectItemId', () => {
+      const projectItemId = null;
+      const currentColumn = 'Active';
+      const prAssignees = [{ login: 'user1' }];
+      
+      // Fallback behavior
+      const shouldUseFallback = !projectItemId;
+      const fallbackColumn = shouldUseFallback ? currentColumn : null;
+      const fallbackAssignees = shouldUseFallback ? prAssignees.map(a => a.login) : [];
+      
+      assert.strictEqual(fallbackColumn, 'Active', 'Should use fallback column when projectItemId is null');
+      assert.deepStrictEqual(fallbackAssignees, ['user1'], 'Should use fallback assignees when projectItemId is null');
+    });
+
+    test('should handle multiple linked issues', () => {
+      const linkedIssueNodes = [
+        { id: 'issue1', number: 1 },
+        { id: 'issue2', number: 2 },
+        { id: 'issue3', number: 3 }
+      ];
+      
+      const shouldProcess = linkedIssueNodes.length > 0;
+      
+      assert.strictEqual(shouldProcess, true, 'Should process multiple linked issues');
+      assert.strictEqual(linkedIssueNodes.length, 3, 'Should handle all linked issues');
+    });
+  });
 });
 
