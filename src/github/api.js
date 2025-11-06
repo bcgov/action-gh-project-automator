@@ -274,8 +274,18 @@ async function addItemToProject(nodeId, projectId) {
       throw new Error('Failed to add item to project - missing item ID in response');
     }
 
-    log.info(`[DEBUG] Successfully added item, returning ID: ${result.addProjectV2ItemById.item.id}`);
-    return result.addProjectV2ItemById.item.id;
+    const projectItemId = result.addProjectV2ItemById.item.id;
+
+    // Keep project cache in sync so subsequent checks see the new item immediately
+    let projectItems = projectItemsCache.get(projectId);
+    if (!projectItems) {
+      projectItems = new Map();
+      projectItemsCache.set(projectId, projectItems);
+    }
+    projectItems.set(nodeId, projectItemId);
+
+    log.info(`[DEBUG] Successfully added item, returning ID: ${projectItemId}`);
+    return projectItemId;
   } catch (error) {
     log.error(`[DEBUG] Error in addItemToProject: ${error.message}`);
     throw error;
