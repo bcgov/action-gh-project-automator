@@ -138,24 +138,36 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Classify errors for better handling
       const errorMessage = error.message || '';
+      const errorCode = error.code || '';
       
       // Critical errors that should stop processing
-      if (errorMessage.includes('Bad credentials') || 
-          errorMessage.includes('Not authenticated') ||
-          errorMessage.includes('rate limit')) {
-        throw new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+      // Check both error codes and messages for reliability
+      const isAuthError = errorMessage.includes('Bad credentials') || 
+                          errorMessage.includes('Not authenticated');
+      const isRateLimitError = errorMessage.includes('rate limit') || 
+                               errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
+      
+      if (isAuthError || isRateLimitError) {
+        const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+        apiError.cause = error;
+        throw apiError;
       }
       
       // Network/timeout errors - log but continue
-      if (errorMessage.includes('timeout') || 
-          errorMessage.includes('ECONNRESET') ||
-          errorMessage.includes('ENOTFOUND')) {
-        log.warning(`Network error processing ${itemIdentifier}: ${errorMessage}. Continuing with next item.`);
+      // Prefer error codes for network errors, fallback to message matching
+      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                             errorMessage.includes('timeout') ||
+                             errorMessage.includes('ECONNRESET') ||
+                             errorMessage.includes('ENOTFOUND');
+      
+      if (isNetworkError) {
+        log.warning(`Network error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
         continue;
       }
       
       // Other errors - log but continue processing
-      log.warning(`Error processing ${itemIdentifier}: ${errorMessage}. Continuing with next item.`);
+      log.warning(`Error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
     }
   }
 
