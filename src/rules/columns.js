@@ -274,7 +274,42 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       reason: reason || `Set column to ${targetColumn} based on ${item.state ? `state (${item.state})` : 'initial rules'}`
     };
   } catch (error) {
-    log.error(`Failed to process column for ${item.__typename} #${item.number}: ${error.message}`);
+    const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+    log.error(`Failed to process column for ${itemIdentifier}: ${error.message}`);
+    
+    if (error.stack) {
+      log.debug(`Error details: ${error.stack}`);
+    }
+
+    // Classify errors for better handling
+    const errorMessage = error.message || '';
+    const errorCode = error.code || '';
+    
+    // Critical errors that should stop processing
+    const isAuthError = errorMessage.includes('Bad credentials') || 
+                        errorMessage.includes('Not authenticated');
+    const isRateLimitError = errorMessage.includes('rate limit') || 
+                             errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
+    
+    if (isAuthError || isRateLimitError) {
+      const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+      apiError.cause = error;
+      throw apiError;
+    }
+    
+    // Network/timeout errors - log but continue
+    const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+    const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                           errorMessage.includes('timeout') ||
+                           errorMessage.includes('ECONNRESET') ||
+                           errorMessage.includes('ENOTFOUND');
+    
+    if (isNetworkError) {
+      log.warning(`Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
+      throw error; // Re-throw network errors so they can be handled by caller
+    }
+    
+    // Other errors - re-throw for upstream handling
     throw error;
   }
 }
@@ -323,7 +358,31 @@ async function processColumns({ projectId, items }) {
         });
       }
     } catch (error) {
-      log.error(`Failed to process column for ${item.__typename} #${item.number}: ${error.message}`);
+      const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+      const errorMessage = error.message || '';
+      const errorCode = error.code || '';
+      
+      // Log error with context
+      log.error(`Failed to process column for ${itemIdentifier}: ${errorMessage || errorCode}`);
+      
+      if (error.stack) {
+        log.debug(`Error details: ${error.stack}`);
+      }
+      
+      // Network/timeout errors - log but continue with next item
+      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+                             errorMessage.includes('timeout') ||
+                             errorMessage.includes('ECONNRESET') ||
+                             errorMessage.includes('ENOTFOUND');
+      
+      if (isNetworkError) {
+        log.warning(`Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
+        continue; // Continue processing other items
+      }
+      
+      // Other errors - log but continue (don't fail entire batch)
+      log.warning(`Error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
     }
   }
 
