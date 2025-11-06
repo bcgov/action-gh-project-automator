@@ -413,14 +413,6 @@ async function processExistingItemsSprintAssignments(projectId) {
         const { content, type } = itemDetails;
         const currentColumn = await getItemColumn(projectId, projectItemId);
 
-        // Only process items in eligible columns (Next, Active, Done, Waiting)
-        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
-        const inactiveColumns = ['New', 'Parked', 'Backlog'];
-        
-        if (!eligibleColumns.includes(currentColumn)) {
-          continue;
-        }
-
         // Create item object for sprint processing
         const item = {
           __typename: content.__typename || type,
@@ -430,6 +422,8 @@ async function processExistingItemsSprintAssignments(projectId) {
         };
 
         // Process sprint assignment or removal based on column
+        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        const inactiveColumns = ['New', 'Parked', 'Backlog'];
         
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
