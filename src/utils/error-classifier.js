@@ -30,7 +30,7 @@ export function classifyError(error) {
   // Network/timeout errors - check error code first (more reliable), then message
   const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
   const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                         errorMessage.toLowerCase().includes('timeout');
+                         errorMessageLower.includes('timeout');
   
   return { isAuthError, isRateLimitError, isNetworkError };
 }

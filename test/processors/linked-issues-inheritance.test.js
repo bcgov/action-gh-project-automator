@@ -12,6 +12,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupTestEnvironment } from '../setup.js';
 import { arraysEqual } from '../../src/rules/linked-issues-processor.js';
+import { classifyError } from '../../src/utils/error-classifier.js';
 
 describe('Linked Issues Inheritance Logic Tests', () => {
   test('setup: initialize test environment', async () => {
@@ -134,39 +135,40 @@ describe('Linked Issues Inheritance Logic Tests', () => {
 
   describe('error handling scenarios', () => {
     test('should identify authentication errors', () => {
-      const errorMessage = 'Bad credentials';
-      
-      const isAuthError = errorMessage.includes('Bad credentials') || 
-                          errorMessage.includes('Not authenticated');
-      
-      assert.strictEqual(isAuthError, true, 'Should identify Bad credentials as auth error');
+      const error = new Error('Bad credentials');
+      const result = classifyError(error);
+
+      assert.strictEqual(result.isAuthError, true, 'Should classify auth errors');
+      assert.strictEqual(result.isRateLimitError, false, 'Auth errors should not be rate limit');
+      assert.strictEqual(result.isNetworkError, false, 'Auth errors should not be network errors');
     });
 
     test('should identify rate limit errors', () => {
-      const errorMessage = 'API rate limit exceeded';
-      
-      const isRateLimitError = errorMessage.includes('rate limit');
-      
-      assert.strictEqual(isRateLimitError, true, 'Should identify rate limit errors');
+      const error = new Error('API rate limit exceeded');
+      const result = classifyError(error);
+
+      assert.strictEqual(result.isRateLimitError, true, 'Should classify rate limit errors');
+      assert.strictEqual(result.isAuthError, false, 'Rate limit errors should not be auth errors');
+      assert.strictEqual(result.isNetworkError, false, 'Rate limit errors should not be network errors');
     });
 
     test('should identify network errors by code', () => {
-      const errorMessage = 'Connection failed';
-      const errorCode = 'ETIMEDOUT';
-      
-      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
-      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                             errorMessage.toLowerCase().includes('timeout');
-      
-      assert.strictEqual(isNetworkError, true, 'Should identify network errors by code');
+      const error = new Error('Connection failed');
+      error.code = 'ETIMEDOUT';
+      const result = classifyError(error);
+
+      assert.strictEqual(result.isNetworkError, true, 'Should classify network errors by code');
+      assert.strictEqual(result.isAuthError, false, 'Network errors should not be auth errors');
+      assert.strictEqual(result.isRateLimitError, false, 'Network errors should not be rate limit errors');
     });
 
     test('should identify network errors by message', () => {
-      const errorMessage = 'Request timeout';
-      
-      const isNetworkError = errorMessage.toLowerCase().includes('timeout');
-      
-      assert.strictEqual(isNetworkError, true, 'Should identify network errors by message');
+      const error = new Error('Request timeout');
+      const result = classifyError(error);
+
+      assert.strictEqual(result.isNetworkError, true, 'Should classify network errors by message');
+      assert.strictEqual(result.isAuthError, false, 'Network errors should not be auth errors');
+      assert.strictEqual(result.isRateLimitError, false, 'Network errors should not be rate limit errors');
     });
 
     test('should handle PR with no linked issues', () => {
