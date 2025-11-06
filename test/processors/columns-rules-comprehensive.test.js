@@ -32,8 +32,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
     });
 
     test('should skip PR not in New column', () => {
+      // Skip condition: item.column !== 'New'
       const currentColumn = 'Active';
-      const skipCondition = "item.column !== 'New'";
       
       // Simulate skip condition evaluation
       const shouldSkip = currentColumn !== 'New';
@@ -42,8 +42,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
     });
 
     test('should handle PR with no column', () => {
+      // Rule condition: item.column === 'New'
       const currentColumn = null;
-      const condition = "item.column === 'New'";
       
       // null !== 'New', so condition doesn't match
       const conditionMatches = currentColumn === 'New';
@@ -66,8 +66,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
     });
 
     test('should skip PR that already has a column', () => {
+      // Skip condition: item.column
       const currentColumn = 'Active';
-      const skipCondition = 'item.column';
       
       // Simulate skip condition evaluation
       const shouldSkip = !!currentColumn;
@@ -76,8 +76,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
     });
 
     test('should handle undefined column', () => {
+      // Rule condition: !item.column
       const currentColumn = undefined;
-      const condition = '!item.column';
       
       const conditionMatches = !currentColumn;
       
@@ -99,8 +99,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
     });
 
     test('should skip Issue that already has a column', () => {
+      // Skip condition: item.column
       const currentColumn = 'New';
-      const skipCondition = 'item.column';
       
       const shouldSkip = !!currentColumn;
       
@@ -187,14 +187,13 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
       
       // Closed/merged items should move to Done/Closed
       const shouldMoveToDone = (itemState === 'MERGED' || itemState === 'CLOSED') && 
-                               currentColumn !== 'done' && 
-                               currentColumn !== 'closed';
+                               currentColumn.toLowerCase() !== 'done' && 
+                               currentColumn.toLowerCase() !== 'closed';
       
       assert.strictEqual(shouldMoveToDone, true, 'Merged item should move to Done');
     });
 
     test('should skip closed items already in Done column', () => {
-      const itemState = 'CLOSED';
       const currentColumn = 'Done';
       
       const shouldSkip = currentColumn.toLowerCase() === 'done' || 

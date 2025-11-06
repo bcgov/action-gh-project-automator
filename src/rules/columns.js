@@ -289,7 +289,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
     const isAuthError = errorMessage.includes('Bad credentials') || 
                         errorMessage.includes('Not authenticated');
     const isRateLimitError = errorMessage.includes('rate limit') || 
-                             errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
+                             (errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate'));
     
     if (isAuthError || isRateLimitError) {
       const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
