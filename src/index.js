@@ -415,6 +415,8 @@ async function processExistingItemsSprintAssignments(projectId) {
 
         // Only process items in eligible columns (Next, Active, Done, Waiting)
         const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        const inactiveColumns = ['New', 'Parked', 'Backlog'];
+        
         if (!eligibleColumns.includes(currentColumn)) {
           continue;
         }
@@ -428,8 +430,6 @@ async function processExistingItemsSprintAssignments(projectId) {
         };
 
         // Process sprint assignment or removal based on column
-        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
-        const inactiveColumns = ['New', 'Parked', 'Backlog'];
         
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
