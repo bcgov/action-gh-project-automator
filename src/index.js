@@ -248,9 +248,10 @@ async function main() {
         const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
         const inactiveColumns = ['New', 'Parked', 'Backlog'];
         
+        let sprintResult = null;
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
-          const sprintResult = await processSprintAssignment(
+          sprintResult = await processSprintAssignment(
             item,
             item.projectItemId,
             context.projectId,
@@ -286,7 +287,7 @@ async function main() {
           log.info(`[Main] PR column: ${columnResult.newStatus || columnResult.currentStatus || 'MISSING'}`);
           log.info(`[Main] Calling processLinkedIssues for PR #${item.number} (${item.repository.nameWithOwner})`);
           const targetColumn = columnResult.newStatus || columnResult.currentStatus;
-          const targetSprint = sprintResult.newSprint;
+          const targetSprint = sprintResult?.newSprint || null;
 
           const linkedResult = await processLinkedIssues(
             {
@@ -318,7 +319,7 @@ async function main() {
         // Finally verify the complete state of the item
         await StateVerifier.verifyCompleteState(item, context.projectId, {
           column: columnResult.newStatus || columnResult.currentStatus,
-          sprint: sprintResult.changed ? undefined : sprintResult.newSprint, // Skip sprint verification if assignment was successful
+          sprint: sprintResult?.changed ? undefined : sprintResult?.newSprint, // Skip sprint verification if assignment was successful
           assignees: assigneeResult.changed ? assigneeResult.assignees : undefined
         });
 
