@@ -46,7 +46,8 @@ describe('Column Rules Processor - Comprehensive Tests', () => {
       const currentColumn = null;
       
       // null !== 'New', so condition doesn't match
-      const conditionMatches = currentColumn === 'New';
+      // Explicitly check for null to avoid type comparison warning
+      const conditionMatches = currentColumn != null && currentColumn === 'New';
       
       assert.strictEqual(conditionMatches, false, 'PR with no column should not match New column condition');
     });
