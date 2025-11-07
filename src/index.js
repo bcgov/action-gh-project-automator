@@ -54,6 +54,7 @@ import { processLinkedIssues } from './rules/linked-issues-processor.js';
 import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
+import { shouldProceed } from './utils/rate-limit.js';
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -189,7 +190,12 @@ async function main() {
       monitoredUser: process.env.GITHUB_AUTHOR,
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
-      strictMode: envConfig.strictMode
+      strictMode: envConfig.strictMode,
+      existingSweep: {
+        enabled: envConfig.enableExistingSweep,
+        rateLimitMin: envConfig.sweepRateLimitMin,
+        dryRun: envConfig.sweepDryRun
+      }
     };
 
     log.info('Starting Project Board Sync...');
@@ -323,9 +329,20 @@ async function main() {
       }
     }
 
-    // NEW: Process sprint assignments for existing items on the board
-    log.info('Processing sprint assignments for existing project items...');
-    await processExistingItemsSprintAssignments(context.projectId);
+    // Existing items sweep is feature-flagged to avoid surprise load
+    if (context.existingSweep.enabled) {
+      const minRemaining = context.existingSweep.rateLimitMin;
+      const canRunSweep = await shouldProceed(minRemaining);
+
+      if (!canRunSweep) {
+        log.warning(`Skipping existing items sweep to preserve rate limit (requires >= ${minRemaining} remaining requests).`);
+      } else {
+        log.info('Processing sprint assignments for existing project items...');
+        await processExistingItemsSprintAssignments(context.projectId);
+      }
+    } else {
+      log.info('Skipping existing items sweep (ENABLE_EXISTING_SWEEP is not set to true).');
+    }
 
     // Print final status and handle errors
     const endTime = new Date();
