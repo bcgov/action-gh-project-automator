@@ -207,15 +207,13 @@ class EnvironmentValidator {
     const enableExistingSweep = process.env.ENABLE_EXISTING_SWEEP === 'true';
     const sweepRateLimitMinEnv = Number.parseInt(process.env.SWEEP_RATE_LIMIT_MIN || '', 10);
     const sweepRateLimitMin = Number.isFinite(sweepRateLimitMinEnv) ? sweepRateLimitMinEnv : 400;
-    const sweepDryRun = process.env.SWEEP_DRY_RUN === 'true';
 
     return {
       projectId,
       verbose: process.env.VERBOSE === 'true',
       strictMode: process.env.STRICT_MODE === 'true',
       enableExistingSweep,
-      sweepRateLimitMin,
-      sweepDryRun
+      sweepRateLimitMin
     };
   }
 

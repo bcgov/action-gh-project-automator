@@ -193,8 +193,7 @@ async function main() {
       strictMode: envConfig.strictMode,
       existingSweep: {
         enabled: envConfig.enableExistingSweep,
-        rateLimitMin: envConfig.sweepRateLimitMin,
-        dryRun: envConfig.sweepDryRun
+        rateLimitMin: envConfig.sweepRateLimitMin
       }
     };
 

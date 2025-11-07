@@ -15,6 +15,18 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 ## Configuration
 
 All automation is configured in a flattened repo-level `config/rules.yml`. The configuration includes:
+
+### Existing Items Sweep (optional)
+
+The legacy sweep for existing project items is disabled by default to keep the main sync fast. To run it explicitly, set the following environment variables when invoking the workflow or local script:
+
+```bash
+export ENABLE_EXISTING_SWEEP=true            # enable the sweep (default: false)
+export SWEEP_RATE_LIMIT_MIN=450              # optional: minimum remaining GraphQL requests required (default: 400)
+```
+
+When enabled the sync checks the live rate limit before scanning existing items. If the remaining quota is below `SWEEP_RATE_LIMIT_MIN`, the sweep is skipped and a warning is logged so the run can continue using only the event payload.
+
 - Project settings
 - Monitored repositories and users
 - Business rules for automation
