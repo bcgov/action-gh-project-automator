@@ -275,6 +275,19 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
   return success;
 }
 
+/**
+ * Assign a single project item to a sprint iteration by updating its Sprint field.
+ * Prefer {@link setItemSprintsBatch} when updating multiple items.
+ *
+ * @param {string} projectId
+ * @param {string} projectItemId
+ * @param {string} iterationId
+ * @param {Object} [overrides]
+ * @param {Function} [overrides.getSprintFieldId]
+ * @param {Function} [overrides.graphqlClient]
+ * @returns {Promise<string>}
+ * @internal
+ */
 async function assignItemToSprint(projectId, projectItemId, iterationId, overrides = {}) {
   const {
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,

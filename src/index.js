@@ -465,7 +465,7 @@ async function processExistingItemsSprintAssignments(projectId) {
 
     const updatedCount = assignmentSuccess + removalSuccess;
 
-    log.info(`Processed ${processedCount} existing items, updated ${updatedCount} sprint assignments (assignments queued: ${assignmentQueued}, removals queued: ${removalQueued})`);
+    log.info(`Processed ${processedCount} existing items. Queued: ${assignmentQueued} assignments, ${removalQueued} removals. Successfully updated: ${updatedCount} items.`);
 
   } catch (error) {
     // Handle rate limits as temporary failures
