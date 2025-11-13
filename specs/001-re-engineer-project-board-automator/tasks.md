@@ -37,38 +37,9 @@
 - [x] Document rule processing engine
 - [x] Create `spec.md`
 
-## Phase 2: Fix Critical Gaps (High Priority)
+## Phase 2: Linked Issues Stabilization (High Priority)
 
-### 2.1 Fix validTransitions Enforcement
-
-#### Task 2.1.1: Ensure validTransitions Loaded
-- [ ] Review `StateVerifier.initializeTransitionRules()` implementation
-- [ ] Verify it loads all `validTransitions` from `rules.yml` column rules
-- [ ] Add logging to confirm rules are loaded
-- [ ] Test: Verify rules are loaded on initialization
-- **File**: `src/utils/state-verifier.js`
-- **Dependencies**: None
-- **Priority**: High
-
-#### Task 2.1.2: Remove Backward Compatibility Fallback
-- [ ] Remove try-catch fallback in `validateColumnTransition()` in `columns.js`
-- [ ] Make validation strict - throw error on validation failure
-- [ ] Update error handling to properly handle validation errors
-- [ ] Test: Verify invalid transitions are blocked
-- **File**: `src/rules/columns.js`
-- **Dependencies**: 2.1.1
-- **Priority**: High
-
-#### Task 2.1.3: Add Transition Enforcement Tests
-- [ ] Write test for valid transition (should be allowed)
-- [ ] Write test for invalid transition (should be blocked)
-- [ ] Write test for transition not in validTransitions (should be blocked)
-- [ ] Verify tests pass
-- **File**: `test/processors/columns-transition.test.js` (new)
-- **Dependencies**: 2.1.2
-- **Priority**: High
-
-### 2.2 Complete Linked Issues inherit_column
+### 2.1 Complete Linked Issues inherit_column
 
 #### Task 2.2.1: Get PR's Actual Column from Project Board
 - [ ] Modify `processLinkedIssues()` to get PR's project item ID
@@ -157,6 +128,24 @@
 - **Dependencies**: 2.4.2
 - **Priority**: High
 
+### 2.5 Add Linked Issue Observability
+
+#### Task 2.5.1: Introduce Metrics Counters
+- [ ] Add `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed` counters
+- [ ] Ensure counters integrate with existing `log.incrementCounter`
+- [ ] Test: Verify counters increment during inheritance scenarios (use dependency injection/mocks)
+- **File**: `src/rules/linked-issues-processor.js`
+- **Dependencies**: 2.2.2, 2.3.2, 2.4.2
+- **Priority**: High
+
+#### Task 2.5.2: Surface Observability in Summaries
+- [ ] Update summary output to include linked issue metrics
+- [ ] Ensure DRY_RUN mode reports queued vs applied
+- [ ] Test: Verify summary output via unit/integration test
+- **Files**: `src/rules/linked-issues-processor.js`, `src/utils/log.js` (if needed)
+- **Dependencies**: 2.5.1
+- **Priority**: High
+
 ## Phase 3: Rebuild Rule Processors (Medium Priority)
 
 ### 3.1 Rebuild Board Items Processor
@@ -182,50 +171,37 @@
 ### 3.2 Rebuild Column Processor
 
 #### Task 3.2.1: Review and Improve Column Processor
-- [ ] Review `columns.js` after Phase 2 fixes
-- [ ] Ensure all edge cases handled
-- [ ] Improve transition validation
-- [ ] Add comprehensive logging
+- [ ] Review `columns.js` post-transition enforcement
+- [ ] Ensure closed/merged fast-path handles all configured status options
+- [ ] Audit batch queue usage and error handling
 - **File**: `src/rules/columns.js`
-- **Dependencies**: Phase 2 complete (2.1.x)
+- **Dependencies**: Phase 2 complete
 - **Priority**: Medium
 
 #### Task 3.2.2: Enhance Column Tests
 - [ ] Review existing tests
-- [ ] Add tests for all column rules from `rules.yml`
-- [ ] Test transition validation
-- [ ] Test edge cases
+- [ ] Add tests for inactive column handling, Done/Closed routing, batching
+- [ ] Verify transition validator rejection paths are exercised
 - **File**: `test/rules/columns.test.js`
 - **Dependencies**: 3.2.1
 - **Priority**: Medium
 
 ### 3.3 Rebuild Sprint Processor
 
-#### Task 3.3.1: Add Sprint Removal Rules to rules.yml
-- [ ] Add sprint removal rules to `rules.yml` sprints section
-- [ ] Define rules for inactive columns (New, Parked, Backlog)
-- [ ] Document sprint removal behavior
-- [ ] Test: Verify rules.yml validates
-- **File**: `rules.yml`
-- **Dependencies**: None
+#### Task 3.3.1: Stress Existing Assignment/Removal Logic
+- [ ] Add tests for historical sprint lookup edge cases
+- [ ] Verify next-available sprint fallback when no active sprint
+- [ ] Cover DRY_RUN path for batching helpers
+- **Files**: `test/rules/sprint-batching.test.js`, new targeted tests if needed
+- **Dependencies**: Phase 2 complete
 - **Priority**: Medium
 
-#### Task 3.3.2: Implement Sprint Removal Logic
-- [ ] Add `remove_sprint` action handling in `sprints.js`
-- [ ] Implement sprint removal for inactive columns
-- [ ] Add comprehensive logging
-- [ ] Test: Verify sprint removal works
-- **File**: `src/rules/sprints.js`
+#### Task 3.3.2: Harden Existing-Item Sweep
+- [ ] Review rate-limit guard and batching thresholds
+- [ ] Ensure logging includes success vs. skipped counts
+- [ ] Add integration-style test with mocked `getProjectItems`
+- **Files**: `src/index.js`, related tests
 - **Dependencies**: 3.3.1
-- **Priority**: Medium
-
-#### Task 3.3.3: Add Sprint Removal Tests
-- [ ] Write test for sprint removal in New column
-- [ ] Write test for sprint removal in Parked column
-- [ ] Write test for sprint removal in Backlog column
-- [ ] Write test for skip when no sprint set
-- **File**: `test/rules/sprints-removal.test.js` (new)
-- **Dependencies**: 3.3.2
 - **Priority**: Medium
 
 ### 3.4 Rebuild Assignee Processor
@@ -402,10 +378,10 @@
 ## Task Dependencies Summary
 
 ### Critical Path (Phase 2)
-1. 2.1.1 → 2.1.2 → 2.1.3 (validTransitions)
-2. 2.2.1 → 2.2.2 → 2.2.3 (inherit_column)
-3. 2.3.1 → 2.3.2 → 2.3.3 (inherit_assignees)
-4. (2.2.1 + 2.3.1) → 2.4.1 → 2.4.2 → 2.4.3 (skip condition)
+1. 2.2.1 → 2.2.2 → 2.2.3 (inherit_column)
+2. 2.3.1 → 2.3.2 → 2.3.3 (inherit_assignees)
+3. (2.2.1 + 2.3.1) → 2.4.1 → 2.4.2 → 2.4.3 (skip condition)
+4. 2.5.1 → 2.5.2 (observability)
 
 ### After Phase 2
 - Phase 3 can start after Phase 2 complete
