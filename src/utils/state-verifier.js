@@ -278,7 +278,8 @@ Current: "${currentColumn}"`);
         verifierLog.info(`✓ Column verified: "${expectedColumn}" (attempt ${attempt}/3)`);
         return afterState;
       },
-      `column state for ${item.type} #${item.number}`
+      `column state for ${item.type} #${item.number}`,
+      6
     );
   }
 
@@ -534,8 +535,8 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
     }
   }
 
-  static async retryWithTracking(item, type, operation, description) {
-    const MAX_RETRIES = 3;
+  static async retryWithTracking(item, type, operation, description, maxRetries = 3) {
+    const MAX_RETRIES = maxRetries;
     let lastError;
     let lastState = this.getState(item);
 
@@ -553,7 +554,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
 
         // Only retry if error is marked as retryable
         if (attempt < MAX_RETRIES && (error.retryable || error.isRetryable)) {
-          const delay = Math.min(Math.pow(2, attempt - 1) * 1000, 5000);
+          const delay = Math.min(Math.pow(2, attempt - 1) * 1000, 10000);
           log.info(`
 ⌛ ${type} verification attempt ${attempt}/${MAX_RETRIES}
    Item: ${item.type} #${item.number}

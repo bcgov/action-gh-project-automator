@@ -137,6 +137,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
     const ruleActions = Array.isArray(ruleActionsRaw) ? ruleActionsRaw : [];
 
     if (ruleActions.length === 0) {
+        logger.incrementCounter('linked.items.no_rules');
         reason = 'No linked issue rules triggered';
         logger.info(`No linked issue rules triggered for PR #${pullRequestNumber}`);
         return { changed, reason, linkedIssues: linkedIssueResults };
@@ -148,6 +149,8 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
         const linkedIssueRepositoryName = repository?.nameWithOwner || 'unknown/unknown';
 
         let linkedIssueProjectItemId = linkedIssue.projectItemId || null;
+
+        logger.incrementCounter('linked.items.total');
 
         if (!linkedIssueProjectItemId && linkedIssueContentId) {
             try {
@@ -163,6 +166,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
 
         if (!linkedIssueProjectItemId) {
             logger.info(`Skipping linked issue ${linkedIssueNumber} - not present on project board`);
+            logger.incrementCounter('linked.actions.skipped');
             linkedIssueResults.push({
                 id: linkedIssueContentId,
                 number: linkedIssueNumber,
@@ -188,6 +192,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
             
             if (columnsMatch && assigneesMatch) {
                 logger.info(`Skipping linked issue #${linkedIssueNumber} - column and assignees already match PR`);
+                logger.incrementCounter('linked.actions.skipped');
                 linkedIssueResults.push({
                     id: linkedIssueContentId,
                     number: linkedIssueNumber,
@@ -211,6 +216,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                             if (optionId) {
                                 await setItemColumnFn(projectId, linkedIssueProjectItemId, optionId);
                                 logger.info(`Set linked issue #${linkedIssueNumber} column to ${prActualColumn} (inherited from PR)`);
+                                logger.incrementCounter('linked.actions.column.assigned');
                                 changed = true;
                             } else {
                                 logger.warn(`Unable to resolve column option for '${prActualColumn}' in project ${projectId}`);
@@ -224,6 +230,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                             if (!arraysEqual(prActualAssignees, linkedIssueAssignees)) {
                                 await setItemAssigneesFn(projectId, linkedIssueProjectItemId, prActualAssignees);
                                 logger.info(`Set linked issue #${linkedIssueNumber} assignees to: ${prActualAssignees.join(', ')} (inherited from PR)`);
+                                logger.incrementCounter('linked.actions.assignees.assigned');
                                 changed = true;
                             }
                         }
@@ -252,6 +259,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
 
         } catch (error) {
             const itemIdentifier = `Linked Issue #${linkedIssueNumber} in ${linkedIssueRepositoryName}`;
+            logger.incrementCounter('linked.actions.failed');
             handleClassifiedError(error, itemIdentifier, logger);
         }
     }
