@@ -6,10 +6,10 @@
 
 ## Summary
 
-- **Total Rules Declared**: 12 rules across 5 rule types
-- **Fully Implemented**: 8 rules (67%)
-- **Partially Implemented**: 4 rules (33%)
-- **Not Implemented**: 0 rules (but 2 missing features)
+- **Total Rules Declared**: 13 rules across 5 rule types
+- **Fully Implemented**: 12 rules (92%)
+- **Partially Implemented**: 1 rule (8%)
+- **Not Implemented**: 0 rules
 
 ## Gap Categories
 
@@ -21,106 +21,39 @@
 - ✅ `repository_pull_requests` (repository scope)
 - ✅ `repository_issues` (repository scope)
 
-**Sprint Rules** (3/3):
+**Column Rules** (3/3):
+- ✅ `new_pull_requests_to_active`
+- ✅ `pull_requests_no_column`
+- ✅ `issues_no_column`
+  - Strict `validTransitions` enforcement via `StateVerifier.initializeTransitionRules()` and `validateColumnTransition()` with regression tests in `test/state-verifier-transitions.test.js`.
+
+**Sprint Rules** (4/4):
 - ✅ `active_sprint_assignment`
 - ✅ `waiting_sprint_assignment`
 - ✅ `done_sprint_assignment`
+- ✅ `remove_sprint_inactive_columns`
+  - Batched assignment/removal implemented through `determineSprintAction()`, `setItemSprintsBatch()`, and `clearItemSprintsBatch()` with coverage in `test/rules/sprint-batching.test.js` and runtime metrics (`existing.*` counters).
 
 **Assignee Rules** (1/1):
 - ✅ `assign_authored_prs` (user scope)
+  - Delta logic validated via `test/rules/assignees-delta.test.js`.
 
-**Total**: 8 rules fully working
+**Total**: 12 rules fully working
 
 ### 2. Declared but Partially Implemented ⚠️
-
-**Column Rules** (3/3 - all have same gap):
-- ⚠️ `new_pull_requests_to_active`
-- ⚠️ `pull_requests_no_column`
-- ⚠️ `issues_no_column`
-
-**Gap**: All three column rules declare `validTransitions` but transitions are not strictly enforced.
-
-**Details**:
-- `validTransitions` declared in `rules.yml`:
-  ```yaml
-  validTransitions:
-    - from: "New"
-      to: "Active"
-      conditions: []
-  ```
-- Code has `StateTransitionValidator` but:
-  - Validation exists but has backward compatibility fallback
-  - `validateColumnTransition()` in `columns.js` allows transitions on validation errors
-  - ValidTransitions from `rules.yml` may not be fully loaded into validator
-
-**Impact**: Medium - Transitions work but declared validation rules are not enforced
 
 **Linked Issues Rules** (1/1):
 - ⚠️ `linked_issue_inheritance`
 
-**Gap**: Actions `inherit_column` and `inherit_assignees` are declared but incompletely implemented.
-
-**Details**:
-- `rules.yml` declares:
-  ```yaml
-  action: ["inherit_column", "inherit_assignees"]
-  ```
-- Code in `linked-issues-processor.js`:
-  - `inherit_column` (lines 68-73): Only sets column if `currentColumn` is provided and different
-    - Doesn't properly inherit from PR column state
-    - Doesn't check PR's actual column
-  - `inherit_assignees` (lines 76-82): Gets PR assignees but:
-    - Doesn't properly handle inheritance logic
-    - Skip condition not properly evaluated
-  - Skip condition: `item.column === item.pr.column && item.assignees === item.pr.assignees`
-    - Not properly evaluated before executing actions
-
-**Impact**: High - Linked issue synchronization doesn't work as declared
-
-**Total**: 4 rules partially implemented
+**Gap**: Actions `inherit_column` and `inherit_assignees` are declared but incompletely implemented; skip guards rely on stale data.
 
 ### 3. Not Declared but Documented as Needed ❌
 
-**Sprint Removal** ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66)):
-- Not in `rules.yml` but documented as needed
-- Should remove sprint from items in inactive columns (New, Parked, Backlog)
-
-**Impact**: Medium - Feature requested but not implemented
+None at this time. Sprint removal now lives in `rules.yml` and is implemented; other enhancements should be logged as new rules or tracked in future design work.
 
 ## Detailed Gap Analysis
 
-### Gap 1: validTransitions Not Enforced
-
-**Location**: `src/rules/columns.js` → `validateColumnTransition()`
-
-**Current Behavior**:
-```javascript
-function validateColumnTransition(fromColumn, toColumn, item) {
-  try {
-    const validator = StateVerifier.getTransitionValidator();
-    const result = validator.validateColumnTransition(fromColumn, toColumn, context);
-    // ... validation logic ...
-    return result;
-  } catch (error) {
-    // If validation fails, allow the transition (backward compatibility)
-    return { valid: true, reason: 'Validation error - allowing transition for backward compatibility' };
-  }
-}
-```
-
-**Problem**: Try-catch allows transitions even when validation fails.
-
-**Required Behavior**:
-- Load `validTransitions` from `rules.yml` into validator
-- Strictly enforce transitions - block invalid transitions
-- Only allow transitions declared in `validTransitions`
-
-**Fix Required**:
-1. Ensure `StateVerifier.initializeTransitionRules()` loads all `validTransitions` from `rules.yml`
-2. Remove backward compatibility fallback in `validateColumnTransition()`
-3. Make validation strict - block invalid transitions
-
-### Gap 2: Linked Issues inherit_column Incomplete
+### Gap 1: Linked Issues inherit_column Incomplete
 
 **Location**: `src/rules/linked-issues-processor.js` → `processLinkedIssues()`
 
@@ -149,7 +82,7 @@ case 'inherit_column':
 2. Use PR's actual column for inheritance
 3. Properly evaluate skip condition
 
-### Gap 3: Linked Issues inherit_assignees Incomplete
+### Gap 2: Linked Issues inherit_assignees Incomplete
 
 **Location**: `src/rules/linked-issues-processor.js` → `processLinkedIssues()`
 
@@ -182,7 +115,7 @@ case 'inherit_assignees':
 3. Only set if different
 4. Evaluate skip condition before executing
 
-### Gap 4: Skip Condition Not Evaluated
+### Gap 3: Skip Condition Not Evaluated
 
 **Location**: `src/rules/linked-issues-processor.js` → `processLinkedIssues()`
 
@@ -202,91 +135,67 @@ skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees
 3. Evaluate skip condition
 4. Skip if condition is true
 
-### Gap 5: Sprint Removal Not Implemented
+### Gap 4: Observability for Linked Issue Actions
 
-**Location**: Not implemented anywhere
+**Location**: `src/rules/linked-issues-processor.js`
 
-**Required Behavior** (from [Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66)):
-- Remove sprint from items in inactive columns (New, Parked, Backlog)
-- Should be a rule in `rules.yml` sprints section
+**Current Behavior**:
+- Logging is minimal; counters do not expose inheritance attempts vs. successes.
 
-**Fix Required**:
-1. Add sprint removal rules to `rules.yml`:
-   ```yaml
-   sprints:
-     - name: "remove_sprint_inactive_columns"
-       trigger:
-         type: ["PullRequest", "Issue"]
-         condition: "item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog'"
-       action: "remove_sprint"
-       skip_if: "item.sprint == null"
-   ```
-2. Implement `remove_sprint` action in `sprints.js`
-3. Add sprint removal logic
+**Required Behavior**:
+- Emit metrics compatible with existing `log.incrementCounter` usage (e.g., `linked.actions.assigned`, `linked.actions.skipped`).
+- Surface in end-of-run summary for visibility.
 
 ## Implementation Priority
 
 ### High Priority (Critical Functionality)
 
-1. **Fix validTransitions Enforcement**
-   - Impact: Medium - Declared but not enforced
-   - Effort: Medium
-   - Blocks: None
-
-2. **Complete Linked Issues inherit_column**
+1. **Complete Linked Issues inherit_column**
    - Impact: High - Core functionality broken
    - Effort: Low
    - Blocks: None
 
-3. **Complete Linked Issues inherit_assignees**
+2. **Complete Linked Issues inherit_assignees**
    - Impact: High - Core functionality broken
    - Effort: Low
    - Blocks: None
 
-4. **Fix Skip Condition Evaluation**
+3. **Fix Skip Condition Evaluation**
    - Impact: High - Incorrect behavior
    - Effort: Low
    - Blocks: None
 
-### Medium Priority (Enhancement)
-
-5. **Implement Sprint Removal**
-   - Impact: Medium - Feature requested
-   - Effort: Medium
+4. **Add Linked Issue Observability**
+   - Impact: Medium - Needed for monitoring
+   - Effort: Low
    - Blocks: None
 
 ## Testing Gaps
 
 ### Missing Tests
 
-1. **validTransitions Enforcement**
-   - Need tests that verify invalid transitions are blocked
-   - Need tests that verify valid transitions are allowed
-
-2. **Linked Issues inherit_column**
+1. **Linked Issues inherit_column**
    - Need tests that verify column inheritance from PR
    - Need tests for skip condition evaluation
 
-3. **Linked Issues inherit_assignees**
+2. **Linked Issues inherit_assignees**
    - Need tests that verify assignee inheritance from PR
    - Need tests for skip condition evaluation
 
-4. **Sprint Removal**
-   - Need tests for sprint removal in inactive columns
+3. **Linked Issues Observability**
+   - Need assertions around metrics/log output when inheritance is skipped/applied
 
 ## Recommendations
 
 1. **Immediate**: Fix linked issues actions (high impact, low effort)
-2. **Short-term**: Enforce validTransitions (medium impact, medium effort)
-3. **Medium-term**: Implement sprint removal (medium impact, medium effort)
-4. **Ongoing**: Add comprehensive tests for all gaps
+2. **Short-term**: Add observability counters for linked issue processing
+3. **Ongoing**: Build dedicated tests for inheritance logic and skip conditions
 
 ## Success Criteria
 
-- [ ] All `validTransitions` from `rules.yml` are strictly enforced
 - [ ] `inherit_column` properly inherits PR's column to linked issues
 - [ ] `inherit_assignees` properly inherits PR's assignees to linked issues
 - [ ] Skip conditions are properly evaluated for all rules
-- [ ] Sprint removal works for inactive columns
-- [ ] All gaps have test coverage
+- [ ] Linked issue observability metrics recorded for success/skip/error paths
+- [ ] All gaps have targeted test coverage
 
