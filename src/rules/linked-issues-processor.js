@@ -40,6 +40,16 @@ export function arraysEqual(a, b) {
  * @param {string} projectId The project ID
  * @param {string} currentColumn The current column (fallback, will get actual from board)
  * @param {string} currentSprint The current sprint
+ * @param {Object} [overrides] Optional overrides for internal functions (primarily for testing)
+ * @param {Function} [overrides.getItemColumnFn] Getter for an item's column (default: getItemColumn)
+ * @param {Function} [overrides.setItemColumnFn] Setter for an item's column (default: setItemColumn)
+ * @param {Function} [overrides.getColumnOptionIdFn] Resolver for column option IDs (default: getColumnOptionId)
+ * @param {Function} [overrides.getItemAssigneesFn] Getter for item assignees (default: getItemAssignees)
+ * @param {Function} [overrides.setItemAssigneesFn] Setter for item assignees (default: setItemAssignees)
+ * @param {Function} [overrides.isItemInProjectFn] Predicate to check project membership (default: isItemInProject)
+ * @param {Function} [overrides.fetchLinkedIssuesFn] Fetcher for linked issues (default: fetchLinkedIssuesForPullRequest)
+ * @param {Array|null} [overrides.ruleActionsOverride] Optional rule actions (default: null, uses processLinkedIssueRules)
+ * @param {Object} [overrides.logger] Logger implementation (default: log)
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint, overrides = {}) {
@@ -113,7 +123,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
     // Process rules for this PR
     const ruleActionsRaw = Array.isArray(ruleActionsOverride)
         ? ruleActionsOverride
-        : processLinkedIssueRules(pullRequest);
+        : await processLinkedIssueRules(pullRequest);
     const ruleActions = Array.isArray(ruleActionsRaw) ? ruleActionsRaw : [];
 
     if (ruleActions.length === 0) {
