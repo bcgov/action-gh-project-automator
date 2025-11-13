@@ -396,6 +396,56 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 }
 
 /**
+ * Fetch issues linked to a pull request (closing references) and include project item IDs when present.
+ * @param {string} pullRequestId - The GraphQL node ID of the pull request
+ * @param {string} projectId - The project board ID
+ * @returns {Promise<Array<{id: string, number: number, repository: {nameWithOwner: string}, projectItemId: string|null}>>}
+ */
+async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
+  if (!pullRequestId) {
+    return [];
+  }
+
+  const result = await withBackoff(() => graphqlWithAuth(`
+    query($pullRequestId: ID!) {
+      node(id: $pullRequestId) {
+        ... on PullRequest {
+          closingIssuesReferences(first: 50) {
+            nodes {
+              id
+              number
+              repository {
+                nameWithOwner
+              }
+              projectItems(first: 20) {
+                nodes {
+                  id
+                  project {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `, { pullRequestId }));
+
+  const issues = result?.node?.closingIssuesReferences?.nodes || [];
+
+  return issues.map(issue => {
+    const projectItemId = issue.projectItems?.nodes?.find(node => node.project?.id === projectId)?.id || null;
+    return {
+      id: issue.id,
+      number: issue.number,
+      repository: issue.repository,
+      projectItemId
+    };
+  });
+}
+
+/**
  * Get the current column (Status field) for a project item
  * @param {string} projectId - The project board ID
  * @param {string} itemId - The project item ID
@@ -623,6 +673,7 @@ export {
   getColumnOptionId,
   getProjectItems,
   setItemColumnsBatch,
+  fetchLinkedIssuesForPullRequest,
   __setGraphqlExecutor,
   __resetGraphqlExecutor,
   __resetProjectCaches
