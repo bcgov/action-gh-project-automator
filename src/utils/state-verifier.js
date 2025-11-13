@@ -98,6 +98,11 @@ class StateVerifier {
       validateRequired(rules, 'rules');
       this.steps.validateStepCompleted('TRANSITION_VALIDATOR_CONFIGURED');
 
+      // Reset validator instance so we load a fresh rule set each time
+      if (this.transitionValidator) {
+        this.transitionValidator = null;
+      }
+
       if (!rules.rules || !rules.rules.columns) return;
 
       // Mark required steps as complete before adding transition rules
