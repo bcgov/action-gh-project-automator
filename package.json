@@ -9,7 +9,7 @@
   },
   "scripts": {
     "validate": "node scripts/validate.js",
-    "test": "node --test \"src/**/__tests__/*.test.js\" \"test/**/*.test.js\"",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "start": "node src/index.js",
     "test:state": "node --test test/state-verifier.test.js",
     "test:validator": "node --test test/state-transition-validator.test.js",
