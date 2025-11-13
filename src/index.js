@@ -48,12 +48,19 @@ const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
 import { processAddItems } from './rules/add-items.js';
 import { processColumnAssignment } from './rules/columns.js';
-import { processSprintAssignment, processSprintRemoval } from './rules/sprints.js';
+import {
+  processSprintAssignment,
+  processSprintRemoval,
+  determineSprintAction,
+  setItemSprintsBatch,
+  clearItemSprintsBatch
+} from './rules/sprints.js';
 import { processAssignees, getItemDetails } from './rules/assignees.js';
 import { processLinkedIssues } from './rules/linked-issues-processor.js';
 import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
+import { loadEventItems } from './utils/event-items.js';
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -189,7 +196,8 @@ async function main() {
       monitoredUser: process.env.GITHUB_AUTHOR,
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
-      strictMode: envConfig.strictMode
+      strictMode: envConfig.strictMode,
+      dryRun: process.env.DRY_RUN === 'true'
     };
 
     log.info('Starting Project Board Sync...');
@@ -219,12 +227,22 @@ async function main() {
       : undefined;
 
     // Process items according to our enhanced rules
+    const eventItems = await loadEventItems(eventName, process.env.GITHUB_EVENT_PATH);
+    if (eventItems.length > 0) {
+      log.info(`Loaded ${eventItems.length} item(s) from event payload (${eventName}).`);
+      log.incrementCounter('items.seeded', eventItems.length);
+    }
+    if (context.dryRun) {
+      log.info('DRY_RUN enabled – mutations will be skipped.');
+    }
+
     const { addedItems, skippedItems } = await processAddItems({
       org: context.org,
       repos: context.repos,
       monitoredUser: context.monitoredUser,
       projectId: context.projectId,
-      windowHours
+      windowHours,
+      seedItems: eventItems
     });
 
     // Process additional rules for added items
@@ -325,7 +343,7 @@ async function main() {
 
     // NEW: Process sprint assignments for existing items on the board
     log.info('Processing sprint assignments for existing project items...');
-    await processExistingItemsSprintAssignments(context.projectId);
+    await processExistingItemsSprintAssignments(context.projectId, { dryRun: context.dryRun });
 
     // Print final status and handle errors
     const endTime = new Date();
@@ -387,14 +405,19 @@ async function main() {
  * Process sprint assignments for existing items on the project board
  * This fixes Issue #135: existing project items not getting sprint updates
  */
-async function processExistingItemsSprintAssignments(projectId) {
+async function processExistingItemsSprintAssignments(projectId, options = {}) {
   try {
+    const { dryRun = false } = options;
     // Get all items currently on the project board
     const projectItems = await getProjectItems(projectId);
     log.info(`Found ${projectItems.size} total items on project board (not all will be processed)`);
 
     let processedCount = 0;
-    let updatedCount = 0;
+    let assignmentQueued = 0;
+    let removalQueued = 0;
+
+    const sprintAssignments = [];
+    const sprintRemovals = [];
 
     // Process each existing item
     for (const [itemNodeId, projectItemId] of projectItems) {
@@ -408,54 +431,67 @@ async function processExistingItemsSprintAssignments(projectId) {
         const { content, type } = itemDetails;
         const currentColumn = await getItemColumn(projectId, projectItemId);
 
-        // Create item object for sprint processing
-        const item = {
-          __typename: content.__typename || type,
-          number: content.number,
-          repository: content.repository,
-          id: itemNodeId
-        };
-
         // Process sprint assignment or removal based on column
         const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
         const inactiveColumns = ['New', 'Parked', 'Backlog'];
         
-        if (eligibleColumns.includes(currentColumn)) {
-          // Assign sprint for eligible columns
-          const sprintResult = await processSprintAssignment(
-            item,
-            projectItemId,
+        if (eligibleColumns.includes(currentColumn) || inactiveColumns.includes(currentColumn)) {
+          const decision = await determineSprintAction({
             projectId,
-            currentColumn
-          );
-          processedCount++;
-          if (sprintResult.changed) {
-            updatedCount++;
-            log.info(`Updated sprint for existing ${type} #${content.number} to ${sprintResult.newSprint}`);
-          }
-        } else if (inactiveColumns.includes(currentColumn)) {
-          // Remove sprint for inactive columns
-          const sprintRemovalResult = await processSprintRemoval(
-            item,
             projectItemId,
-            projectId,
             currentColumn
-          );
-          processedCount++;
-          if (sprintRemovalResult.changed) {
-            updatedCount++;
-            log.info(`Removed sprint for existing ${type} #${content.number} from inactive column`);
+          });
+
+          if (decision.action === 'assign' && decision.targetIterationId) {
+            sprintAssignments.push({
+              projectItemId,
+              iterationId: decision.targetIterationId
+            });
+            assignmentQueued++;
+            log.incrementCounter('existing.assignments.queued');
+            log.debug(`Queued sprint update for ${type} #${content.number} -> ${decision.targetSprintTitle || decision.targetIterationId}`);
+          } else if (decision.action === 'remove') {
+            sprintRemovals.push({ projectItemId });
+            removalQueued++;
+            log.incrementCounter('existing.removals.queued');
+            log.debug(`Queued sprint removal for ${type} #${content.number}`);
+          } else {
+            log.debug(`Skipped sprint change for ${type} #${content.number}: ${decision.reason}`);
           }
-        } else {
-          processedCount++;
         }
+        processedCount++;
+        log.incrementCounter('existing.items.processed');
 
       } catch (error) {
         log.error(`Failed to process sprint for existing item ${itemNodeId}: ${error.message}`);
       }
     }
 
-    log.info(`Processed ${processedCount} existing items, updated ${updatedCount} sprint assignments`);
+    if (dryRun) {
+      log.info('[DRY_RUN] Skipping sprint mutation batches; reporting queued counts only.');
+    }
+
+    let assignmentSuccess = 0;
+    if (sprintAssignments.length > 0) {
+      log.info(`Applying batched sprint updates to ${sprintAssignments.length} existing items...`);
+      assignmentSuccess = dryRun ? 0 : await setItemSprintsBatch(projectId, sprintAssignments);
+      if (!dryRun) {
+        log.incrementCounter('existing.assignments.applied', assignmentSuccess);
+      }
+    }
+
+    let removalSuccess = 0;
+    if (sprintRemovals.length > 0) {
+      log.info(`Clearing sprint field for ${sprintRemovals.length} existing items (batched)...`);
+      removalSuccess = dryRun ? 0 : await clearItemSprintsBatch(projectId, sprintRemovals);
+      if (!dryRun) {
+        log.incrementCounter('existing.removals.applied', removalSuccess);
+      }
+    }
+
+    const updatedCount = assignmentSuccess + removalSuccess;
+
+    log.info(`Processed ${processedCount} existing items. Queued: ${assignmentQueued} assignments, ${removalQueued} removals. Successfully updated: ${dryRun ? 0 : updatedCount} items.`);
 
   } catch (error) {
     // Handle rate limits as temporary failures

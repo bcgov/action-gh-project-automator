@@ -12,6 +12,7 @@ class Logger {
       debugs: [],
       states: [] // Add states tracking
     };
+    this.counters = new Map();
   }
 
   error(message) {
@@ -48,6 +49,19 @@ class Logger {
       this.logs.debugs.push(message);
       console.log(raw ? message : `DEBUG: ${message}`);
     }
+  }
+
+  incrementCounter(name, amount = 1) {
+    const current = this.counters.get(name) || 0;
+    this.counters.set(name, current + amount);
+  }
+
+  getCounter(name) {
+    return this.counters.get(name) || 0;
+  }
+
+  getCounters() {
+    return Object.fromEntries(this.counters);
   }
 
   /**
@@ -148,6 +162,17 @@ class Logger {
     console.log(`├─ Skipped: ${stats.skipped}`);
     console.log(`├─ Errors: ${stats.errors}`);
     console.log(`└─ Warnings: ${stats.warnings}\n`);
+
+    const counterEntries = Array.from(this.counters.entries());
+    if (counterEntries.length > 0) {
+      console.log('📈 Metrics');
+      counterEntries
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([key, value]) => {
+          console.log(`- ${key}: ${value}`);
+        });
+      console.log('');
+    }
 
     // Print state changes if any
     if (this.logs.states.length > 0) {

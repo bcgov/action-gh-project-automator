@@ -80,6 +80,7 @@ async function getSprintIterations(projectId) {
 
 // Columns eligible for sprint assignment
 const ELIGIBLE_COLUMNS = ['Next', 'Active', 'Done', 'Waiting'];
+const INACTIVE_COLUMNS = ['New', 'Parked', 'Backlog'];
 
 /**
  * Get current sprint information for a project item
@@ -235,9 +236,14 @@ async function getItemCompletionDate(projectItemId) {
  * @param {number} batchSize
  * @returns {Promise<number>} count of successful updates
  */
-async function setItemSprintsBatch(projectId, updates, batchSize = 20) {
+async function setItemSprintsBatch(projectId, updates, batchSize = 20, options = {}) {
+  const {
+    getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
+    graphqlClient = graphql
+  } = options;
+
   if (!Array.isArray(updates) || updates.length === 0) return 0;
-  const fieldId = await getSprintFieldId(projectId);
+  const fieldId = await getSprintFieldIdFn(projectId);
   if (!fieldId) {
     log.warning(`Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`);
     return 0;
@@ -260,13 +266,216 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20) {
       };
     });
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
-    const res = await graphql(mutation, variables);
+    const res = await graphqlClient(mutation, variables);
     // Each alias key (m0, m1, ...) maps to a mutation result
     Object.keys(res || {}).forEach(mutationKey => {
       if (res[mutationKey]?.projectV2Item?.id) success += 1;
     });
   }
   return success;
+}
+
+/**
+ * Assign a single project item to a sprint iteration by updating its Sprint field.
+ * Prefer {@link setItemSprintsBatch} when updating multiple items.
+ *
+ * @param {string} projectId
+ * @param {string} projectItemId
+ * @param {string} iterationId
+ * @param {Object} [overrides]
+ * @param {Function} [overrides.getSprintFieldId]
+ * @param {Function} [overrides.graphqlClient]
+ * @returns {Promise<string>}
+ * @internal
+ */
+async function assignItemToSprint(projectId, projectItemId, iterationId, overrides = {}) {
+  const {
+    getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
+    graphqlClient = graphql
+  } = overrides;
+
+  const sprintFieldId = await getSprintFieldIdFn(projectId);
+  if (!sprintFieldId) {
+    throw new Error(`Sprint field not found for project ${projectId}`);
+  }
+
+  await graphqlClient(`
+    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId
+        itemId: $itemId
+        fieldId: $fieldId
+        value: { iterationId: $iterationId }
+      }) {
+        projectV2Item { id }
+      }
+    }
+  `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId });
+
+  return iterationId;
+}
+
+/**
+ * Determine the sprint action required for a project item based on its column and current sprint state.
+ * @param {Object} params
+ * @param {string} params.projectId
+ * @param {string} params.projectItemId
+ * @param {string} params.currentColumn
+ * @returns {Promise<{
+ *   action: 'assign' | 'remove' | 'skip',
+ *   reason: string,
+ *   targetIterationId?: string,
+ *   targetSprintTitle?: string,
+ *   currentSprintId?: string|null,
+ *   currentSprintTitle?: string|null
+ * }>}
+ */
+async function determineSprintAction({ projectId, projectItemId, currentColumn }, overrides = {}) {
+  const {
+    getItemSprint: getItemSprintFn = getItemSprint,
+    getCurrentSprint: getCurrentSprintFn = getCurrentSprint,
+    getSprintIterations: getSprintIterationsFn = getSprintIterations,
+    getItemCompletionDate: getItemCompletionDateFn = getItemCompletionDate,
+    findSprintForDate: findSprintForDateFn = findSprintForDate
+  } = overrides;
+
+  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
+    await getItemSprintFn(projectId, projectItemId);
+
+  if (!ELIGIBLE_COLUMNS.includes(currentColumn) && !INACTIVE_COLUMNS.includes(currentColumn)) {
+    return {
+      action: 'skip',
+      reason: `Column ${currentColumn} not eligible for sprint changes`,
+      currentSprintId,
+      currentSprintTitle
+    };
+  }
+
+  if (ELIGIBLE_COLUMNS.includes(currentColumn)) {
+    if (currentColumn === 'Done') {
+      const completedAt = await getItemCompletionDateFn(projectItemId);
+      if (!completedAt) {
+        return {
+          action: 'skip',
+          reason: 'Done item has no closed/merged date; refusing to default to current sprint',
+          currentSprintId,
+          currentSprintTitle
+        };
+      }
+
+      const target = await findSprintForDateFn(projectId, completedAt);
+      if (target) {
+        if (String(currentSprintId) === String(target.id)) {
+          return {
+            action: 'skip',
+            reason: 'Historical sprint already set',
+            currentSprintId,
+            currentSprintTitle
+          };
+        }
+
+        return {
+          action: 'assign',
+          reason: `Assigned to historical sprint (${target.title})`,
+          targetIterationId: target.id,
+          targetSprintTitle: target.title,
+          currentSprintId,
+          currentSprintTitle
+        };
+      }
+
+      const iterations = await getSprintIterationsFn(projectId);
+      const completionDate = new Date(completedAt);
+      const sortedIterations = [...iterations].sort(
+        (a, b) => new Date(a.startDate) - new Date(b.startDate)
+      );
+      const nextSprint = sortedIterations.find(sprint => {
+        const sprintStart = new Date(sprint.startDate);
+        return sprintStart > completionDate;
+      });
+
+      if (nextSprint) {
+        if (String(currentSprintId) === String(nextSprint.id)) {
+          return {
+            action: 'skip',
+            reason: 'Historical sprint already set',
+            currentSprintId,
+            currentSprintTitle
+          };
+        }
+
+        return {
+          action: 'assign',
+          reason: `Assigned to next available sprint (${nextSprint.title})`,
+          targetIterationId: nextSprint.id,
+          targetSprintTitle: nextSprint.title,
+          currentSprintId,
+          currentSprintTitle
+        };
+      }
+
+      return {
+        action: 'skip',
+        reason: 'No sprint covers completion date and no future sprint available',
+        currentSprintId,
+        currentSprintTitle
+      };
+    }
+
+    try {
+      const { sprintId: activeSprintId, title: activeSprintTitle } = await getCurrentSprintFn(projectId);
+      if (String(currentSprintId) === String(activeSprintId)) {
+        return {
+          action: 'skip',
+          reason: 'Already in active sprint',
+          currentSprintId,
+          currentSprintTitle
+        };
+      }
+
+      return {
+        action: 'assign',
+        reason: `Assigned to current sprint (${activeSprintTitle})`,
+        targetIterationId: activeSprintId,
+        targetSprintTitle: activeSprintTitle,
+        currentSprintId,
+        currentSprintTitle
+      };
+    } catch (error) {
+      const message = error?.message || '';
+      if (
+        message.includes('No active sprint') ||
+        message.includes('field(name: "Sprint")') ||
+        message.includes('Cannot read properties of undefined')
+      ) {
+        return {
+          action: 'skip',
+          reason: 'No active sprint or Sprint field not configured',
+          currentSprintId,
+          currentSprintTitle
+        };
+      }
+
+      throw error;
+    }
+  }
+
+  // Inactive columns handling
+  if (!currentSprintId) {
+    return {
+      action: 'skip',
+      reason: 'No sprint assigned',
+      currentSprintId,
+      currentSprintTitle
+    };
+  }
+
+  return {
+    action: 'remove',
+    reason: `Removed sprint from inactive column (${currentColumn})`,
+    currentSprintId,
+    currentSprintTitle
+  };
 }
 
 /**
@@ -281,124 +490,27 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
   log.info(`Processing sprint assignment for ${item.__typename} #${item.number}:`);
   log.info(`  • Current column: ${currentColumn}`);
 
-  // Only process items in Next, Active, Done, or Waiting columns
-  if (!ELIGIBLE_COLUMNS.includes(currentColumn)) {
-    log.info(`  • Skip: Not in Next, Active, Done, or Waiting column (${currentColumn})`);
+  const decision = await determineSprintAction({ projectId, projectItemId, currentColumn });
+  log.info(`  • Current sprint: ${decision.currentSprintTitle || 'None'} (${decision.currentSprintId || 'None'})`);
+
+  if (decision.action !== 'assign') {
+    log.info(`  • Skip: ${decision.reason}`);
     return {
       changed: false,
-      reason: 'Not in Next, Active, Done, or Waiting column'
+      reason: decision.reason
     };
   }
 
-  // Get current sprint assignment
-  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
-    await getItemSprint(projectId, projectItemId);
-  log.info(`  • Current sprint: ${currentSprintTitle || 'None'} (${currentSprintId || 'None'})`);
-
-  // Get active sprint or historical sprint depending on column
   try {
-    // For Done column, anchor to completion date; refuse defaults
-    if (currentColumn === 'Done') {
-      const completedAt = await getItemCompletionDate(projectItemId);
-      if (!completedAt) {
-        const errMsg = 'Done item has no closed/merged date; refusing to default to current sprint';
-        log.error(`  • Error: ${errMsg}`);
-        throw new Error(errMsg);
-      }
-      const target = await findSprintForDate(projectId, completedAt);
-      if (!target) {
-        // No sprint covers this completion date - assign to next available sprint
-        log.warning(`  • No sprint covers completion date ${completedAt}`);
-
-        const iterations = await getSprintIterations(projectId);
-        const completionDate = new Date(completedAt);
-
-        // Find the next sprint after the completion date (sort by start date first)
-        const sortedIterations = iterations.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-        const nextSprint = sortedIterations.find(sprint => {
-          const sprintStart = new Date(sprint.startDate);
-          return sprintStart > completionDate;
-        });
-
-        if (nextSprint) {
-          log.info(`  • Assigning to next available sprint: ${nextSprint.title} (${nextSprint.id})`);
-
-          // Set sprint to next available sprint
-          const sprintFieldId = await getSprintFieldId(projectId);
-          await graphql(`
-            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: $projectId
-                itemId: $itemId
-                fieldId: $fieldId
-                value: { iterationId: $iterationId }
-              }) {
-                projectV2Item { id }
-              }
-            }
-          `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: nextSprint.id });
-
-          return { changed: true, newSprint: nextSprint.id, reason: `Assigned to next available sprint (${nextSprint.title})` };
-        } else {
-          log.warning(`  • No future sprint found - skipping sprint assignment`);
-          return {
-            changed: false,
-            reason: 'No sprint covers completion date and no future sprint available'
-          };
-        }
-      }
-
-      log.info(`  • Target sprint by completion date: ${target.title} (${target.id})`);
-
-      if (String(currentSprintId) === String(target.id)) {
-        log.info('  • Skip: Done item already in correct historical sprint');
-        return { changed: false, reason: 'Historical sprint already set' };
-      }
-
-      // Set sprint to historical target
-      const sprintFieldId = await getSprintFieldId(projectId);
-      await graphql(`
-        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
-          updateProjectV2ItemFieldValue(input: {
-            projectId: $projectId
-            itemId: $itemId
-            fieldId: $fieldId
-            value: { iterationId: $iterationId }
-          }) {
-            projectV2Item { id }
-          }
-        }
-      `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: target.id });
-
-      return { changed: true, newSprint: target.id, reason: `Assigned to historical sprint (${target.title})` };
-    }
-
-    // For Active/Next/Waiting: use current sprint, with no-op guard
-    const { sprintId: activeSprintId, title: activeSprintTitle } = await getCurrentSprint(projectId);
-    log.info(`  • Active sprint: ${activeSprintTitle} (${activeSprintId})`);
-
-    if (String(currentSprintId) === String(activeSprintId)) {
-      log.info('  • Skip: Already in active sprint');
-      return { changed: false, reason: 'Already in active sprint' };
-    }
-
-    const sprintFieldId = await getSprintFieldId(projectId);
-    await graphql(`
-      mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
-        updateProjectV2ItemFieldValue(input: {
-          projectId: $projectId
-          itemId: $itemId
-          fieldId: $fieldId
-          value: { iterationId: $iterationId }
-        }) { projectV2Item { id } }
-      }
-    `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId: activeSprintId });
-
-    return { changed: true, newSprint: activeSprintId, reason: `Assigned to current sprint (${activeSprintTitle})` };
-
+    await assignItemToSprint(projectId, projectItemId, decision.targetIterationId);
+    log.info(`  • Assigned sprint: ${decision.targetSprintTitle || decision.targetIterationId}`);
+    return {
+      changed: true,
+      newSprint: decision.targetIterationId,
+      reason: decision.reason
+    };
   } catch (error) {
     const message = error?.message || '';
-    // Gracefully skip if there is no sprint configured or no active sprint
     if (
       message.includes('No active sprint') ||
       message.includes('field(name: "Sprint")') ||
@@ -464,42 +576,27 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
   log.info(`Processing sprint removal for ${item.__typename} #${item.number}:`);
   log.info(`  • Current column: ${currentColumn}`);
 
-  // Only process items in inactive columns (New, Parked, Backlog)
-  const inactiveColumns = ['New', 'Parked', 'Backlog'];
-  if (!inactiveColumns.includes(currentColumn)) {
-    log.info(`  • Skip: Not in inactive column (${currentColumn})`);
+  const decision = await determineSprintAction({ projectId, projectItemId, currentColumn });
+  log.info(`  • Current sprint: ${decision.currentSprintTitle || 'None'} (${decision.currentSprintId || 'None'})`);
+
+  if (decision.action !== 'remove') {
+    log.info(`  • Skip: ${decision.reason}`);
     return {
       changed: false,
-      reason: 'Not in inactive column'
-    };
-  }
-
-  // Get current sprint assignment
-  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
-    await getItemSprint(projectId, projectItemId);
-  log.info(`  • Current sprint: ${currentSprintTitle || 'None'} (${currentSprintId || 'None'})`);
-
-  // Skip if no sprint is set
-  if (!currentSprintId) {
-    log.info('  • Skip: No sprint assigned');
-    return {
-      changed: false,
-      reason: 'No sprint assigned'
+      reason: decision.reason
     };
   }
 
   try {
-    // Remove sprint
     await removeItemSprint(projectId, projectItemId);
-    log.info(`  • Removed sprint: ${currentSprintTitle} (${currentSprintId})`);
+    log.info(`  • Removed sprint: ${decision.currentSprintTitle} (${decision.currentSprintId})`);
 
     return {
       changed: true,
-      reason: `Removed sprint from inactive column (${currentColumn})`
+      reason: decision.reason
     };
   } catch (error) {
     const message = error?.message || '';
-    // Gracefully skip if there is no sprint configured or Sprint field not found
     if (
       message.includes('field(name: "Sprint")') ||
       message.includes('Cannot read properties of undefined') ||
@@ -518,4 +615,64 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
   }
 }
 
-export { processSprintAssignment, processSprintRemoval, getItemSprint, getCurrentSprint, setItemSprintsBatch, getSprintFieldId, getSprintIterations, findSprintForDate, removeItemSprint };
+/**
+ * Clear sprint values in batches using GraphQL aliases
+ * @param {string} projectId
+ * @param {Array<{ projectItemId: string }>} removals
+ * @param {number} batchSize
+ * @returns {Promise<number>}
+ */
+async function clearItemSprintsBatch(projectId, removals, batchSize = 20, options = {}) {
+  const {
+    getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
+    graphqlClient = graphql
+  } = options;
+
+  if (!Array.isArray(removals) || removals.length === 0) return 0;
+  const fieldId = await getSprintFieldIdFn(projectId);
+  if (!fieldId) {
+    log.warning(`Sprint field not found for project ${projectId}. Aborting sprint clear batch of ${removals.length} items.`);
+    return 0;
+  }
+
+  let success = 0;
+  for (let i = 0; i < removals.length; i += batchSize) {
+    const slice = removals.slice(i, i + batchSize);
+    const varDecls = [];
+    const parts = [];
+    const variables = {};
+
+    slice.forEach((removal, idx) => {
+      const vName = `input${idx}`;
+      varDecls.push(`$${vName}: ClearProjectV2ItemFieldValueInput!`);
+      parts.push(`m${idx}: clearProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
+      variables[vName] = {
+        projectId,
+        itemId: removal.projectItemId,
+        fieldId
+      };
+    });
+
+    const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
+    const res = await graphqlClient(mutation, variables);
+    Object.keys(res || {}).forEach(mutationKey => {
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
+    });
+  }
+
+  return success;
+}
+
+export {
+  processSprintAssignment,
+  processSprintRemoval,
+  determineSprintAction,
+  getItemSprint,
+  getCurrentSprint,
+  setItemSprintsBatch,
+  clearItemSprintsBatch,
+  getSprintFieldId,
+  getSprintIterations,
+  findSprintForDate,
+  removeItemSprint
+};

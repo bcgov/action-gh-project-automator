@@ -112,6 +112,13 @@ async function getItemAssignees(projectId, itemId) {
   return assigneeValue.users?.nodes?.map(u => u.login) || [];
 }
 
+async function fetchRepoAssignees({ owner, repo, number, isPullRequest }) {
+  const issueOrPrData = isPullRequest
+    ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
+    : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+  return (issueOrPrData.data.assignees || []).map(a => a.login);
+}
+
 /**
  * Set assignees for a project item
  * @param {string} projectId - The project board ID
@@ -119,10 +126,17 @@ async function getItemAssignees(projectId, itemId) {
  * @param {string[]} assigneeLogins - Array of assignee logins
  * @returns {Promise<void>}
  */
-async function setItemAssignees(projectId, itemId, assigneeLogins) {
+async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {}) {
+  const {
+    getItemDetailsFn = getItemDetails,
+    fetchRepoAssigneesFn = fetchRepoAssignees,
+    graphqlClient = graphql,
+    getUserIdsFn = getUserIdsBatched
+  } = overrides;
+
   try {
     // Get item details to get repository and number
-    const itemDetails = await getItemDetails(itemId);
+    const itemDetails = await getItemDetailsFn(itemId);
     if (!itemDetails || !itemDetails.content) {
       throw new Error(`Could not get details for item ${itemId}`);
     }
@@ -130,12 +144,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
     const { repository, number, id: assignableId } = itemDetails.content;
     const [owner, repo] = repository.nameWithOwner.split('/');
     const isPullRequest = itemDetails.type === 'PullRequest';
-
-    // Current repo-level assignees to support no-op guard and delta
-    const issueOrPrData = isPullRequest
-      ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
-      : await octokit.rest.issues.get({ owner, repo, issue_number: number });
-    const current = (issueOrPrData.data.assignees || []).map(a => a.login);
+    const current = await fetchRepoAssigneesFn({ owner, repo, number, isPullRequest });
 
     // No-op guard
     if (arraysEqual(current, assigneeLogins)) {
@@ -152,7 +161,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
 
     // Removals first (if any)
     if (toRemove.length > 0) {
-      const { ids: removeIds, missing: missingRemove } = await getUserIdsBatched(toRemove, userIdBatchCache);
+      const { ids: removeIds, missing: missingRemove } = await getUserIdsFn(toRemove, userIdBatchCache, graphqlClient);
       if (missingRemove.length > 0) {
         log.warning(`Some assignees to remove not found: ${missingRemove.join(', ')}`);
       }
@@ -162,14 +171,14 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
             assignable { __typename }
           }
         }`;
-        await graphql(removeMutation, { assignableId, assigneeIds: removeIds });
+        await graphqlClient(removeMutation, { assignableId, assigneeIds: removeIds });
         log.info(`Successfully removed assignees: ${toRemove.join(', ')}`);
       }
     }
 
     // Additions (if any)
     if (toAdd.length > 0) {
-      const { ids: addIds, missing: missingAdd } = await getUserIdsBatched(toAdd, userIdBatchCache);
+      const { ids: addIds, missing: missingAdd } = await getUserIdsFn(toAdd, userIdBatchCache, graphqlClient);
       if (missingAdd.length > 0) {
         log.warning(`Some assignee logins to add not found: ${missingAdd.join(', ')}`);
       }
@@ -179,7 +188,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
             assignable { __typename }
           }
         }`;
-        await graphql(addMutation, { assignableId, assigneeIds: addIds });
+        await graphqlClient(addMutation, { assignableId, assigneeIds: addIds });
         log.info(`Successfully added assignees: ${toAdd.join(', ')}`);
       }
     }
@@ -189,7 +198,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins) {
   }
 }
 
-async function getUserIdsBatched(logins, cache) {
+async function getUserIdsBatched(logins, cache, graphqlClient = graphql) {
   const unique = [...new Set(logins.filter(Boolean))];
   const ids = [];
   const missingSet = new Set();
@@ -205,7 +214,7 @@ async function getUserIdsBatched(logins, cache) {
     const query = `query(${varDecls}) { ${fields} }`;
     const variables = {};
     uncached.forEach((l, i) => { variables[`l${i}`] = l; });
-    const res = await graphql(query, variables);
+    const res = await graphqlClient(query, variables);
     uncached.forEach((l, i) => {
       const node = res[`u${i}`];
       if (node?.id) userIdCache.set(l, node.id); else missingSet.add(l);
@@ -364,4 +373,4 @@ async function processAssignees(item, projectId, itemId) {
   }
 }
 
-export { processAssignees, getItemAssignees, setItemAssignees, getItemDetails };
+export { processAssignees, getItemAssignees, setItemAssignees, getItemDetails, fetchRepoAssignees, getUserIdsBatched };
