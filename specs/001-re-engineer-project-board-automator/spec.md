@@ -3,7 +3,8 @@
 **Version**: 1.0  
 **Date**: Generated as part of SpecKit re-engineering  
 **Primary Source**: `rules.yml` - Business rules and configuration  
-**Complementary Source**: Codebase - Implementation details
+**Complementary Source**: Codebase - Implementation details  
+**Governance**: Refer to `memory/constitution.md` for enduring principles that constrain this specification.
 
 ## Table of Contents
 
@@ -17,6 +18,7 @@
 8. [Observability](#observability)
 9. [Data Models](#data-models)
 10. [Behavioral Specifications](#behavioral-specifications)
+11. [Governance & Change Control](#governance--change-control)
 
 ## 1. System Overview
 
@@ -122,15 +124,15 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 
 ### Primary Source: rules.yml
 
-**Location**: Repository root or configurable path
+**Location**: Repository root by default. Alternate paths must be provided explicitly when invoking the GitHub Action so downstream consumers still treat the file as the single business rule contract.
 
-**Structure**: See `requirements-inventory.md` for complete specification
+**Structure**: See `requirements-inventory.md` for the normalized schema captured directly from `rules.yml`.
 
-**Key Sections**:
-- `project`: Project identification (URL or ID)
-- `automation.user_scope`: Rules for monitored users
-- `automation.repository_scope`: Rules for monitored repositories
-- `technical`: Performance and optimization settings
+**Key Sections** (authoritative fields that drive runtime behavior):
+- `project`: Project identification (`url` or `id`). Exactly one must be present.
+- `automation.user_scope`: Monitored users and teams that seed rule evaluation and skip conditions.
+- `automation.repository_scope`: Monitored repositories, branch filters, and per-repo overrides.
+- `technical`: Performance and optimization settings (batch size, update windows, rate-limit tolerances).
 
 ### Environment Variables
 
@@ -138,7 +140,7 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 - `GITHUB_TOKEN`: GitHub personal access token
 - `GITHUB_AUTHOR`: GitHub username to monitor
 
-**Optional**:
+**Optional Runtime Modifiers** (document any behavior changes before enabling in production workflows):
 - `PROJECT_URL`: Override project URL
 - `PROJECT_ID`: Override project ID
 - `OVERRIDE_REPOS`: Comma-separated repo list
@@ -146,6 +148,7 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 - `STRICT_MODE`: Enable strict preflight checks (`true`/`false`)
 - `DRY_RUN`: When `true`, executes the full evaluation pipeline but skips mutations against the GitHub API (still logs queued actions and metrics).
 - `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided automatically in GitHub Actions. When present, the runtime seeds work from the event payload before falling back to repository-wide queries.
+- `GITHUB_REPOSITORY`, `GITHUB_WORKSPACE`: Present in GitHub-hosted runners; required when packaging as an action but not for local dry runs.
 
 ### Configuration Loading
 
@@ -156,9 +159,10 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 2. Validate against JSON schema (`schema.js`)
 3. Normalize structure (`board-rules.js`)
 4. Merge user_scope and repository_scope rules
-5. Return normalized configuration
+5. Derive rule metadata (ids, summary strings) for downstream processors
+6. Return normalized configuration
 
-**Validation**: All `rules.yml` files must pass schema validation before processing
+**Validation**: All `rules.yml` files must pass schema validation before processing. Failures are considered critical and must block the workflow per the constitution.
 
 ## 4. GitHub API Integration
 
@@ -475,6 +479,18 @@ See `gap-analysis.md` for detailed status:
 - **Fully Implemented**: 8/12 rules (67%)
 - **Partially Implemented**: 4/12 rules (33%)
 - **Known Gaps**: validTransitions enforcement, linked issues actions
+
+## 11. Governance & Change Control
+
+### Mandates
+- `memory/constitution.md` defines non-negotiable principles; any updates require stakeholder approval and must be referenced in PR notes.
+- `rules.yml` remains the authoritative description of business intent. Specifications cannot redefine rule behavior without a synchronized change to `rules.yml`.
+- Default runtime behaviors must not drift silently; documentation and changelog entries are mandatory for every change.
+
+### Specification Maintenance
+- Note the provenance of every spec edit (source: `rules.yml`, implementation observation, or approved design change).
+- Log discrepancies in the gap analysis before pursuing remediation; unresolved items must be tracked to closure.
+- When packaging as a GitHub Action, propagate governance notes to user-facing documentation so consumers inherit the same guardrails.
 
 ## References
 
