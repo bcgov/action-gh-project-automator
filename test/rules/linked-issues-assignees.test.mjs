@@ -1,17 +1,18 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { processLinkedIssues } from '../../src/rules/linked-issues-processor.js';
+import { Logger } from '../../src/utils/log.js';
 
 const noop = () => {};
 
 function createLogger() {
-  return {
-    info: noop,
-    warn: noop,
-    error: noop,
-    debug: noop,
-    printStateSummary: noop
-  };
+  const logger = new Logger();
+  logger.info = noop;
+  logger.warn = noop;
+  logger.error = noop;
+  logger.debug = noop;
+  logger.printStateSummary = noop;
+  return logger;
 }
 
 test('processLinkedIssues inherits assignees when project state differs', async () => {
@@ -63,6 +64,12 @@ test('processLinkedIssues inherits assignees when project state differs', async 
   assert.equal(result.linkedIssues[0].skipped, false);
   assert.equal(setAssigneeCalls.length, 1);
   assert.deepEqual(setAssigneeCalls[0], { itemId: 'issue-item', assignees: ['alice', 'bob'] });
+
+  const logger = overrides.logger;
+  assert.equal(logger.getCounter('linked.items.total'), 1);
+  assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 1);
+  assert.equal(logger.getCounter('linked.actions.skipped'), 0);
+  assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
 
 test('processLinkedIssues skips assignee inheritance when sets already match', async () => {
@@ -106,6 +113,12 @@ test('processLinkedIssues skips assignee inheritance when sets already match', a
   assert.equal(result.linkedIssues.length, 1);
   assert.equal(result.linkedIssues[0].skipped, true);
   assert.equal(overrides.setItemAssigneesFn.mock.callCount(), 0);
+
+  const logger = overrides.logger;
+  assert.equal(logger.getCounter('linked.items.total'), 1);
+  assert.equal(logger.getCounter('linked.actions.skipped'), 1);
+  assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 0);
+  assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
 
 test('processLinkedIssues falls back to payload assignees when project lookup fails', async () => {
@@ -152,5 +165,11 @@ test('processLinkedIssues falls back to payload assignees when project lookup fa
   assert.equal(result.changed, true);
   assert.equal(setAssigneeCalls.length, 1);
   assert.deepEqual(setAssigneeCalls[0], { itemId: 'issue-item', assignees: ['carol'] });
+
+  const logger = overrides.logger;
+  assert.equal(logger.getCounter('linked.items.total'), 1);
+  assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 1);
+  assert.equal(logger.getCounter('linked.actions.skipped'), 0);
+  assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
 

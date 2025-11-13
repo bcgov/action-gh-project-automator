@@ -1,17 +1,18 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { processLinkedIssues } from '../../src/rules/linked-issues-processor.js';
+import { Logger } from '../../src/utils/log.js';
 
 const noop = () => {};
 
 function createLogger() {
-  return {
-    info: noop,
-    warn: noop,
-    error: noop,
-    debug: noop,
-    printStateSummary: noop
-  };
+  const logger = new Logger();
+  logger.info = noop;
+  logger.warn = noop;
+  logger.error = noop;
+  logger.debug = noop;
+  logger.printStateSummary = noop;
+  return logger;
 }
 
 test('processLinkedIssues inherits column and assignees when state differs', async () => {
@@ -68,6 +69,13 @@ test('processLinkedIssues inherits column and assignees when state differs', asy
   assert.deepEqual(setColumnCalls[0], { itemId: 'issue-item', optionId: 'status-active' });
   assert.equal(setAssigneeCalls.length, 1);
   assert.deepEqual(setAssigneeCalls[0], { itemId: 'issue-item', assignees: ['alice'] });
+
+  const logger = overrides.logger;
+  assert.equal(logger.getCounter('linked.items.total'), 1);
+  assert.equal(logger.getCounter('linked.actions.column.assigned'), 1);
+  assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 1);
+  assert.equal(logger.getCounter('linked.actions.skipped'), 0);
+  assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
 
 test('processLinkedIssues skips updates when column and assignees already match', async () => {
@@ -113,5 +121,12 @@ test('processLinkedIssues skips updates when column and assignees already match'
   assert.equal(result.linkedIssues[0].skipped, true);
   assert.equal(overrides.setItemColumnFn.mock.callCount(), 0);
   assert.equal(overrides.setItemAssigneesFn.mock.callCount(), 0);
+
+  const logger = overrides.logger;
+  assert.equal(logger.getCounter('linked.items.total'), 1);
+  assert.equal(logger.getCounter('linked.actions.skipped'), 1);
+  assert.equal(logger.getCounter('linked.actions.column.assigned'), 0);
+  assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 0);
+  assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
 
