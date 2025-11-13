@@ -197,11 +197,11 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 
 1. **Load Rules**: Get rules for rule type from `rules.yml`
 2. **Seed Items**: If executed within a GitHub Action with `GITHUB_EVENT_*` context, load the triggering pull request/issue directly from the event payload via `loadEventItems`. Otherwise, or in addition, search monitored repositories for recent activity using `getRecentItems`.
-2. **Evaluate Skip Condition**: If `skip_if` present and true, skip rule
-3. **Check Trigger Type**: Verify item type matches `trigger.type`
-4. **Evaluate Condition**: Evaluate `trigger.condition` expression
-5. **Format Action**: If condition matches, format action with parameters
-6. **Return Actions**: Return array of actions to execute
+3. **Evaluate Skip Condition**: If `skip_if` present and true, skip rule
+4. **Check Trigger Type**: Verify item type matches `trigger.type`
+5. **Evaluate Condition**: Evaluate `trigger.condition` expression
+6. **Format Action**: If condition matches, format action with parameters
+7. **Return Actions**: Return array of actions to execute
 
 ### Condition Evaluation
 
@@ -240,7 +240,9 @@ Each rule processor executes actions:
 - `add_assignee`: Adds assignee to item
 - `inherit_column`: Inherits column from linked PR (linked issues)
 - `inherit_assignees`: Inherits assignees from linked PR (linked issues)
-- **Existing Item Sweep**: After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled.
+### Post-Processing: Existing Item Sweep
+
+After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled.
 
 ## 6. State Management
 
