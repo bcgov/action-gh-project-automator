@@ -144,6 +144,8 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 - `OVERRIDE_REPOS`: Comma-separated repo list
 - `VERBOSE`: Enable verbose logging (`true`/`false`)
 - `STRICT_MODE`: Enable strict preflight checks (`true`/`false`)
+- `DRY_RUN`: When `true`, executes the full evaluation pipeline but skips mutations against the GitHub API (still logs queued actions and metrics).
+- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided automatically in GitHub Actions. When present, the runtime seeds work from the event payload before falling back to repository-wide queries.
 
 ### Configuration Loading
 
@@ -194,11 +196,12 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 ### Rule Evaluation Flow
 
 1. **Load Rules**: Get rules for rule type from `rules.yml`
-2. **Evaluate Skip Condition**: If `skip_if` present and true, skip rule
-3. **Check Trigger Type**: Verify item type matches `trigger.type`
-4. **Evaluate Condition**: Evaluate `trigger.condition` expression
-5. **Format Action**: If condition matches, format action with parameters
-6. **Return Actions**: Return array of actions to execute
+2. **Seed Items**: If executed within a GitHub Action with `GITHUB_EVENT_*` context, load the triggering pull request/issue directly from the event payload via `loadEventItems`. Otherwise, or in addition, search monitored repositories for recent activity using `getRecentItems`.
+3. **Evaluate Skip Condition**: If `skip_if` present and true, skip rule
+4. **Check Trigger Type**: Verify item type matches `trigger.type`
+5. **Evaluate Condition**: Evaluate `trigger.condition` expression
+6. **Format Action**: If condition matches, format action with parameters
+7. **Return Actions**: Return array of actions to execute
 
 ### Condition Evaluation
 
@@ -237,6 +240,9 @@ Each rule processor executes actions:
 - `add_assignee`: Adds assignee to item
 - `inherit_column`: Inherits column from linked PR (linked issues)
 - `inherit_assignees`: Inherits assignees from linked PR (linked issues)
+### Post-Processing: Existing Item Sweep
+
+After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled.
 
 ## 6. State Management
 
@@ -343,6 +349,8 @@ Each rule processor executes actions:
 - Items skipped
 - Errors encountered
 - State verification retries
+- Existing-item sweep statistics (items processed, assignments queued/applied, removals queued/applied)
+- Seeded items sourced from event payloads
 
 **Reporting**:
 - End-of-run summary
@@ -401,6 +409,10 @@ Each rule processor executes actions:
 2. Repository scope rules evaluated second
 3. Rules within scope evaluated in declaration order
 
+**Item Sources**:
+- If the runtime is invoked from a GitHub Action with `GITHUB_EVENT_NAME`/`GITHUB_EVENT_PATH`, the triggering PR/issue is hydrated directly from the event payload (preferred source to avoid API drift).
+- After seed items are processed—or when no event payload is available—the system queries monitored repositories for recent activity within `technical.update_window_hours` (default 24h, or 1h for pull request events).
+
 **Short-Circuit**:
 - Skip condition evaluated first
 - If skip condition true, rule not evaluated
@@ -410,6 +422,7 @@ Each rule processor executes actions:
 - Actions executed in order returned by processor
 - Each action executed independently
 - State verified after each action
+- After newly added items are processed, an existing-item sweep reconciles sprint assignments for all project items using batched mutations (with no-op guards). This sweep is always attempted unless rate limits prevent it, and it honors `DRY_RUN` by logging queued changes without applying them.
 
 ### State Transition Behavior
 
