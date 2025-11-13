@@ -32,42 +32,17 @@
 - ✅ Gap analysis complete
 - ✅ Unified specification created
 
-### Phase 2: Fix Critical Gaps (High Priority)
+### Phase 2: Linked Issues Stabilization (High Priority)
 
-**Goal**: Fix the 4 critical gaps identified in gap analysis
+**Goal**: Close the remaining runtime gap by finishing linked issue inheritance and adding observability.
 
-#### 2.1 Fix validTransitions Enforcement
-
-**Problem**: `validTransitions` declared in `rules.yml` but not strictly enforced
-
-**Current State**:
-- `StateTransitionValidator` exists but not fully integrated
-- `validateColumnTransition()` has backward compatibility fallback
-- ValidTransitions from `rules.yml` may not be loaded
-
-**Solution**:
-1. Ensure `StateVerifier.initializeTransitionRules()` loads all `validTransitions` from `rules.yml`
-2. Remove backward compatibility fallback in `columns.js`
-3. Make validation strict - block invalid transitions
-4. Add tests for transition enforcement
-
-**Files to Modify**:
-- `src/utils/state-transition-validator.js` - Ensure rules loaded
-- `src/rules/columns.js` - Remove fallback, enforce strict validation
-- `src/utils/state-verifier.js` - Ensure initialization loads validTransitions
-
-**Tests Needed**:
-- Test valid transitions are allowed
-- Test invalid transitions are blocked
-- Test validTransitions from rules.yml are respected
-
-#### 2.2 Complete Linked Issues inherit_column
+#### 2.1 Complete Linked Issues inherit_column
 
 **Problem**: `inherit_column` action incomplete - doesn't properly inherit from PR
 
 **Current State**:
-- Uses `currentColumn` parameter instead of PR's actual column
-- Doesn't check PR's actual state from project board
+- Uses the column decided earlier in the run instead of the PR's actual project state
+- Skip guard does not prevent redundant updates
 
 **Solution**:
 1. Get PR's actual column from project board via `getItemColumn()`
@@ -82,6 +57,66 @@
 - Test column inheritance from PR to linked issue
 - Test skip condition evaluation
 - Test when PR column changes
+
+#### 2.2 Complete Linked Issues inherit_assignees
+
+**Problem**: `inherit_assignees` action incomplete - doesn't properly inherit from PR
+
+**Current State**:
+- Relies on API payload instead of project board state
+- Skip guard does not compare normalized assignee sets
+
+**Solution**:
+1. Get PR's assignees from project board via `getItemAssignees()`
+2. Compare with linked issue's assignees using set semantics
+3. Only set if different
+4. Properly evaluate skip condition
+
+**Files to Modify**:
+- `src/rules/linked-issues-processor.js` - Fix inherit_assignees logic
+
+**Tests Needed**:
+- Test assignee inheritance from PR to linked issue
+- Test skip condition evaluation
+- Test when PR assignees change
+
+#### 2.3 Fix Skip Condition Evaluation
+
+**Problem**: Skip condition not properly evaluated for linked issues
+
+**Current State**:
+- Skip condition declared but not evaluated using live board state
+- Uses shallow equality without normalization
+
+**Solution**:
+1. Get PR's actual column and assignees from project board
+2. Get linked issue's actual column and assignees
+3. Evaluate skip condition: `item.column === item.pr.column && item.assignees === item.pr.assignees`
+4. Skip if condition is true with clear logging
+
+**Files to Modify**:
+- `src/rules/linked-issues-processor.js` - Add skip condition evaluation
+
+**Tests Needed**:
+- Test skip condition when column and assignees match
+- Test skip condition when they don't match
+
+#### 2.4 Add Linked Issue Observability
+
+**Problem**: No visibility into inheritance attempts, skips, or errors.
+
+**Solution**:
+1. Add counters for `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`.
+2. Include summary output in end-of-run report.
+3. Wire metrics into existing logger/state summary utilities.
+
+**Files to Modify**:
+- `src/rules/linked-issues-processor.js`
+- `src/utils/log.js` (if new counters require formatting)
+
+**Tests Needed**:
+- Unit tests asserting counter increments via dependency injection.
+- Update integration tests to assert summary output (optional in near term).
 
 #### 2.3 Complete Linked Issues inherit_assignees
 
@@ -145,28 +180,29 @@
 
 #### 3.2 Rebuild Column Processor
 
-**Current State**: ⚠️ Works but validTransitions not enforced (fixing in Phase 2)
+**Current State**: ✅ Strict transitions now enforced; focus shifts to resiliency.
 
 **Improvements**:
-- After Phase 2 fixes, ensure all edge cases handled
-- Improve transition validation
-- Add comprehensive tests
+- Expand regression tests for inactive/closed item routing.
+- Ensure batch operations (`setItemColumnsBatch`) cover large updates.
+- Harden logging/error surfacing.
 
 **Files to Modify**:
-- `src/rules/columns.js` (after Phase 2 fixes)
+- `src/rules/columns.js`
+- `test/rules/columns*.test.js` (expand coverage)
 
 #### 3.3 Rebuild Sprint Processor
 
-**Current State**: ✅ Working, but can add sprint removal
+**Current State**: ✅ Assignment/removal implemented with batching.
 
 **Improvements**:
-- Add sprint removal for inactive columns ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
-- Improve edge case handling
-- Add comprehensive tests
+- Validate historical sprint lookup edge cases (future-dated completions).
+- Ensure existing-item sweep respects rate-limit guardrails.
+- Add integration-style tests for batching helpers.
 
 **Files to Modify**:
-- `src/rules/sprints.js` - Add sprint removal logic
-- `rules.yml` - Add sprint removal rules
+- `src/rules/sprints.js`
+- `test/rules/sprint-batching.test.js` (extend scenarios)
 
 #### 3.4 Rebuild Assignee Processor
 
@@ -210,18 +246,18 @@
 
 ### Phase 5: Rebuild State Verification (Medium Priority)
 
-**Goal**: Ensure state verification enforces `rules.yml` outcomes
+**Goal**: Strengthen verification tooling now that transitions are strict.
 
-**Current State**: ✅ Working but can be improved
+**Current State**: ✅ Core verification and retry logic working, but reporting can improve.
 
 **Improvements**:
-- Ensure validTransitions are enforced (from Phase 2)
-- Improve retry logic
-- Add comprehensive tests
+- Expand reporting on retry outcomes (success vs. exhausted).
+- Ensure linked-issue verification hooks exist once inheritance is fixed.
+- Add comprehensive tests around retryWithTracking metrics.
 
 **Files to Modify**:
 - `src/utils/state-verifier.js`
-- `src/utils/state-transition-validator.js`
+- `src/utils/state-transition-validator.js` (follow-up tweaks if needed)
 
 ### Phase 6: Standardize Error Handling (Low Priority)
 
@@ -270,7 +306,7 @@
 
 ### Incremental Approach
 
-1. **Phase 2 First**: Fix critical gaps (validTransitions, linked issues)
+1. **Phase 2 First**: Stabilize linked issues (inheritance + observability)
    - Highest impact, lowest risk
    - Can be done incrementally
    - Tests validate each fix
@@ -309,13 +345,9 @@
 1. **Breaking Existing Functionality**
    - **Mitigation**: Comprehensive tests, incremental changes, backward compatibility
 
-2. **ValidTransitions Breaking Workflows**
-   - **Mitigation**: Strict validation but clear error messages, allow configuration override
-
-3. **Linked Issues Changes Breaking Workflows**
+2. **Linked Issues Changes Breaking Workflows**
    - **Mitigation**: Test thoroughly, provide clear documentation
-
-4. **Test Coverage Gaps**
+3. **Test Coverage Gaps**
    - **Mitigation**: Write tests from specs, aim for high coverage
 
 ### Rollback Plan
@@ -327,16 +359,15 @@
 
 ## Success Metrics
 
-### Phase 2 (Critical Gaps)
-- [ ] validTransitions strictly enforced
+### Phase 2 (Linked Issues)
 - [ ] inherit_column works correctly
 - [ ] inherit_assignees works correctly
 - [ ] Skip condition evaluated correctly
+- [ ] Linked issue metrics recorded
 - [ ] All tests pass
 
 ### Phase 3 (Rule Processors)
 - [ ] All rule processors match `rules.yml` exactly
-- [ ] Sprint removal implemented
 - [ ] All tests pass
 - [ ] No regressions
 
@@ -354,7 +385,7 @@
 
 ## Timeline Estimate
 
-- **Phase 2**: 2-3 days (critical gaps)
+- **Phase 2**: 2-3 days (linked issues stabilization)
 - **Phase 3**: 1-2 weeks (rule processors)
 - **Phase 4-7**: 1-2 weeks (infrastructure)
 - **Total**: 3-4 weeks for complete rebuild
@@ -368,7 +399,7 @@
 
 ## Next Steps
 
-1. Start Phase 2: Fix critical gaps
+1. Start Phase 2: Stabilize linked issues
 2. Write tests from specs first
 3. Implement fixes
 4. Validate against specs
