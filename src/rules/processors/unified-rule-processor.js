@@ -48,13 +48,23 @@ function deduplicateActions(actions) {
  * Process rules for a specific rule type
  * @param {Object} item PR or Issue to process
  * @param {string} ruleType The type of rules to process (e.g., 'columns', 'board_items')
+ * @param {Object} [overrides] Optional dependency overrides. Only the properties
+ *   `loadBoardRulesFn` and `ruleValidator` are used from the overrides object;
+ *   other properties are ignored.
+ * @param {Function} [overrides.loadBoardRulesFn] Custom rules loader used for testing
+ * @param {Object} [overrides.ruleValidator] Custom validator instance providing rule checks
  * @returns {Promise<Array<{action: string, params: Object}>>} List of actions to take
  */
-async function processRuleType(item, ruleType) {
+async function processRuleType(item, ruleType, overrides = {}) {
     try {
-        const config = loadBoardRules();
+        const {
+            loadBoardRulesFn = loadBoardRules,
+            ruleValidator = validator
+        } = overrides;
+
+        const config = loadBoardRulesFn();
         const actions = [];
-        validator.steps.markStepComplete('RULE_CONFIG_LOADED');
+        ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
         const rules = config.rules[ruleType] || [];
 
@@ -73,12 +83,12 @@ async function processRuleType(item, ruleType) {
                 // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
                 // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
                 const skipCondition = rule.skip_if ?? rule.skipIf;
-                if (skipCondition && validator.validateSkipRule(item, skipCondition)) {
+                if (skipCondition && ruleValidator.validateSkipRule?.(item, skipCondition)) {
                     continue;
                 }
 
                 // Check trigger conditions
-                if (validator.validateItemCondition(item, rule.trigger)) {
+                if (ruleValidator.validateItemCondition?.(item, rule.trigger)) {
                     const action = formatAction(rule, ruleType);
                     const params = { item };
 
@@ -168,7 +178,7 @@ function formatAction(rule, ruleType) {
 async function processAllRules(item) {
     try {
         const actions = [];
-        validator.steps.markStepComplete('RULE_CONFIG_LOADED');
+        validator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
         // Process all rule types dynamically from configuration
         const config = loadBoardRules();
@@ -187,24 +197,54 @@ async function processAllRules(item) {
 }
 
 // Backward compatibility functions
-async function processBoardItemRules(item) {
-    return await processRuleType(item, 'board_items');
+/**
+ * Process board-item rules for a single item.
+ * @param {Object} item PR or Issue to process
+ * @param {Object} [overrides] Optional dependency overrides for testing
+ * @returns {Promise<Array<{action: string, params: Object}>>}
+ */
+async function processBoardItemRules(item, overrides) {
+    return await processRuleType(item, 'board_items', overrides);
 }
 
-async function processColumnRules(item) {
-    return await processRuleType(item, 'columns');
+/**
+ * Process column rules for a single item.
+ * @param {Object} item PR or Issue to process
+ * @param {Object} [overrides] Optional dependency overrides for testing
+ * @returns {Promise<Array<{action: string, params: Object}>>}
+ */
+async function processColumnRules(item, overrides) {
+    return await processRuleType(item, 'columns', overrides);
 }
 
-async function processSprintRules(item) {
-    return await processRuleType(item, 'sprints');
+/**
+ * Process sprint rules for a single item.
+ * @param {Object} item PR or Issue to process
+ * @param {Object} [overrides] Optional dependency overrides for testing
+ * @returns {Promise<Array<{action: string, params: Object}>>}
+ */
+async function processSprintRules(item, overrides) {
+    return await processRuleType(item, 'sprints', overrides);
 }
 
-async function processAssigneeRules(item) {
-    return await processRuleType(item, 'assignees');
+/**
+ * Process assignee rules for a single item.
+ * @param {Object} item PR or Issue to process
+ * @param {Object} [overrides] Optional dependency overrides for testing
+ * @returns {Promise<Array<{action: string, params: Object}>>}
+ */
+async function processAssigneeRules(item, overrides) {
+    return await processRuleType(item, 'assignees', overrides);
 }
 
-async function processLinkedIssueRules(item) {
-    return await processRuleType(item, 'linked_issues');
+/**
+ * Process linked-issue rules for a single item.
+ * @param {Object} item PR or Issue to process
+ * @param {Object} [overrides] Optional dependency overrides for testing
+ * @returns {Promise<Array<{action: string, params: Object}>>}
+ */
+async function processLinkedIssueRules(item, overrides) {
+    return await processRuleType(item, 'linked_issues', overrides);
 }
 
 export { processAllRules, processRuleType, processBoardItemRules, processColumnRules, processSprintRules, processAssigneeRules, processLinkedIssueRules };
