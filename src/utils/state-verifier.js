@@ -550,6 +550,11 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         this.tracker.recordError(item, type, error, attempt);
 
         // Only retry if error is marked as retryable
+        const message = error?.message || '';
+        if (message.includes('Column mismatch')) {
+          error.isRetryable = true;
+        }
+
         if (attempt < MAX_RETRIES && (error.retryable || error.isRetryable)) {
           const delay = Math.min(Math.pow(2, attempt - 1) * 1000, 5000);
           log.info(`
