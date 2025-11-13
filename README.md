@@ -118,6 +118,9 @@ export PROJECT_ID=PVT_kwDOAA37OM4AFuzg
 #   # or
 #   id: PVT_kwDOAA37OM4AFuzg
 
+# Optional safety switches:
+# DRY_RUN=true will execute all rule evaluation and logging without applying GitHub mutations.
+
 # Run with verbose output (recommended for troubleshooting)
 VERBOSE=true node project-board-sync.js
 

@@ -15,10 +15,23 @@ import { processBoardItemRules } from './processors/unified-rule-processor.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours }) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [] }, overrides = {}) {
+  const {
+    getRecentItemsFn = getRecentItems,
+    processBoardItemRulesFn = processBoardItemRules,
+    isItemInProjectFn = isItemInProject,
+    addItemToProjectFn = addItemToProject,
+    delayFn = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+  } = overrides;
+
   log.info(`Starting item processing for user ${monitoredUser}`);
-  const items = await getRecentItems(org, repos, monitoredUser, windowHours);
-  log.info(`Found ${items.length} items to process\n`, true);
+  let items = Array.isArray(seedItems) && seedItems.length > 0 ? seedItems : null;
+  if (items) {
+    log.info(`Using ${items.length} item(s) from event payload\n`, true);
+  } else {
+    items = await getRecentItemsFn(org, repos, monitoredUser, windowHours);
+    log.info(`Found ${items.length} items to process\n`, true);
+  }
 
   const addedItems = [];
   const skippedItems = [];
@@ -27,6 +40,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   for (const item of items) {
     try {
+      log.incrementCounter('items.processed');
       // Guard against incomplete items returned from search
       // Ensure all required fields from rules.yml conditions are present
       if (!item || !item.__typename || !item.repository || !item.repository.nameWithOwner || typeof item.number !== 'number') {
@@ -62,7 +76,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       }
 
       // Check if we should process this item based on rules
-      const boardActions = await processBoardItemRules(item, { monitoredUser });
+      const boardActions = await processBoardItemRulesFn(item, { monitoredUser });
       const shouldProcess = boardActions.length > 0;
       const addReason = item.__typename === 'PullRequest'
         ? isAuthoredByUser
@@ -77,6 +91,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
           : 'Issue does not meet any criteria';
 
       if (!shouldProcess) {
+        log.incrementCounter('items.skipped');
         skippedItems.push({
           type: item.__typename,
           number: item.number,
@@ -89,7 +104,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Check if in project and get project item ID
       log.info('  Checking project board status...', true);
-      const { isInProject, projectItemId: existingItemId } = await isItemInProject(item.id, projectId);
+      const { isInProject, projectItemId: existingItemId } = await isItemInProjectFn(item.id, projectId);
       let projectItemId = existingItemId;
 
       // Process all board actions
@@ -103,11 +118,12 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
         // If we need to add to board and item isn't in project yet
         if (action.action === 'add_to_board' && !isInProject) {
           log.info('  ✨ Action Required: Add to project board', true);
-          projectItemId = await addItemToProject(item.id, projectId);
+        projectItemId = await addItemToProjectFn(item.id, projectId);
+        log.incrementCounter('items.added');
 
           // Add delay after adding to project to handle eventual consistency
           log.info('  ⏳ Waiting for GitHub to process the addition...', true);
-          await new Promise(resolve => setTimeout(resolve, VERIFY_DELAY_MS));
+          await delayFn(VERIFY_DELAY_MS);
         }
 
         log.info(`    • Action: ${action.action}`, true);

@@ -29,7 +29,16 @@ const graphqlWithAuthRaw = graphql.defaults({
 
 // Create memoized client first, then wrap with backoff to avoid TDZ
 const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw, { ttlMs: 60_000, maxEntries: 300 });
-const graphqlWithAuth = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
+let graphqlExecutor = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
+const graphqlWithAuth = async (query, variables) => graphqlExecutor(query, variables);
+
+function __setGraphqlExecutor(executor) {
+  graphqlExecutor = executor;
+}
+
+function __resetGraphqlExecutor() {
+  graphqlExecutor = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
+}
 
 // Cache field IDs per project to reduce API calls
 const fieldIdCache = new Map();
@@ -595,4 +604,26 @@ async function getFieldId(projectId, fieldName) {
   return fieldId;
 }
 
-export { octokit, graphqlWithAuth as graphql, isItemInProject, addItemToProject, getRecentItems, getItemColumn, setItemColumn, getFieldId, getColumnOptionId, getProjectItems, setItemColumnsBatch };
+function __resetProjectCaches() {
+  projectItemsCache.clear();
+  statusOptionsCache.clear();
+  fieldIdCache.clear();
+  columnOptionIdCache.clear();
+}
+
+export {
+  octokit,
+  graphqlWithAuth as graphql,
+  isItemInProject,
+  addItemToProject,
+  getRecentItems,
+  getItemColumn,
+  setItemColumn,
+  getFieldId,
+  getColumnOptionId,
+  getProjectItems,
+  setItemColumnsBatch,
+  __setGraphqlExecutor,
+  __resetGraphqlExecutor,
+  __resetProjectCaches
+};

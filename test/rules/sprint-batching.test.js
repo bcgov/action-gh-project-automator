@@ -46,6 +46,23 @@ test('determineSprintAction requests removal for inactive column with sprint', a
   assert.equal(decision.reason, 'Removed sprint from inactive column (Backlog)');
 });
 
+test('determineSprintAction assigns historical sprint for Done items using completion date', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-4',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: null, sprintTitle: null }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => ({ id: 'iter-historical', title: 'Sprint 5' })
+  });
+
+  assert.equal(decision.action, 'assign');
+  assert.equal(decision.targetIterationId, 'iter-historical');
+  assert.equal(decision.targetSprintTitle, 'Sprint 5');
+  assert.equal(decision.reason, 'Assigned to historical sprint (Sprint 5)');
+});
+
 test('setItemSprintsBatch batches GraphQL calls', async () => {
   const graphqlCalls = [];
   const success = await sprints.setItemSprintsBatch(
