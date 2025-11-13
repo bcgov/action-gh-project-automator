@@ -60,6 +60,19 @@
 - `optimization.skip_unchanged`: Skip items that haven't changed (default: `true`)
 - `optimization.dedup_by_id`: Deduplicate by item ID (default: `true`)
 
+### Runtime Environment Variables
+
+**Required**:
+- `GITHUB_TOKEN`: Token with `repo`, `project`, and `read:org` scopes.
+- `GITHUB_AUTHOR`: GitHub username whose authored/assigned content is monitored.
+
+**Optional / Contextual**:
+- `PROJECT_URL`, `PROJECT_ID`: Overrides for project identification (otherwise resolved from `rules.yml`).
+- `OVERRIDE_REPOS`: Comma-separated repository overrides (bypass `rules.yml` repository list).
+- `VERBOSE`, `STRICT_MODE`: Toggle verbose logging and preflight strictness.
+- `DRY_RUN`: When `true`, evaluates all rules but skips GraphQL/REST mutations (still produces logs/metrics).
+- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided by GitHub Actions; if present the runtime seeds items directly from the triggering event payload before performing repository-wide searches.
+
 ## Rule Types and Specifications
 
 ### 1. Board Items Rules (`board_items`)
