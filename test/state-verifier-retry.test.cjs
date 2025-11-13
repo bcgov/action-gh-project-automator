@@ -12,7 +12,9 @@ test('retryWithTracking retries column mismatch errors', async () => {
     async () => {
       attemptCount += 1;
       if (attemptCount === 1) {
-        throw new Error('Column mismatch for PullRequest #200: Expected: "Active"\nCurrent: "New"');
+        const err = new Error('Column mismatch for PullRequest #200: Expected: "Active"\nCurrent: "New"');
+        err.isRetryable = true;
+        throw err;
       }
       return { column: 'Active' };
     },
