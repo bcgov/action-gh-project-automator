@@ -42,12 +42,19 @@
 **Configuration**:
 - `organization`: GitHub organization name (e.g., `"bcgov"`)
 - `repositories`: Array of repository names to monitor
+- **Declared Repositories**:
+  - `action-builder-ghcr`
+  - `nr-nerds`
+  - `quickstart-openshift`
+  - `quickstart-openshift-backends`
+  - `quickstart-openshift-helpers`
 
 **Rule Types**:
 - `board_items`: Rules for adding items to board
 - `columns`: Rules for column assignment with transition validation
 - `sprints`: Rules for sprint assignment
 - `linked_issues`: Rules for linked issue synchronization
+- _Not declared_: `assignees` rules at the repository scope (only present in `user_scope` today)
 
 ### Technical Configuration
 
@@ -59,6 +66,7 @@
 - `update_window_hours`: Time window for finding recent items (default: `24`)
 - `optimization.skip_unchanged`: Skip items that haven't changed (default: `true`)
 - `optimization.dedup_by_id`: Deduplicate by item ID (default: `true`)
+- **Implication**: Runtime must honor both optimization flags before enqueuing mutations.
 
 ### Runtime Environment Variables
 
@@ -289,6 +297,7 @@ Conditions are JavaScript-like expressions evaluated in a context with:
 - `set_column`: Set item column (requires `value`)
 - `set_sprint`: Set item sprint (requires `value` - typically `"current"`)
 - `add_assignee`: Add assignee to item (requires `value`)
+- `remove_sprint`: Remove sprint value from item (no additional `value` provided)
 - `inherit_column`: Inherit column from linked PR (linked issues only)
 - `inherit_assignees`: Inherit assignees from linked PR (linked issues only)
 
