@@ -26,11 +26,12 @@ Each section maps:
 ```
 
 **Code Implementation**:
-- **File**: `src/rules/add-items.js`
+- **Entry**: `src/index.js` loads seed items via `loadEventItems()` (when `GITHUB_EVENT_*` present) before invoking `processAddItems()`. Covered by `test/utils/event-items.test.js` and `test/rules/add-items-event.test.js`.
+- **Module**: `src/rules/add-items.js`
 - **Function**: `processAddItems()` → calls `processBoardItemRules()` → `processRuleType('board_items')`
 - **Processor**: `src/rules/processors/unified-rule-processor.js`
-- **Condition Evaluation**: `src/rules/processors/validation.js` - `validateRuleCondition()`
-- **Action Execution**: `addItemToProject()` in `src/github/api.js`
+- **Condition Evaluation**: `src/rules/processors/validation.js` (`validateRuleCondition()`)
+- **Action Execution**: `addItemToProject()` in `src/github/api.js`, which updates `projectItemsCache` eagerly to keep state verification coherent.
 
 **Implementation Flow**:
 1. `processAddItems()` gets recent items via `getRecentItems()`
@@ -112,19 +113,19 @@ Each section maps:
 **Code Implementation**:
 - **File**: `src/rules/columns.js`
 - **Function**: `processColumnAssignment()`
-- **Rule Processing**: Uses `processRuleType('columns')` from unified processor
-- **Transition Validation**: `validateColumnTransition()` calls `StateVerifier.getTransitionValidator()`
+- **Rule Processing**: Delegates to `processRuleType('columns')` in the unified processor.
+- **Transition Validation**: `validateColumnTransition()` (same module) consults `StateVerifier.getTransitionValidator()`, which is initialized from `StateVerifier.initializeTransitionRules(boardConfig)` in `src/index.js`.
+- **Regression Coverage**: `test/state-verifier-transitions.test.js` ensures `validTransitions` reloading and enforcement; state verification retries are covered by `test/state-verifier-retry.test.cjs`.
 
 **Implementation Details**:
-1. `processColumnAssignment()` gets current column via `getItemColumn()`
-2. Processes column rules from `rules.yml` via unified processor
-3. **CRITICAL GAP**: `validateColumnTransition()` exists but has fallback that allows transition on error
-4. Transition validation is called but doesn't strictly enforce `validTransitions` from `rules.yml`
+1. `processColumnAssignment()` retrieves current column via `getItemColumn()` and targets declared `value`.
+2. All transitions are validated via `validateColumnTransition()`; invalid transitions are blocked with explicit logging and no fallback.
+3. Batch writes use `setItemColumnsBatch()` when a queue is provided; otherwise `setItemColumn()` mutates directly.
+4. Closed/Merged fast-path sets `Done`/`Closed` when available, still honoring declared transitions.
 
-**Status**: ⚠️ **Partially Implemented**
-- ✅ Column assignment works
-- ❌ `validTransitions` declared but not strictly enforced
-- ⚠️ Validation exists but has backward compatibility fallback
+**Status**: ✅ **Fully Implemented**
+- Column updates now strictly honor `validTransitions` as declared in `rules.yml`.
+- Remaining work lives in linked issues (see below).
 
 ### Rule: `pull_requests_no_column`
 
@@ -144,7 +145,7 @@ Each section maps:
 
 **Code Implementation**: Same as `new_pull_requests_to_active`
 
-**Status**: ⚠️ **Partially Implemented** - Same gap: `validTransitions` not enforced
+**Status**: ✅ **Fully Implemented** - Shares enforcement path with `new_pull_requests_to_active`.
 
 ### Rule: `issues_no_column`
 
@@ -164,7 +165,7 @@ Each section maps:
 
 **Code Implementation**: Same as other column rules
 
-**Status**: ⚠️ **Partially Implemented** - Same gap: `validTransitions` not enforced
+**Status**: ✅ **Fully Implemented** - Shares enforcement path with `new_pull_requests_to_active`.
 
 ## 3. Sprint Rules
 
@@ -183,9 +184,10 @@ Each section maps:
 
 **Code Implementation**:
 - **File**: `src/rules/sprints.js`
-- **Function**: `processSprintAssignment()`
-- **Sprint Resolution**: `getSprintIterations()` queries both `iterations` and `completedIterations`
-- **Current Sprint**: Finds sprint that covers current date
+- **Coordinator**: `processSprintAssignment()` orchestrates per-item updates for new additions; `src/index.js` also invokes `determineSprintAction()` during the existing-items sweep.
+- **Sprint Resolution**: `getSprintIterations()` gathers active + completed iterations; `getCurrentSprint()` selects the active slice; `findSprintForDate()` backfills historical sprints.
+- **Batched Mutations**: `setItemSprintsBatch()` applies GraphQL aliases for bulk updates; regression covered by `test/rules/sprint-batching.test.js`.
+- **Eventual Consistency**: Decisions/logging handled within `determineSprintAction()` with unit coverage in `test/rules/sprint-batching.test.js`.
 
 **Implementation Details**:
 1. `processSprintAssignment()` gets current column
@@ -231,7 +233,26 @@ Each section maps:
 
 **Status**: ✅ **Fully Implemented** - Matches `rules.yml` declaration
 
-**Known Gap**: Sprint removal for inactive columns (New, Parked, Backlog) is not implemented ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
+### Rule: `remove_sprint_inactive_columns`
+
+**rules.yml Declaration**:
+```yaml
+- name: "remove_sprint_inactive_columns"
+  trigger:
+    type: ["PullRequest", "Issue"]
+    condition: "item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog'"
+  action: "remove_sprint"
+  skip_if: "item.sprint == null"
+```
+
+**Code Implementation**:
+- **File**: `src/rules/sprints.js`
+- **Function**: `processSprintRemoval()` (new items) and the existing-item sweep inside `src/index.js::processExistingItemsSprintAssignments()`.
+- **Decision Engine**: `determineSprintAction()` returns `action: 'remove'` for inactive columns with assigned sprints (covered by `test/rules/sprint-batching.test.js`).
+- **Mutation Helpers**: `removeItemSprint()` clears the Sprint field for single items; `clearItemSprintsBatch()` performs batched clears for existing items.
+
+**Status**: ✅ **Fully Implemented**
+- Removal logic honours skip conditions and DRY_RUN mode; batched removals logged via counters.
 
 ## 4. Assignee Rules
 
@@ -253,6 +274,9 @@ Each section maps:
 - **Function**: `processAssignees()`
 - **Rule Processing**: Uses `processAssigneeRules()` from unified processor
 - **Action Execution**: `setItemAssignees()` in `assignees.js`
+  - Resolves repository assignee roster via `fetchRepoAssignees()` (`src/rules/assignees.js`)
+  - Translates GitHub logins to node IDs with `getUserIdsBatched()` (`src/rules/assignees.js`) for minimal diff updates
+  - Covered by `test/rules/assignees-delta.test.js`
 
 **Implementation Details**:
 1. `processAssignees()` processes assignee rules from `rules.yml`
@@ -340,53 +364,64 @@ Each section maps:
 - `monitored.users`: Array from `rules.yml` user_scope.monitored_users
 - `monitored.repos`: Array from `rules.yml` repository_scope.repositories
 
+### Event Payload Seeding
+
+- **File**: `src/utils/event-items.js`
+- **Purpose**: Hydrates GitHub Action payloads into GraphQL-like nodes (`PullRequest` / `Issue`).
+- **Integration**: `src/index.js` calls `loadEventItems()` before `processAddItems()`; seed items skip expensive `getRecentItems()` calls.
+- **Tests**: `test/utils/event-items.test.js`, `test/rules/add-items-event.test.js`.
+
 ### State Transition Validator
 
 **File**: `src/utils/state-transition-validator.js`
 
-**Purpose**: Validates column transitions against `rules.yml` validTransitions
+**Purpose**: Validates column transitions against `rules.yml` validTransitions.
 
 **Current Implementation**:
-- Validator exists and can validate transitions
-- **GAP**: Not strictly enforced (has backward compatibility fallback)
-- **GAP**: ValidTransitions from `rules.yml` not fully loaded into validator
+- `StateVerifier.initializeTransitionRules(boardConfig)` reloads transitions on every run (see `src/index.js`).
+- `validateColumnTransition()` surfaces detailed rejection reasons; errors now block transitions instead of falling back.
+- Regression coverage: `test/state-verifier-transitions.test.js` and `test/state-verifier-retry.test.cjs`.
 
-**Gap Details**:
-- `StateVerifier.initializeTransitionRules()` exists but may not be called correctly
-- `validateColumnTransition()` in `columns.js` has try-catch that allows transitions on error
-- Line 36-37 in `columns.js`: Falls back to allowing transition on validation error
+**Remaining Considerations**:
+- Linked issue workflows still bypass transition validation (future work when linked rules are rebuilt).
+
+### Existing Item Sprint Sweep
+
+- **Coordinator**: `processExistingItemsSprintAssignments()` in `src/index.js`
+- **Decision Logic**: Reuses `determineSprintAction()` for assignments, historical backfill, and removals.
+- **Batch Operations**: `setItemSprintsBatch()` and `clearItemSprintsBatch()` (in `src/rules/sprints.js`) apply GraphQL alias batching; covered by `test/rules/sprint-batching.test.js`.
+- **Observability**: Counters (`existing.items.processed`, `existing.assignments.*`, `existing.removals.*`) surface sweep impact; respects `DRY_RUN`.
+
+### GitHub API Helpers
+
+- **File**: `src/github/api.js`
+- **Caching**: `projectItemsCache` now updates immediately after `addItemToProject()` to avoid stale reads; `__resetProjectCaches()` available for tests.
+- **Pagination Guard**: `getProjectItems()` invokes `shouldProceed()` before heavy pagination; behavior verified by `test/github/project-items-pagination.test.js`.
+- **Assignee Delta Support**: `fetchRepoAssignees()` supplies repository assignee rosters used by `setItemAssignees()`.
 
 ## Summary of Gaps
 
 ### Critical Gaps
 
-1. **validTransitions Not Enforced**
-   - Declared in `rules.yml` for all column rules
-   - Validator exists but not strictly enforced
-   - Fallback allows transitions on validation errors
-
-2. **Linked Issues Actions Incomplete**
+1. **Linked Issues Actions Incomplete**
    - `inherit_column`: Declared but implementation doesn't properly inherit from PR
    - `inherit_assignees`: Declared but implementation doesn't properly inherit from PR
    - Skip condition not properly evaluated
 
 ### Missing Features
 
-1. **Sprint Removal** ([Issue #66](https://github.com/bcgov/action-gh-project-automator/issues/66))
-   - Not declared in `rules.yml` but documented as needed
-   - Should remove sprint from items in inactive columns (New, Parked, Backlog)
+None beyond the linked-issue work above. Future enhancements should be tracked in the gap analysis.
 
 ### Working Correctly
 
-- ✅ Board addition rules (all variants)
-- ✅ Basic column assignment (without transition enforcement)
-- ✅ Sprint assignment rules (all variants)
-- ✅ Assignee rules
+- ✅ Board addition rules (seeded event payloads + recent item search).
+- ✅ Column assignment with strict `validTransitions` enforcement and retry handling.
+- ✅ Sprint assignment/removal (new items and existing-item sweep with batching).
+- ✅ Assignee delta updates via repository roster lookups.
 
 ## Next Steps
 
-1. Complete `validTransitions` enforcement
-2. Complete linked issues `inherit_column` and `inherit_assignees` actions
-3. Implement sprint removal for inactive columns
-4. Ensure all `rules.yml` rules are fully implemented
+1. Finish linked issues `inherit_column` / `inherit_assignees` implementations and tests.
+2. Extend transition validation to linked issue workflows once rebuilt.
+3. Ensure new metrics (seeded items, existing sweep batches) surface in observability dashboards.
 
