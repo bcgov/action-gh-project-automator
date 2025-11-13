@@ -50,6 +50,16 @@ export function arraysEqual(a, b) {
  * @param {Function} [overrides.fetchLinkedIssuesFn] Fetcher for linked issues (default: fetchLinkedIssuesForPullRequest)
  * @param {Array|null} [overrides.ruleActionsOverride] Optional rule actions (default: null, uses processLinkedIssueRules)
  * @param {Object} [overrides.logger] Logger implementation (default: log)
+ * @param {Object} [overrides] Optional overrides for internal functions and configuration, primarily for testing.
+ * @param {Function} [overrides.getItemColumnFn] Function to get the item's column. Default: getItemColumn
+ * @param {Function} [overrides.setItemColumnFn] Function to set the item's column. Default: setItemColumn
+ * @param {Function} [overrides.getColumnOptionIdFn] Function to resolve column option IDs. Default: getColumnOptionId
+ * @param {Function} [overrides.getItemAssigneesFn] Function to get item assignees. Default: getItemAssignees
+ * @param {Function} [overrides.setItemAssigneesFn] Function to set item assignees. Default: setItemAssignees
+ * @param {Function} [overrides.isItemInProjectFn] Function to check if an item is in the project. Default: isItemInProject
+ * @param {Function} [overrides.fetchLinkedIssuesFn] Function to fetch linked issues for a pull request. Default: fetchLinkedIssuesForPullRequest
+ * @param {Array|null} [overrides.ruleActionsOverride] Optional override for rule actions. Default: null
+ * @param {Object} [overrides.logger] Logger instance. Default: log
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint, overrides = {}) {
@@ -65,7 +75,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
         logger = log
     } = overrides;
 
-    const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName }, state, merged } = pullRequest;
+    const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName } } = pullRequest;
     let { projectItemId } = pullRequest;
 
     const linkedIssueNodesFromPayload = pullRequest.linkedIssues?.nodes || [];
