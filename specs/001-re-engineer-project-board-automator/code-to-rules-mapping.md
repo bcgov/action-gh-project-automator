@@ -274,8 +274,8 @@ Each section maps:
 - **Function**: `processAssignees()`
 - **Rule Processing**: Uses `processAssigneeRules()` from unified processor
 - **Action Execution**: `setItemAssignees()` in `assignees.js`
-  - Resolves repository assignee roster via `fetchRepoAssignees()` (`src/github/api.js`)
-  - Translates GitHub logins to node IDs with `getUserIdsBatched()` for minimal diff updates
+  - Resolves repository assignee roster via `fetchRepoAssignees()` (`src/rules/assignees.js`)
+  - Translates GitHub logins to node IDs with `getUserIdsBatched()` (`src/rules/assignees.js`) for minimal diff updates
   - Covered by `test/rules/assignees-delta.test.js`
 
 **Implementation Details**:
