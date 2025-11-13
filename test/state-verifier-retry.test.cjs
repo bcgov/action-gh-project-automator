@@ -43,4 +43,3 @@ test('retryWithTracking does not retry non-retryable errors', async () => {
 
   assert.equal(attemptCount, 1);
 });
-
