@@ -54,7 +54,7 @@
 - `columns`: Rules for column assignment with transition validation
 - `sprints`: Rules for sprint assignment
 - `linked_issues`: Rules for linked issue synchronization
-- _Not declared_: `assignees` rules at the repository scope (only present in `user_scope` today)
+- **Not declared**: `assignees` rules at the repository scope (only present in `user_scope` today)
 
 ### Technical Configuration
 
@@ -66,7 +66,7 @@
 - `update_window_hours`: Time window for finding recent items (default: `24`)
 - `optimization.skip_unchanged`: Skip items that haven't changed (default: `true`)
 - `optimization.dedup_by_id`: Deduplicate by item ID (default: `true`)
-- **Implication**: Runtime must honor both optimization flags before enqueuing mutations.
+- **Note**: Runtime must honor both optimization flags before enqueuing mutations.
 
 ### Runtime Environment Variables
 
