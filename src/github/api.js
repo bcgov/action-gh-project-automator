@@ -346,13 +346,32 @@ async function addItemToProject(nodeId, projectId) {
  * @param {string} monitoredUser - GitHub username to monitor
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
-async function getRecentItems(org, repos, monitoredUser, windowHours = undefined) {
+async function getRecentItems(org, repos, monitoredUser, windowHours = undefined, options = {}) {
+  const {
+    minRemaining = 200,
+    logger = log,
+    overrides = {}
+  } = options;
+
+  const {
+    shouldProceedFn = shouldProceed,
+    withBackoffFn = withBackoff,
+    graphqlClient = graphqlWithAuth
+  } = overrides;
+
   // Determine search window (hours): env overrides param; default 24
   let hours = parseInt(process.env.UPDATE_WINDOW_HOURS || '', 10);
   if (!Number.isFinite(hours) || hours <= 0) {
     hours = Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 24;
   }
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  const rateStatus = await shouldProceedFn(minRemaining);
+  if (!rateStatus.proceed) {
+    const info = formatRateLimitInfo(rateStatus);
+    logger.info(`Skipping recent-item search due to low rate limit${info}`);
+    return [];
+  }
 
   // Search for items in monitored repositories
   const repoQueries = repos.map(repo => `repo:${org}/${repo} created:>${since}`);
@@ -365,7 +384,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   // Get items from monitored repositories
   if (repoSearchQuery) {
-    const repoResult = await graphqlWithAuth(`
+    const repoResult = await withBackoffFn(() => graphqlClient(`
       query($searchQuery: String!) {
         search(query: $searchQuery, type: ISSUE, first: 100) {
           nodes {
@@ -393,13 +412,13 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
       }
     `, {
       searchQuery: repoSearchQuery
-    });
+    }));
 
     results.push(...repoResult.search.nodes);
   }
 
   // Get PRs authored by monitored user in any repository
-  const authorResult = await graphqlWithAuth(`
+  const authorResult = await withBackoffFn(() => graphqlClient(`
     query($searchQuery: String!) {
       search(query: $searchQuery, type: ISSUE, first: 100) {
         nodes {
@@ -418,7 +437,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     }
   `, {
     searchQuery: authorSearchQuery
-  });
+  }));
 
   results.push(...authorResult.search.nodes);
 

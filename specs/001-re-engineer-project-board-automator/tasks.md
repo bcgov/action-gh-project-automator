@@ -192,6 +192,7 @@
 - [ ] Add tests for historical sprint lookup edge cases
 - [ ] Verify next-available sprint fallback when no active sprint
 - [ ] Cover DRY_RUN path for batching helpers
+- ✅ `test/rules/sprint-batching.test.mjs` now covers dry-run behavior for sprint batch helpers.
 - **Files**: `test/rules/sprint-batching.test.js`, new targeted tests if needed
 - **Dependencies**: Phase 2 complete
 - **Priority**: Medium

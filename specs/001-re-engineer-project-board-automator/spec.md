@@ -194,6 +194,8 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 - Batches operations to respect rate limits
 - Exponential backoff on rate limit errors
 - Retries with delays
+- Guard rails now run before both full board crawls (`getProjectItems()`) and repository-wide searches (`getRecentItems()`), logging skips when remaining budget falls below configurable thresholds.
+- Sprint batch helpers (`setItemSprintsBatch`, `clearItemSprintsBatch`) honour `DRY_RUN` mode by logging queued actions without issuing GraphQL mutations.
 
 ## 5. Rule Processing Engine
 

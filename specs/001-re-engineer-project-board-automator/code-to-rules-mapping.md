@@ -401,6 +401,7 @@ Each section maps:
 - **File**: `src/github/api.js`
 - **Caching**: `projectItemsCache` now updates immediately after `addItemToProject()` to avoid stale reads; `__resetProjectCaches()` available for tests.
 - **Pagination Guard**: `getProjectItems()` invokes `shouldProceed(minRemaining)` with configurable thresholds and logs skip reasons while accepting dependency-injected loggers; behavior verified by `test/github/project-items-pagination.test.mjs`.
+- **Recent Item Search Guard**: `getRecentItems()` now uses the same `shouldProceed(minRemaining)` preflight before issuing repository/user searches and accepts overrides for testing; covered by `test/github/get-recent-items-rate-limit.test.mjs`.
 - **Assignee Delta Support**: `fetchRepoAssignees()` supplies repository assignee rosters used by `setItemAssignees()`.
 
 ## Summary of Gaps
