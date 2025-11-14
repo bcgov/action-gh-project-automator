@@ -170,7 +170,7 @@ technical:
   batch_delay_seconds: 1
   update_window_hours: 24
   existing_items:
-    sweep_enabled: true
+    sweep_enabled: false
     min_rate_limit_remaining: 250
   optimization:
     skip_unchanged: true

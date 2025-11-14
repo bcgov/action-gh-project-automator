@@ -392,6 +392,7 @@ Each section maps:
 - **Batch Operations**: `setItemSprintsBatch()` and `clearItemSprintsBatch()` (in `src/rules/sprints.js`) apply GraphQL alias batching; covered by `test/rules/sprint-batching.test.js`.
 - **Configuration Guards**: Activation controlled by `technical.existing_items.sweep_enabled` (overridable via `ENABLE_EXISTING_SWEEP`); rate-limit budget derived from `technical.existing_items.min_rate_limit_remaining` with `SWEEP_RATE_LIMIT_MIN` override.
 - **Observability**: Counters (`existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.*`, `existing.removals.*`) surface sweep impact; respects `DRY_RUN`.
+- **Operationalization**: Main sync workflow (`project-board-sync.yml`) exports `ENABLE_EXISTING_SWEEP=false`; the dedicated nightly workflow (`project-board-sweep.yml`) sets `ENABLE_EXISTING_SWEEP=true`, `SWEEP_RATE_LIMIT_MIN≈350`, and reuses the same entry point to perform the full-board sweep once per day.
 - **Tests**: `test/main/existing-items-sweep.test.mjs` verifies configuration gating, rate-limit skips, and option propagation to `getProjectItems()`.
 
 ### GitHub API Helpers
