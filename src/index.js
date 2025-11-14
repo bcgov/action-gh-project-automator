@@ -358,8 +358,8 @@ async function main() {
     // NEW: Process sprint assignments for existing items on the board
     const sweepResult = await processExistingItemsSprintAssignments(context.projectId, {
       dryRun: context.dryRun,
-      enabled: sweepEnabled,
-      minRateLimitRemaining,
+      enabled: context.sweep.enabled,
+      minRateLimitRemaining: context.sweep.minRateLimitRemaining,
       logger: log
     });
     if (sweepResult?.skipped) {
