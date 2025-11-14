@@ -1,6 +1,9 @@
 /**
  * Simple logging utility that collects logs for the final summary
  */
+const SWEEP_RATE_LIMIT_WARNING = 'Existing item sweep skipped due to rate limit guard';
+const SWEEP_RATE_LIMIT_GUIDANCE = 'Consider rerunning when limits reset.';
+
 class Logger {
   constructor() {
     this.logs = {
@@ -174,6 +177,17 @@ class Logger {
       console.log('');
     }
 
+    const sweepCompleted = this.getCounter('existing.sweep.completed');
+    const sweepRateLimited = this.getCounter('existing.sweep.rate_limited');
+    const sweepDisabled = this.getCounter('existing.sweep.disabled');
+    if (sweepCompleted > 0) {
+      console.log('🌙 Existing item sweep completed during this run.');
+    } else if (sweepRateLimited > 0) {
+      this.warning(`${SWEEP_RATE_LIMIT_WARNING}. ${SWEEP_RATE_LIMIT_GUIDANCE}`);
+    } else if (sweepDisabled > 0) {
+      console.log('ℹ Existing item sweep is disabled for this execution (expected for regular sync runs).');
+    }
+
     // Print state changes if any
     if (this.logs.states.length > 0) {
       console.log('🔄 State Changes:');
@@ -190,4 +204,4 @@ class Logger {
 // Create a default logger instance
 const defaultLogger = new Logger();
 
-export { Logger, defaultLogger as log };
+export { Logger, defaultLogger as log, SWEEP_RATE_LIMIT_WARNING, SWEEP_RATE_LIMIT_GUIDANCE };

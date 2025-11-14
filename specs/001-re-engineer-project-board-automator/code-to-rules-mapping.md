@@ -393,6 +393,7 @@ Each section maps:
 - **Configuration Guards**: Activation controlled by `technical.existing_items.sweep_enabled` (overridable via `ENABLE_EXISTING_SWEEP`); rate-limit budget derived from `technical.existing_items.min_rate_limit_remaining` with `SWEEP_RATE_LIMIT_MIN` override.
 - **Observability**: Counters (`existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.*`, `existing.removals.*`) surface sweep impact; respects `DRY_RUN`.
 - **Operationalization**: Main sync workflow (`project-board-sync.yml`) exports `ENABLE_EXISTING_SWEEP=false`; the dedicated nightly workflow (`project-board-sweep.yml`) sets `ENABLE_EXISTING_SWEEP=true`, `SWEEP_RATE_LIMIT_MIN≈350`, and reuses the same entry point to perform the full-board sweep once per day.
+- **Health Signals**: Runtime increments `existing.sweep.completed` on success, emits warnings + `existing.sweep.rate_limited` counters (and GitHub step summary entries) when sweeps are skipped, and `Logger.printSummary()` surfaces these signals at the end of each run.
 - **Tests**: `test/main/existing-items-sweep.test.mjs` verifies configuration gating, rate-limit skips, and option propagation to `getProjectItems()`.
 
 ### GitHub API Helpers

@@ -77,5 +77,6 @@ test('existing items sweep passes rate guard settings to getProjectItems', async
 
   assert.equal(result.skipped, false);
   assert.equal(result.processedCount, 0);
+  assert.equal(logger.getCounter('existing.sweep.completed'), 1);
 });
 

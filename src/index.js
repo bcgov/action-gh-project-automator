@@ -43,7 +43,7 @@
  */
 
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { Logger } from './utils/log.js';
+import { Logger, SWEEP_RATE_LIMIT_WARNING, SWEEP_RATE_LIMIT_GUIDANCE } from './utils/log.js';
 const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
 import { processAddItems } from './rules/add-items.js';
@@ -62,6 +62,26 @@ import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
 import { shouldProceed, formatRateLimitInfo } from './utils/rate-limit.js';
+import { appendFile } from 'node:fs/promises';
+
+async function reportSweepSummary(logger, status, details) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) {
+    return;
+  }
+  const lines = [
+    '### Existing Item Sweep',
+    `- Status: ${status}`,
+    `- Details: ${details}`,
+    ''
+  ].join('\n');
+
+  try {
+    await appendFile(summaryPath, `${lines}\n`);
+  } catch (error) {
+    logger.debug(`Failed to write sweep summary: ${error.message}`);
+  }
+}
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -452,14 +472,17 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     if (!enabled) {
       logger.info('Skipping sprint assignments for existing items (disabled by configuration).');
       logger.incrementCounter('existing.sweep.disabled');
+      await reportSweepSummary(logger, 'Skipped (disabled)', 'ENABLE_EXISTING_SWEEP or config disabled the sweep.');
       return { skipped: true, reason: 'disabled' };
     }
 
     const rateStatus = await rateLimitFn(minRateLimitRemaining);
     if (!rateStatus.proceed) {
       const remainingInfo = formatRateLimitInfo(rateStatus);
-      logger.info(`Skipping sprint assignments for existing items due to low rate limit${remainingInfo}.`);
+      const warningMessage = `${SWEEP_RATE_LIMIT_WARNING}${remainingInfo}. ${SWEEP_RATE_LIMIT_GUIDANCE}`;
+      logger.warning(warningMessage);
       logger.incrementCounter('existing.sweep.rate_limited');
+      await reportSweepSummary(logger, 'Skipped (rate limit)', warningMessage);
       return {
         skipped: true,
         reason: 'rate_limit',
@@ -556,7 +579,10 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
 
     const updatedCount = assignmentSuccess + removalSuccess;
 
-    logger.info(`Processed ${processedCount} existing items. Queued: ${assignmentQueued} assignments, ${removalQueued} removals. Successfully updated: ${dryRun ? 0 : updatedCount} items.`);
+    const completionMessage = `Processed ${processedCount} existing items. Queued: ${assignmentQueued} assignments, ${removalQueued} removals. Successfully updated: ${dryRun ? 0 : updatedCount} items.`;
+    logger.info(completionMessage);
+    logger.incrementCounter('existing.sweep.completed');
+    await reportSweepSummary(logger, dryRun ? 'Completed (dry run)' : 'Completed', completionMessage);
     return {
       skipped: false,
       processedCount,
