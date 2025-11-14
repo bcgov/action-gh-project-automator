@@ -5,7 +5,7 @@ import { Logger } from '../../src/utils/log.js';
 
 function buildOverrides({ responses = [], shouldProceedResult = { proceed: true } } = {}) {
   const graphqlCalls = [];
-  const queue = Array.isArray(responses) ? [...responses] : [];
+  const queue = Array.isArray(responses) ? [ ...responses ] : [];
 
   return {
     overrides: {
