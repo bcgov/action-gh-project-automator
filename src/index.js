@@ -186,7 +186,7 @@ async function main() {
 
     const existingItemConfig = boardConfig?.technical?.existing_items ?? {};
     const envSweep = process.env.ENABLE_EXISTING_SWEEP;
-    const sweepEnabled = envSweep ? envSweep !== 'false' : existingItemConfig.sweep_enabled !== false;
+    const sweepEnabled = envSweep === 'true' || (envSweep === undefined && existingItemConfig.sweep_enabled !== false);
     const parsedMinRate = parseInt(process.env.SWEEP_RATE_LIMIT_MIN ?? '', 10);
     const minRateLimitRemaining = Number.isFinite(parsedMinRate)
       ? parsedMinRate

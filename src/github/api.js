@@ -113,7 +113,14 @@ async function getColumnOptionId(projectId, columnName) {
 }
 
 /**
- * Get all items from a project board with caching
+ * Get all items from a project board with caching.
+ * @param {string} projectId - The project board ID.
+ * @param {Object|boolean} [options] - Options object or boolean for backward compatibility.
+ * @param {number} [options.minRemaining=200] - Minimum rate limit remaining before skipping pagination.
+ * @param {boolean} [options.forceRefresh=false] - Force a cache refresh for the project.
+ * @param {boolean} [options.skipRateGuard=false] - Skip rate limit checking (useful for nested calls).
+ * @param {Logger} [options.logger=log] - Logger instance to use for informational messages.
+ * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
 async function getProjectItems(projectId, options = {}) {
   let params = {};
