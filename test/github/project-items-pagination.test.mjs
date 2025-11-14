@@ -32,6 +32,30 @@ function buildOverrides({ responses = [], shouldProceedResult = { proceed: true 
 
 test('getProjectItems paginates results and caches responses', async () => {
   __resetProjectCaches();
+  const baseResponses = [
+    {
+      node: {
+        items: {
+          nodes: [
+            { id: 'pi-1', content: { id: 'content-1' } }
+          ],
+          pageInfo: { hasNextPage: true, endCursor: 'cursor-1' }
+        }
+      }
+    },
+    {
+      node: {
+        items: {
+          nodes: [
+            { id: 'pi-2', content: { id: 'content-2' } },
+            { id: 'pi-3', content: { id: 'content-3' } }
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null }
+        }
+      }
+    }
+  ];
+
   const { overrides, graphqlCalls } = buildOverrides({
     responses: [
       {
@@ -68,9 +92,15 @@ test('getProjectItems paginates results and caches responses', async () => {
   assert.strictEqual(cached, first, 'Cache should be reused without forceRefresh');
   assert.equal(graphqlCalls.length, 2, 'Cache hit should not trigger additional GraphQL calls');
 
-  const refreshed = await getProjectItems('proj-123', { overrides, forceRefresh: true });
+  const { overrides: refreshOverrides, graphqlCalls: refreshCalls } = buildOverrides({
+    responses: baseResponses
+  });
+  const refreshed = await getProjectItems('proj-123', { overrides: refreshOverrides, forceRefresh: true });
   assert.ok(refreshed instanceof Map);
-  assert.equal(graphqlCalls.length, 3, 'forceRefresh should trigger another GraphQL call');
+  assert.equal(refreshed.size, 3, 'forceRefresh should rebuild cache with full data');
+  assert.equal(refreshed.get('content-1'), 'pi-1');
+  assert.equal(refreshed.get('content-3'), 'pi-3');
+  assert.equal(refreshCalls.length, 2, 'forceRefresh should trigger GraphQL calls for each page');
 });
 
 test('getProjectItems skips when rate limit guard fails', async () => {
