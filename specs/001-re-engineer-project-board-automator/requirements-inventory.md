@@ -79,7 +79,7 @@
 - `OVERRIDE_REPOS`: Comma-separated repository overrides (bypass `rules.yml` repository list).
 - `VERBOSE`, `STRICT_MODE`: Toggle verbose logging and preflight strictness.
 - `DRY_RUN`: When `true`, evaluates all rules but skips GraphQL/REST mutations (still produces logs/metrics).
-- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided by GitHub Actions; if present the runtime seeds items directly from the triggering event payload before performing repository-wide searches.
+- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided by GitHub Actions; if present the runtime seeds items directly from the triggering event payload. Repository-wide searches only occur when the existing-item sweep is enabled (`ENABLE_EXISTING_SWEEP` or `technical.existing_items.sweep_enabled`).
 
 ## Rule Types and Specifications
 

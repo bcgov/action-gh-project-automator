@@ -26,7 +26,7 @@ Each section maps:
 ```
 
 **Code Implementation**:
-- **Entry**: `src/index.js` loads seed items via `loadEventItems()` (when `GITHUB_EVENT_*` present) before invoking `processAddItems()`. Covered by `test/utils/event-items.test.js` and `test/rules/add-items-event.test.js`.
+- **Entry**: `src/index.js` loads seed items via `loadEventItems()` (when `GITHUB_EVENT_*` present) before invoking `processAddItems()`. Covered by `test/utils/event-items.test.mjs` and `test/rules/add-items-event.test.mjs`.
 - **Module**: `src/rules/add-items.js`
 - **Function**: `processAddItems()` → calls `processBoardItemRules()` → `processRuleType('board_items')`
 - **Processor**: `src/rules/processors/unified-rule-processor.js`
@@ -34,7 +34,7 @@ Each section maps:
 - **Action Execution**: `addItemToProject()` in `src/github/api.js`, which updates `projectItemsCache` eagerly to keep state verification coherent.
 
 **Implementation Flow**:
-1. `processAddItems()` gets recent items via `getRecentItems()`
+1. `processAddItems()` prefers seed items. It only falls back to `getRecentItems()` when the execution context enables the existing-item sweep (`ENABLE_EXISTING_SWEEP` / `technical.existing_items.sweep_enabled`).
 2. For each item, `analyzeBoardItem()` (in `src/rules/helpers/board-items-evaluator.js`) classifies the candidate using board state and monitored user/repo context, then invokes `processBoardItemRules()`
 3. `unified-rule-processor.js` evaluates conditions from `rules.yml`
 4. If condition matches (`monitored.users.includes(item.author)`), action `add_to_board` is returned
@@ -368,8 +368,8 @@ Each section maps:
 
 - **File**: `src/utils/event-items.js`
 - **Purpose**: Hydrates GitHub Action payloads into GraphQL-like nodes (`PullRequest` / `Issue`).
-- **Integration**: `src/index.js` calls `loadEventItems()` before `processAddItems()`; seed items skip expensive `getRecentItems()` calls.
-- **Tests**: `test/utils/event-items.test.js`, `test/rules/add-items-event.test.js`.
+- **Integration**: `src/index.js` calls `loadEventItems()` before `processAddItems()`; when `seedOnlyMode` is true (regular syncs), the run exits early if no payload items are available, incrementing `board.seed.skipped`. Repository searches only occur during sweep-enabled runs.
+- **Tests**: `test/utils/event-items.test.mjs`, `test/rules/add-items-event.test.mjs`.
 
 ### State Transition Validator
 
