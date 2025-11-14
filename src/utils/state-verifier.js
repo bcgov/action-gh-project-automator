@@ -256,6 +256,9 @@ class StateVerifier {
       item,
       'Column Verification',
       async (attempt) => {
+        const delayMs = attempt === 1 ? 2000 : Math.min(2000 * attempt, 8000);
+        log.info(`Waiting ${delayMs}ms for column state to settle before verification (attempt ${attempt}).`);
+        await sleep(delayMs);
         const currentColumn = await getItemColumn(projectId, item.projectItemId);
         const afterState = this.updateState(item, { column: currentColumn });
 

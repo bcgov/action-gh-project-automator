@@ -248,6 +248,8 @@ Each rule processor executes actions:
 
 After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled. The sweep is gated by `technical.existing_items.sweep_enabled`, but can be overridden via the environment: setting `ENABLE_EXISTING_SWEEP=true` explicitly enables the sweep, `ENABLE_EXISTING_SWEEP=false` explicitly disables it, and leaving the variable undefined falls back to `technical.existing_items.sweep_enabled`. The sweep also short-circuits when the rate-limit preflight (`SWEEP_RATE_LIMIT_MIN`, default `technical.existing_items.min_rate_limit_remaining`) reports insufficient remaining calls.
 
+Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXISTING_SWEEP` set to `false` so regular runs focus on newly added items. A dedicated nightly workflow (`project-board-sweep.yml`) executes the same entry point with `ENABLE_EXISTING_SWEEP=true`, `SWEEP_RATE_LIMIT_MIN≈350`, and `UPDATE_WINDOW_HOURS=24`, ensuring the full-board reconciliation happens once per day when rate limits have reset.
+
 ## 6. State Management
 
 ### State Verification
