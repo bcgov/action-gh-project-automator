@@ -147,7 +147,7 @@ GitHub Projects v2 automation tool that synchronizes issues and pull requests ac
 - `VERBOSE`: Enable verbose logging (`true`/`false`)
 - `STRICT_MODE`: Enable strict preflight checks (`true`/`false`)
 - `DRY_RUN`: When `true`, executes the full evaluation pipeline but skips mutations against the GitHub API (still logs queued actions and metrics).
-- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided automatically in GitHub Actions. When present, the runtime seeds work from the event payload before falling back to repository-wide queries.
+- `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`: Provided automatically in GitHub Actions. When present, the runtime seeds work from the event payload. Repository-wide queries now only execute when the existing-item sweep is enabled (via `ENABLE_EXISTING_SWEEP` or `technical.existing_items.sweep_enabled`) to protect rate limits during regular syncs.
 - `GITHUB_REPOSITORY`, `GITHUB_WORKSPACE`: Present in GitHub-hosted runners; required when packaging as an action but not for local dry runs.
 
 ### Configuration Loading
@@ -420,7 +420,7 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 
 **Item Sources**:
 - If the runtime is invoked from a GitHub Action with `GITHUB_EVENT_NAME`/`GITHUB_EVENT_PATH`, the triggering PR/issue is hydrated directly from the event payload (preferred source to avoid API drift).
-- After seed items are processed—or when no event payload is available—the system queries monitored repositories for recent activity within `technical.update_window_hours` (default 24h, or 1h for pull request events).
+- After seed items are processed, the system only queries monitored repositories for recent activity when the existing-item sweep is enabled; otherwise the run completes after processing payload items. When enabled, the search window honors `technical.update_window_hours` (default 24h, or 1h for pull_request events).
 
 **Short-Circuit**:
 - Skip condition evaluated first

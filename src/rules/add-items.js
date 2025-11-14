@@ -16,7 +16,7 @@ import { analyzeBoardItem } from './helpers/board-items-evaluator.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [] }, overrides = {}) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], seedOnlyMode = false }, overrides = {}) {
   const {
     getRecentItemsFn = getRecentItems,
     processBoardItemRulesFn = processBoardItemRules,
@@ -28,10 +28,16 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   } = overrides;
 
   logger.info(`Starting item processing for user ${monitoredUser}`);
-  let items = Array.isArray(seedItems) && seedItems.length > 0 ? seedItems : null;
-  if (items) {
+  const hasSeedItems = Array.isArray(seedItems) && seedItems.length > 0;
+  let items = hasSeedItems ? seedItems : null;
+  if (hasSeedItems) {
     logger.info(`Using ${items.length} item(s) from event payload\n`, true);
   } else {
+    if (seedOnlyMode) {
+      logger.info('Seed-only mode enabled: no event payload items found, skipping repository search.');
+      logger.incrementCounter('board.seed.skipped');
+      return { addedItems: [], skippedItems: [] };
+    }
     items = await getRecentItemsFn(org, repos, monitoredUser, windowHours);
     logger.info(`Found ${items.length} items to process\n`, true);
   }
@@ -207,6 +213,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   logger.info(`  • board.actions.added: ${logger.getCounter('board.actions.added')}`, true);
   logger.info(`  • board.actions.skipped: ${logger.getCounter('board.actions.skipped')}`, true);
   logger.info(`  • board.actions.failed: ${logger.getCounter('board.actions.failed')}`, true);
+  logger.info(`  • board.seed.skipped: ${logger.getCounter('board.seed.skipped')}`, true);
 
   logger.info('\n━━━━━━━━━━━━━━━━━━━\n', true);
 

@@ -276,7 +276,8 @@ async function main() {
       monitoredUser: context.monitoredUser,
       projectId: context.projectId,
       windowHours,
-      seedItems: eventItems
+      seedItems: eventItems,
+      seedOnlyMode: !context.sweep.enabled
     });
 
     // Process additional rules for added items
