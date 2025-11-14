@@ -43,7 +43,7 @@
  */
 
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { Logger } from './utils/log.js';
+import { Logger, SWEEP_RATE_LIMIT_WARNING, SWEEP_RATE_LIMIT_GUIDANCE } from './utils/log.js';
 const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
 import { processAddItems } from './rules/add-items.js';
@@ -479,7 +479,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     const rateStatus = await rateLimitFn(minRateLimitRemaining);
     if (!rateStatus.proceed) {
       const remainingInfo = formatRateLimitInfo(rateStatus);
-      const warningMessage = `Skipping sprint assignments for existing items due to low rate limit${remainingInfo}.`;
+      const warningMessage = `${SWEEP_RATE_LIMIT_WARNING}${remainingInfo}. ${SWEEP_RATE_LIMIT_GUIDANCE}`;
       logger.warning(warningMessage);
       logger.incrementCounter('existing.sweep.rate_limited');
       await reportSweepSummary(logger, 'Skipped (rate limit)', warningMessage);
