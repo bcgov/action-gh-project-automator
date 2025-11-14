@@ -120,6 +120,10 @@ async function getColumnOptionId(projectId, columnName) {
  * @param {boolean} [options.forceRefresh=false] - Force a cache refresh for the project.
  * @param {boolean} [options.skipRateGuard=false] - Skip rate limit checking (useful for nested calls).
  * @param {Logger} [options.logger] - Logger instance to use for informational messages. Defaults to the global log instance.
+ * @param {Object} [options.overrides] - Optional dependency overrides, primarily for tests.
+ * @param {Function} [options.overrides.shouldProceedFn] - Custom rate-limit check implementation.
+ * @param {Function} [options.overrides.withBackoffFn] - Custom retry/backoff wrapper.
+ * @param {Function} [options.overrides.graphqlClient] - Custom GraphQL executor.
  * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
 async function getProjectItems(projectId, options = {}) {
