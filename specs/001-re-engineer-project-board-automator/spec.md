@@ -352,6 +352,8 @@ After processing newly added items, the runtime iterates every existing project 
 - Items added
 - Items skipped
 - Errors encountered
+- Board item counters (`board.items.total`, `board.actions.added`, `board.actions.skipped`, `board.actions.failed`)
+- Linked issue counters (`linked.items.total`, `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`)
 - State verification retries
 - Existing-item sweep statistics (items processed, assignments queued/applied, removals queued/applied)
 - Seeded items sourced from event payloads

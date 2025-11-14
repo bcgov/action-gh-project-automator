@@ -35,11 +35,11 @@ Each section maps:
 
 **Implementation Flow**:
 1. `processAddItems()` gets recent items via `getRecentItems()`
-2. For each item, calls `processBoardItemRules()` which processes `rules.yml` board_items rules
+2. For each item, `analyzeBoardItem()` (in `src/rules/helpers/board-items-evaluator.js`) classifies the candidate using board state and monitored user/repo context, then invokes `processBoardItemRules()`
 3. `unified-rule-processor.js` evaluates conditions from `rules.yml`
 4. If condition matches (`monitored.users.includes(item.author)`), action `add_to_board` is returned
-5. `add-items.js` executes `addItemToProject()` if action is `add_to_board`
-6. Skips if `item.inProject` (checked via `isItemInProject()`)
+5. `add-items.js` executes `addItemToProject()` if action is `add_to_board`, increments structured counters (`board.items.total`, `board.actions.added`, `board.actions.skipped`, `board.actions.failed`), and delays briefly for eventual consistency
+6. Skips if `item.inProject` (checked via `isItemInProject()`) while incrementing `board.actions.skipped`
 
 **Status**: ✅ **Fully Implemented** - Matches `rules.yml` declaration
 
