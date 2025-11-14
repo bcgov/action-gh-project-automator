@@ -356,12 +356,13 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 - Errors encountered
 - Board item counters (`board.items.total`, `board.actions.added`, `board.actions.skipped`, `board.actions.failed`)
 - Linked issue counters (`linked.items.total`, `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`)
-- Existing item sweep counters (`existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.queued`, `existing.assignments.applied`, `existing.removals.queued`, `existing.removals.applied`)
+- Existing item sweep counters (`existing.sweep.completed`, `existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.queued`, `existing.assignments.applied`, `existing.removals.queued`, `existing.removals.applied`)
 - State verification retries
 - Seeded items sourced from event payloads
 
 **Reporting**:
-- End-of-run summary
+- End-of-run summary (includes sweep health signals: warnings when sweeps are rate-limited, informational note when disabled, success note when completed)
+- GitHub Actions step summary entry describing sweep status when `GITHUB_STEP_SUMMARY` is available
 - State verification reports
 - Performance metrics
 
