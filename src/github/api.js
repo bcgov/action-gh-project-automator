@@ -135,8 +135,15 @@ async function getProjectItems(projectId, options = {}) {
     minRemaining = 200,
     forceRefresh = false,
     skipRateGuard = false,
-    logger = log
+    logger = log,
+    overrides = {}
   } = params;
+
+  const {
+    shouldProceedFn = shouldProceed,
+    withBackoffFn = withBackoff,
+    graphqlClient = graphqlWithAuth
+  } = overrides;
 
   if (!forceRefresh && projectItemsCache.has(projectId)) {
     return projectItemsCache.get(projectId);
@@ -147,7 +154,7 @@ async function getProjectItems(projectId, options = {}) {
   }
 
   if (!skipRateGuard) {
-    const rateStatus = await shouldProceed(minRemaining);
+    const rateStatus = await shouldProceedFn(minRemaining);
     if (!rateStatus.proceed) {
       const remainingInfo = formatRateLimitInfo(rateStatus);
       logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
@@ -161,7 +168,7 @@ async function getProjectItems(projectId, options = {}) {
   let totalItems = 0;
 
   while (hasNextPage && totalItems < 300) { // Safety limit
-    const result = await withBackoff(() => graphqlWithAuth(`
+    const result = await withBackoffFn(() => graphqlClient(`
       query($projectId: ID!, $cursor: String) {
         node(id: $projectId) {
           ... on ProjectV2 {
