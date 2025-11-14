@@ -363,8 +363,19 @@ async function main() {
       logger: log
     });
     if (sweepResult?.skipped) {
-      const reason = sweepResult.reason === 'rate_limit' ? 'rate limit guard' : 'configuration';
-      log.info(`Existing item sweep skipped (${reason}).`);
+      let reasonLabel;
+      switch (sweepResult.reason) {
+        case 'rate_limit':
+          reasonLabel = 'rate limit guard';
+          break;
+        case 'disabled':
+          reasonLabel = 'configuration (disabled)';
+          break;
+        default:
+          reasonLabel = `unknown reason: ${sweepResult.reason}`;
+          log.warn(`Existing item sweep skipped for unexpected reason: ${sweepResult.reason}`);
+      }
+      log.info(`Existing item sweep skipped (${reasonLabel}).`);
     }
 
     // Print final status and handle errors
