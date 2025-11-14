@@ -373,7 +373,7 @@ async function main() {
           break;
         default:
           reasonLabel = `unknown reason: ${sweepResult.reason}`;
-          log.warn(`Existing item sweep skipped for unexpected reason: ${sweepResult.reason}`);
+          log.warning(`Existing item sweep skipped for unexpected reason: ${sweepResult.reason}`);
       }
       log.info(`Existing item sweep skipped (${reasonLabel}).`);
     }
