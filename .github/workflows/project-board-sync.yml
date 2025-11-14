@@ -81,4 +81,5 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
+          ENABLE_EXISTING_SWEEP: ${{ env.ENABLE_EXISTING_SWEEP }}
         run: npm run start
