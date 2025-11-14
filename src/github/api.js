@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo } from '../utils/rate-limit.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
@@ -113,25 +113,52 @@ async function getColumnOptionId(projectId, columnName) {
 }
 
 /**
- * Get all items from a project board with caching
+ * Get all items from a project board with caching.
+ * @param {string} projectId - The project board ID.
+ * @param {Object|boolean} [options] - Options object or boolean for backward compatibility.
+ * @param {number} [options.minRemaining=200] - Minimum rate limit remaining before skipping pagination.
+ * @param {boolean} [options.forceRefresh=false] - Force a cache refresh for the project.
+ * @param {boolean} [options.skipRateGuard=false] - Skip rate limit checking (useful for nested calls).
+ * @param {Logger} [options.logger] - Logger instance to use for informational messages. Defaults to the global log instance.
+ * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
-async function getProjectItems(projectId) {
-  if (projectItemsCache.has(projectId)) {
+async function getProjectItems(projectId, options = {}) {
+  let params = {};
+
+  if (typeof options === 'boolean') {
+    params = { forceRefresh: options };
+  } else if (options && typeof options === 'object') {
+    params = options;
+  }
+
+  const {
+    minRemaining = 200,
+    forceRefresh = false,
+    skipRateGuard = false,
+    logger = log
+  } = params;
+
+  if (!forceRefresh && projectItemsCache.has(projectId)) {
     return projectItemsCache.get(projectId);
+  }
+
+  if (forceRefresh) {
+    projectItemsCache.delete(projectId);
+  }
+
+  if (!skipRateGuard) {
+    const rateStatus = await shouldProceed(minRemaining);
+    if (!rateStatus.proceed) {
+      const remainingInfo = formatRateLimitInfo(rateStatus);
+      logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
+      return new Map();
+    }
   }
 
   const items = new Map();
   let hasNextPage = true;
   let endCursor = null;
   let totalItems = 0;
-
-  // Rate limit guard before heavy pagination
-  const canRun = await shouldProceed(200);
-  if (!canRun) {
-    log.info('Skipping full project item preload due to low rate limit');
-    projectItemsCache.set(projectId, items);
-    return items;
-  }
 
   while (hasNextPage && totalItems < 300) { // Safety limit
     const result = await withBackoff(() => graphqlWithAuth(`
@@ -188,8 +215,8 @@ async function getProjectItems(projectId) {
  */
 async function isItemInProject(nodeId, projectId) {
   try {
-    // First check the cache
-    const projectItems = await getProjectItems(projectId, true);
+    // First check the cache. skipRateGuard avoids rate checks because this is a cache-only lookup.
+    const projectItems = await getProjectItems(projectId, { skipRateGuard: true, forceRefresh: false });
     const projectItemId = projectItems.get(nodeId);
 
     // If found in cache, return immediately
