@@ -23,12 +23,28 @@ async function getRateLimit() {
 
 async function shouldProceed(minRemaining = 200) {
   const rl = await getRateLimit();
-  if (!rl) return true;
-  if (rl.remaining < minRemaining) {
-    log.info(`Rate limit low: remaining=${rl.remaining}/${rl.limit}, resetAt=${rl.resetAt}`);
-    return false;
+  if (!rl) {
+    return {
+      proceed: true,
+      remaining: null,
+      limit: null,
+      resetAt: null,
+      cost: null
+    };
   }
-  return true;
+
+  const proceed = rl.remaining >= minRemaining;
+  if (!proceed) {
+    log.info(`Rate limit low: remaining=${rl.remaining}/${rl.limit}, resetAt=${rl.resetAt}`);
+  }
+
+  return {
+    proceed,
+    remaining: rl.remaining,
+    limit: rl.limit,
+    resetAt: rl.resetAt,
+    cost: rl.cost ?? null
+  };
 }
 
 function backoffDelay(attempt) {

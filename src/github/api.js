@@ -115,23 +115,45 @@ async function getColumnOptionId(projectId, columnName) {
 /**
  * Get all items from a project board with caching
  */
-async function getProjectItems(projectId) {
-  if (projectItemsCache.has(projectId)) {
+async function getProjectItems(projectId, options = {}) {
+  let params = {};
+
+  if (typeof options === 'boolean') {
+    params = { forceRefresh: options };
+  } else if (options && typeof options === 'object') {
+    params = options;
+  }
+
+  const {
+    minRemaining = 200,
+    forceRefresh = false,
+    skipRateGuard = false,
+    logger = log
+  } = params;
+
+  if (!forceRefresh && projectItemsCache.has(projectId)) {
     return projectItemsCache.get(projectId);
+  }
+
+  if (forceRefresh) {
+    projectItemsCache.delete(projectId);
+  }
+
+  if (!skipRateGuard) {
+    const rateStatus = await shouldProceed(minRemaining);
+    if (!rateStatus.proceed) {
+      const remainingInfo = typeof rateStatus.remaining === 'number' && typeof rateStatus.limit === 'number'
+        ? ` (${rateStatus.remaining}/${rateStatus.limit}, resets ${rateStatus.resetAt})`
+        : '';
+      logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
+      return new Map();
+    }
   }
 
   const items = new Map();
   let hasNextPage = true;
   let endCursor = null;
   let totalItems = 0;
-
-  // Rate limit guard before heavy pagination
-  const canRun = await shouldProceed(200);
-  if (!canRun) {
-    log.info('Skipping full project item preload due to low rate limit');
-    projectItemsCache.set(projectId, items);
-    return items;
-  }
 
   while (hasNextPage && totalItems < 300) { // Safety limit
     const result = await withBackoff(() => graphqlWithAuth(`
@@ -189,7 +211,7 @@ async function getProjectItems(projectId) {
 async function isItemInProject(nodeId, projectId) {
   try {
     // First check the cache
-    const projectItems = await getProjectItems(projectId, true);
+    const projectItems = await getProjectItems(projectId, { skipRateGuard: true });
     const projectItemId = projectItems.get(nodeId);
 
     // If found in cache, return immediately

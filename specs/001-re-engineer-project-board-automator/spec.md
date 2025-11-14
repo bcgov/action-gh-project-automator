@@ -246,7 +246,7 @@ Each rule processor executes actions:
 - `inherit_assignees`: Inherits assignees from linked PR (linked issues)
 ### Post-Processing: Existing Item Sweep
 
-After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled.
+After processing newly added items, the runtime iterates every existing project item to reconcile sprint assignments. This sweep uses batching helpers with no-op guards to minimize duplicate mutations and respects `DRY_RUN` when enabled. The sweep is gated by `technical.existing_items.sweep_enabled` (overridable via `ENABLE_EXISTING_SWEEP=false`) and short-circuits when the rate-limit preflight (`SWEEP_RATE_LIMIT_MIN`, default `technical.existing_items.min_rate_limit_remaining`) reports insufficient remaining calls.
 
 ## 6. State Management
 
@@ -354,8 +354,8 @@ After processing newly added items, the runtime iterates every existing project 
 - Errors encountered
 - Board item counters (`board.items.total`, `board.actions.added`, `board.actions.skipped`, `board.actions.failed`)
 - Linked issue counters (`linked.items.total`, `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`)
+- Existing item sweep counters (`existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.queued`, `existing.assignments.applied`, `existing.removals.queued`, `existing.removals.applied`)
 - State verification retries
-- Existing-item sweep statistics (items processed, assignments queued/applied, removals queued/applied)
 - Seeded items sourced from event payloads
 
 **Reporting**:

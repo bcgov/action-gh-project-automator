@@ -36,7 +36,7 @@ async function getColumnOptionId(projectId, columnName) {
 /**
  * Mock getProjectItems GraphQL query
  */
-async function getProjectItems(projectId) {
+async function getProjectItems(projectId, _options = {}) {
   return mockState.responses.projectItems;
 }
 

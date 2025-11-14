@@ -390,13 +390,15 @@ Each section maps:
 - **Coordinator**: `processExistingItemsSprintAssignments()` in `src/index.js`
 - **Decision Logic**: Reuses `determineSprintAction()` for assignments, historical backfill, and removals.
 - **Batch Operations**: `setItemSprintsBatch()` and `clearItemSprintsBatch()` (in `src/rules/sprints.js`) apply GraphQL alias batching; covered by `test/rules/sprint-batching.test.js`.
-- **Observability**: Counters (`existing.items.processed`, `existing.assignments.*`, `existing.removals.*`) surface sweep impact; respects `DRY_RUN`.
+- **Configuration Guards**: Activation controlled by `technical.existing_items.sweep_enabled` (overridable via `ENABLE_EXISTING_SWEEP`); rate-limit budget derived from `technical.existing_items.min_rate_limit_remaining` with `SWEEP_RATE_LIMIT_MIN` override.
+- **Observability**: Counters (`existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.*`, `existing.removals.*`) surface sweep impact; respects `DRY_RUN`.
+- **Tests**: `test/main/existing-items-sweep.test.mjs` verifies configuration gating, rate-limit skips, and option propagation to `getProjectItems()`.
 
 ### GitHub API Helpers
 
 - **File**: `src/github/api.js`
 - **Caching**: `projectItemsCache` now updates immediately after `addItemToProject()` to avoid stale reads; `__resetProjectCaches()` available for tests.
-- **Pagination Guard**: `getProjectItems()` invokes `shouldProceed()` before heavy pagination; behavior verified by `test/github/project-items-pagination.test.js`.
+- **Pagination Guard**: `getProjectItems()` invokes `shouldProceed(minRemaining)` with configurable thresholds and logs skip reasons while accepting dependency-injected loggers; behavior verified by `test/github/project-items-pagination.test.mjs`.
 - **Assignee Delta Support**: `fetchRepoAssignees()` supplies repository assignee rosters used by `setItemAssignees()`.
 
 ## Summary of Gaps
