@@ -47,6 +47,18 @@ async function shouldProceed(minRemaining = 200) {
   };
 }
 
+function formatRateLimitInfo(rateStatus) {
+  if (!rateStatus || typeof rateStatus !== 'object') {
+    return '';
+  }
+  const { remaining, limit, resetAt } = rateStatus;
+  if (typeof remaining === 'number' && typeof limit === 'number') {
+    const resetSuffix = resetAt ? `, resets ${resetAt}` : '';
+    return ` (remaining ${remaining}/${limit}${resetSuffix})`;
+  }
+  return '';
+}
+
 function backoffDelay(attempt) {
   const base = 500; // ms
   const max = 8000;
@@ -78,4 +90,4 @@ async function withBackoff(fn, { retries = 3 } = {}) {
   throw lastErr;
 }
 
-export { getRateLimit, shouldProceed, withBackoff };
+export { getRateLimit, shouldProceed, withBackoff, formatRateLimitInfo };

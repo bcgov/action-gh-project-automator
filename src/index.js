@@ -61,7 +61,7 @@ import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
-import { shouldProceed } from './utils/rate-limit.js';
+import { shouldProceed, formatRateLimitInfo } from './utils/rate-limit.js';
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -457,9 +457,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
 
     const rateStatus = await rateLimitFn(minRateLimitRemaining);
     if (!rateStatus.proceed) {
-      const remainingInfo = typeof rateStatus.remaining === 'number' && typeof rateStatus.limit === 'number'
-        ? ` (remaining ${rateStatus.remaining}/${rateStatus.limit}, resets ${rateStatus.resetAt})`
-        : '';
+      const remainingInfo = formatRateLimitInfo(rateStatus);
       logger.info(`Skipping sprint assignments for existing items due to low rate limit${remainingInfo}.`);
       logger.incrementCounter('existing.sweep.rate_limited');
       return {

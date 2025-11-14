@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo } from '../utils/rate-limit.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
@@ -149,9 +149,7 @@ async function getProjectItems(projectId, options = {}) {
   if (!skipRateGuard) {
     const rateStatus = await shouldProceed(minRemaining);
     if (!rateStatus.proceed) {
-      const remainingInfo = typeof rateStatus.remaining === 'number' && typeof rateStatus.limit === 'number'
-        ? ` (${rateStatus.remaining}/${rateStatus.limit}, resets ${rateStatus.resetAt})`
-        : '';
+      const remainingInfo = formatRateLimitInfo(rateStatus);
       logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
       return new Map();
     }
@@ -218,7 +216,7 @@ async function getProjectItems(projectId, options = {}) {
 async function isItemInProject(nodeId, projectId) {
   try {
     // First check the cache. skipRateGuard avoids rate checks because this is a cache-only lookup.
-    const projectItems = await getProjectItems(projectId, { skipRateGuard: true });
+    const projectItems = await getProjectItems(projectId, { skipRateGuard: true, forceRefresh: false });
     const projectItemId = projectItems.get(nodeId);
 
     // If found in cache, return immediately
