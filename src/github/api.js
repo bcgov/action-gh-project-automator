@@ -119,7 +119,7 @@ async function getColumnOptionId(projectId, columnName) {
  * @param {number} [options.minRemaining=200] - Minimum rate limit remaining before skipping pagination.
  * @param {boolean} [options.forceRefresh=false] - Force a cache refresh for the project.
  * @param {boolean} [options.skipRateGuard=false] - Skip rate limit checking (useful for nested calls).
- * @param {Logger} [options.logger=log] - Logger instance to use for informational messages.
+ * @param {Logger} [options.logger] - Logger instance to use for informational messages. Defaults to the global log instance.
  * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
 async function getProjectItems(projectId, options = {}) {

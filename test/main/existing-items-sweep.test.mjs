@@ -63,7 +63,7 @@ test('existing items sweep passes rate guard settings to getProjectItems', async
   const getProjectItemsFn = async (projectId, options) => {
     assert.equal(projectId, 'project-id');
     assert.equal(options.minRemaining, 275);
-    assert.equal(options.skipRateGuard, true);
+    assert.equal(options.skipRateGuard, undefined);
     return new Map();
   };
 

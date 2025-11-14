@@ -475,7 +475,6 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     // Get all items currently on the project board
     const projectItems = await getProjectItemsFn(projectId, {
       minRemaining: minRateLimitRemaining,
-      skipRateGuard: true,
       logger
     });
     logger.info(`Found ${projectItems.size} total items on project board (not all will be processed)`);
