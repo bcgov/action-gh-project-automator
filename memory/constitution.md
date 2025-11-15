@@ -5,8 +5,8 @@
 - Anchor all specifications to `rules.yml` as the authoritative source for business rules.
 
 ## Guiding Principles
-- **Source of Truth**: `rules.yml` defines every business rule; specs and code must reflect it exactly.
-- **Spec-Driven Delivery**: Specs precede implementation; no feature work without an updated spec excerpt.
+- **Source of Truth**: `rules.yml` defines every business rule; code must reflect it exactly.
+- **Rules-First Delivery**: Build and verify directly against `rules.yml`; capture only lightweight notes needed for onboarding.
 - **Incremental PRs**: Prefer small, reviewable changes with clear testing notes.
 - **Backward Compatibility**: Preserve current behavior by default; deviations require explicit approval.
 - **ESM Standard**: All new runtime and test code uses ES modules; CommonJS remains only while migrating legacy tests.
@@ -29,9 +29,9 @@
 - Provide regression coverage for observed bugs before shipping fixes.
 
 ## Documentation Requirements
-- Update `specs/001-re-engineer-project-board-automator/` materials alongside behavior changes.
-- Keep README and specs synchronized with environment variables and observable metrics.
-- Maintain a gap analysis between declared rules and implemented behavior.
+- Keep README in sync with configurable inputs, outputs, and operational toggles.
+- Maintain lightweight notes (e.g., this constitution) only when they provide clear value beyond `rules.yml`.
+- Record gaps between declared rules and implemented behavior within the codebase or issues; avoid large standalone specs.
 
 ## Operational Practices
 - Enforce DRY_RUN safeguards for destructive mutations.
