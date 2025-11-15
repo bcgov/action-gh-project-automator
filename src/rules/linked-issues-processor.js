@@ -19,6 +19,7 @@ import { log } from '../utils/log.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
 import { processLinkedIssueRules } from './processors/unified-rule-processor.js';
 import { handleClassifiedError } from '../utils/error-classifier.js';
+import { StateVerifier } from '../utils/state-verifier.js';
 
 /**
  * Compare two arrays for equality (sorted)
@@ -60,6 +61,8 @@ export function arraysEqual(a, b) {
  * @param {Function} [overrides.fetchLinkedIssuesFn] Function to fetch linked issues for a pull request. Default: fetchLinkedIssuesForPullRequest
  * @param {Array|null} [overrides.ruleActionsOverride] Optional override for rule actions. Default: null
  * @param {Object} [overrides.logger] Logger instance. Default: log
+ * @param {Function} [overrides.validateColumnTransitionFn] Function that validates linked-issue column transitions before inheritance.
+ *   Receives `(fromColumn, toColumn, context)` and must return `{ valid: boolean, reason?: string }`. Default: StateVerifier validator.
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint, overrides = {}) {
@@ -72,7 +75,8 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
         isItemInProjectFn = isItemInProject,
         fetchLinkedIssuesFn = fetchLinkedIssuesForPullRequest,
         ruleActionsOverride = null,
-        logger = log
+        logger = log,
+        validateColumnTransitionFn = defaultValidateColumnTransition
     } = overrides;
 
     const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName } } = pullRequest;
@@ -214,6 +218,16 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                         if (prActualColumn && prActualColumn !== linkedIssueColumn) {
                             const optionId = await getColumnOptionIdFn(projectId, prActualColumn);
                             if (optionId) {
+                                const transition = await validateColumnTransitionFn(
+                                    linkedIssueColumn || 'None',
+                                    prActualColumn,
+                                    { item: linkedIssue }
+                                );
+                                if (!transition.valid) {
+                                    logger.warning(`Skipping column inheritance for linked issue #${linkedIssueNumber}: ${transition.reason || 'transition not allowed'}`);
+                                    logger.incrementCounter('linked.actions.column.blocked');
+                                    break;
+                                }
                                 await setItemColumnFn(projectId, linkedIssueProjectItemId, optionId);
                                 logger.info(`Set linked issue #${linkedIssueNumber} column to ${prActualColumn} (inherited from PR)`);
                                 logger.incrementCounter('linked.actions.column.assigned');
@@ -276,3 +290,18 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
 }
 
 export { processLinkedIssues };
+
+/**
+ * Default column-transition validator for linked issue inheritance.
+ * Delegates to the shared `StateVerifier` validator so rules.yml `validTransitions` apply consistently.
+ *
+ * @param {string|null} fromColumn Current linked-issue column (may be null/undefined)
+ * @param {string} toColumn Target column inherited from the PR
+ * @param {Object} context Additional context passed through to the validator (e.g., item metadata)
+ * @returns {{valid: boolean, reason?: string}} Validation result
+ */
+async function defaultValidateColumnTransition(fromColumn, toColumn, context) {
+    return StateVerifier
+        .getTransitionValidator()
+        .validateColumnTransition(fromColumn, toColumn, context);
+}

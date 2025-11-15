@@ -103,7 +103,16 @@ class StateVerifier {
         this.transitionValidator = null;
       }
 
-      if (!rules.rules || !rules.rules.columns) return;
+      const columnRules = Array.isArray(rules?.rules?.columns)
+        ? rules.rules.columns
+        : Array.isArray(rules?.columns)
+          ? rules.columns
+          : [];
+
+      if (columnRules.length === 0) {
+        verifierLog.warn('⚠ No column rules found while initializing validTransitions; skipping enforcement.');
+        return;
+      }
 
       // Mark required steps as complete before adding transition rules
       const validator = this.getTransitionValidator();
@@ -111,7 +120,7 @@ class StateVerifier {
       validator.steps.markStepComplete('DEPENDENCIES_VERIFIED');
 
       let transitionCount = 0;
-      for (const rule of rules.rules.columns) {
+      for (const rule of columnRules) {
         if (rule.validTransitions) {
           for (const transition of rule.validTransitions) {
             validator.addColumnTransitionRule(

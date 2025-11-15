@@ -148,11 +148,8 @@ class StateTransitionValidator {
       // Check if source column has any rules
       const rules = this.columnRules.get(normalizedFrom);
       if (!rules) {
-        return {
-          valid: false,
-          reason: `No transitions defined from column "${from}"`,
-          recovery: `Add a transition rule from "${from}" to allow this change`
-        };
+        log.debug(`No explicit transitions defined from "${from}" – allowing "${from}" → "${to}" by default.`);
+        return { valid: true };
       }
 
       // Find matching rule with enhanced validation

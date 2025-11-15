@@ -184,7 +184,7 @@
   - `to`: `"New"`
   - `conditions`: `[]`
 
-**Important**: `validTransitions` are declared but must be enforced by code. This is a known gap.
+**Note**: `validTransitions` declared in these column rules are now loaded directly from `rules.yml` and enforced wherever columns change (board additions and linked-issue inheritance). Columns without explicit entries remain unrestricted for backward compatibility.
 
 ### 3. Sprint Rules (`sprints`)
 
@@ -311,7 +311,7 @@ Conditions are JavaScript-like expressions evaluated in a context with:
 - ✅ Basic assignee rules (`add_assignee`)
 
 ### Partially Implemented
-- ⚠️ `validTransitions` validation (declared but not enforced)
+- ✅ `validTransitions` validation (columns with explicit rules are enforced during column changes)
 - ⚠️ Linked issues processing (processor exists but actions incomplete)
 
 ### Not Implemented
