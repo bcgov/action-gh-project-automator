@@ -61,6 +61,8 @@ export function arraysEqual(a, b) {
  * @param {Function} [overrides.fetchLinkedIssuesFn] Function to fetch linked issues for a pull request. Default: fetchLinkedIssuesForPullRequest
  * @param {Array|null} [overrides.ruleActionsOverride] Optional override for rule actions. Default: null
  * @param {Object} [overrides.logger] Logger instance. Default: log
+ * @param {Function} [overrides.validateColumnTransitionFn] Function that validates linked-issue column transitions before inheritance.
+ *   Receives `(fromColumn, toColumn, context)` and must return `{ valid: boolean, reason?: string }`. Default: StateVerifier validator.
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint, overrides = {}) {
@@ -289,7 +291,16 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
 
 export { processLinkedIssues };
 
-function defaultValidateColumnTransition(fromColumn, toColumn, context) {
+/**
+ * Default column-transition validator for linked issue inheritance.
+ * Delegates to the shared `StateVerifier` validator so rules.yml `validTransitions` apply consistently.
+ *
+ * @param {string|null} fromColumn Current linked-issue column (may be null/undefined)
+ * @param {string} toColumn Target column inherited from the PR
+ * @param {Object} context Additional context passed through to the validator (e.g., item metadata)
+ * @returns {{valid: boolean, reason?: string}} Validation result
+ */
+async function defaultValidateColumnTransition(fromColumn, toColumn, context) {
     return StateVerifier
         .getTransitionValidator()
         .validateColumnTransition(fromColumn, toColumn, context);
