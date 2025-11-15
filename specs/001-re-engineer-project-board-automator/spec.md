@@ -278,7 +278,7 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 
 **File**: `src/utils/state-transition-validator.js`
 
-**Current Status**: ⚠️ Declared but not strictly enforced (see gap-analysis.md)
+**Current Status**: ✅ Enforced whenever `validTransitions` are declared in `rules.yml` (columns without explicit rules remain unrestricted for backward compatibility).
 
 **Required Behavior**:
 - Load `validTransitions` from `rules.yml` column rules
@@ -357,7 +357,7 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 - Items skipped
 - Errors encountered
 - Board item counters (`board.items.total`, `board.actions.added`, `board.actions.skipped`, `board.actions.failed`)
-- Linked issue counters (`linked.items.total`, `linked.actions.column.assigned`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`)
+- Linked issue counters (`linked.items.total`, `linked.actions.column.assigned`, `linked.actions.column.blocked`, `linked.actions.assignees.assigned`, `linked.actions.skipped`, `linked.actions.failed`)
 - Existing item sweep counters (`existing.sweep.completed`, `existing.sweep.disabled`, `existing.sweep.rate_limited`, `existing.items.processed`, `existing.assignments.queued`, `existing.assignments.applied`, `existing.removals.queued`, `existing.removals.applied`)
 - State verification retries
 - Seeded items sourced from event payloads
@@ -438,17 +438,14 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 ### State Transition Behavior
 
 **Valid Transitions**:
-- From `rules.yml` validTransitions declarations
-- Must be explicitly declared
-- Conditions may be specified (currently empty arrays)
+- Sourced from `rules.yml` `validTransitions` declarations merged from all scopes
+- Conditions (when present) must pass before a transition is allowed
+- Columns with no explicit rules remain unrestricted to preserve historical flows
 
 **Transition Validation**:
-- Current column → target column
-- Check validTransitions rules
-- Block if not valid
-- Allow if valid
-
-**Current Gap**: ValidTransitions declared but not strictly enforced (see gap-analysis.md)
+- Current column → target column comparisons run before mutations
+- `StateVerifier` blocks invalid transitions (columns module + linked issues inheritance now call the validator)
+- Columns without explicit rules log a debug message and allow the transition
 
 ### Error Recovery Behavior
 
@@ -483,9 +480,9 @@ Operationally, the primary `project-board-sync` workflow now leaves `ENABLE_EXIS
 
 See `gap-analysis.md` for detailed status:
 
-- **Fully Implemented**: 8/12 rules (67%)
-- **Partially Implemented**: 4/12 rules (33%)
-- **Known Gaps**: validTransitions enforcement, linked issues actions
+- **Fully Implemented**: 9/12 rules (75%)
+- **Partially Implemented**: 3/12 rules (25%)
+- **Known Gaps**: Linked issues inheritance edge cases (batching, DRY_RUN observability)
 
 ## 11. Governance & Change Control
 

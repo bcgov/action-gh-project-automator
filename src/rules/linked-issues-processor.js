@@ -19,6 +19,7 @@ import { log } from '../utils/log.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
 import { processLinkedIssueRules } from './processors/unified-rule-processor.js';
 import { handleClassifiedError } from '../utils/error-classifier.js';
+import { StateVerifier } from '../utils/state-verifier.js';
 
 /**
  * Compare two arrays for equality (sorted)
@@ -72,7 +73,8 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
         isItemInProjectFn = isItemInProject,
         fetchLinkedIssuesFn = fetchLinkedIssuesForPullRequest,
         ruleActionsOverride = null,
-        logger = log
+        logger = log,
+        validateColumnTransitionFn = defaultValidateColumnTransition
     } = overrides;
 
     const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName } } = pullRequest;
@@ -214,6 +216,16 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                         if (prActualColumn && prActualColumn !== linkedIssueColumn) {
                             const optionId = await getColumnOptionIdFn(projectId, prActualColumn);
                             if (optionId) {
+                                const transition = await validateColumnTransitionFn(
+                                    linkedIssueColumn || 'None',
+                                    prActualColumn,
+                                    { item: linkedIssue }
+                                );
+                                if (!transition.valid) {
+                                    logger.warning(`Skipping column inheritance for linked issue #${linkedIssueNumber}: ${transition.reason || 'transition not allowed'}`);
+                                    logger.incrementCounter('linked.actions.column.blocked');
+                                    break;
+                                }
                                 await setItemColumnFn(projectId, linkedIssueProjectItemId, optionId);
                                 logger.info(`Set linked issue #${linkedIssueNumber} column to ${prActualColumn} (inherited from PR)`);
                                 logger.incrementCounter('linked.actions.column.assigned');
@@ -276,3 +288,9 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
 }
 
 export { processLinkedIssues };
+
+function defaultValidateColumnTransition(fromColumn, toColumn, context) {
+    return StateVerifier
+        .getTransitionValidator()
+        .validateColumnTransition(fromColumn, toColumn, context);
+}

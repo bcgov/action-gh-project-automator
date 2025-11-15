@@ -41,7 +41,8 @@ test('processLinkedIssues inherits assignees when project state differs', async 
     ruleActionsOverride: [
       { action: 'inherit_assignees' }
     ],
-    logger: createLogger()
+    logger: createLogger(),
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
   };
 
   const result = await processLinkedIssues(
@@ -91,7 +92,8 @@ test('processLinkedIssues skips assignee inheritance when sets already match', a
     ruleActionsOverride: [
       { action: 'inherit_assignees' }
     ],
-    logger: createLogger()
+    logger: createLogger(),
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
   };
 
   const result = await processLinkedIssues(
@@ -144,7 +146,8 @@ test('processLinkedIssues falls back to payload assignees when project lookup fa
     ruleActionsOverride: [
       { action: 'inherit_assignees' }
     ],
-    logger: createLogger()
+    logger: createLogger(),
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
   };
 
   const result = await processLinkedIssues(

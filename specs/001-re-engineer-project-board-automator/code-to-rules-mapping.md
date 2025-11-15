@@ -383,7 +383,7 @@ Each section maps:
 - Regression coverage: `test/state-verifier-transitions.test.js` and `test/state-verifier-retry.test.cjs`.
 
 **Remaining Considerations**:
-- Linked issue workflows still bypass transition validation (future work when linked rules are rebuilt).
+- Document additional `validTransitions` in `rules.yml` as business rules expand (columns without entries remain unrestricted by design).
 
 ### Existing Item Sprint Sweep
 
@@ -408,10 +408,9 @@ Each section maps:
 
 ### Critical Gaps
 
-1. **Linked Issues Actions Incomplete**
-   - `inherit_column`: Declared but implementation doesn't properly inherit from PR
-   - `inherit_assignees`: Declared but implementation doesn't properly inherit from PR
-   - Skip condition not properly evaluated
+1. **Linked Issues Actions** (batching & drift tracking)
+   - Ensure column inheritance batching + DRY_RUN observability match SpecKit conventions
+   - Expand tests to cover multi-issue scenarios and failure reporting
 
 ### Missing Features
 
@@ -420,7 +419,7 @@ None beyond the linked-issue work above. Future enhancements should be tracked i
 ### Working Correctly
 
 - ✅ Board addition rules (seeded event payloads + recent item search).
-- ✅ Column assignment with strict `validTransitions` enforcement and retry handling.
+- ✅ Column assignment with strict `validTransitions` enforcement and retry handling (board + linked issue inheritance).
 - ✅ Sprint assignment/removal (new items and existing-item sweep with batching).
 - ✅ Assignee delta updates via repository roster lookups.
 
