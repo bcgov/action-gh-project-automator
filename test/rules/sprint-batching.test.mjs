@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as sprints from '../../src/rules/sprints.js';
+import { Logger } from '../../src/utils/log.js';
 
 test('determineSprintAction assigns active sprint when different', async () => {
   const decision = await sprints.determineSprintAction({
@@ -125,3 +126,54 @@ test('clearItemSprintsBatch batches clear mutations', async () => {
   });
 });
 
+test('setItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
+  const logger = new Logger();
+  logger.info = () => {};
+  let called = false;
+
+  const success = await sprints.setItemSprintsBatch(
+    'proj',
+    [
+      { projectItemId: 'item-1', iterationId: 'iter-1' }
+    ],
+    1,
+    {
+      getSprintFieldId: async () => 'field-1',
+      graphqlClient: async () => {
+        called = true;
+        throw new Error('Should not be invoked');
+      },
+      dryRun: true,
+      logger
+    }
+  );
+
+  assert.equal(success, 0);
+  assert.equal(called, false);
+});
+
+test('clearItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
+  const logger = new Logger();
+  logger.info = () => {};
+  let called = false;
+
+  const success = await sprints.clearItemSprintsBatch(
+    'proj',
+    [
+      { projectItemId: 'item-1' }
+    ],
+    1,
+    {
+      getSprintFieldId: async () => 'field-1',
+      graphqlClient: async () => {
+        called = true;
+        throw new Error('Should not be invoked');
+      },
+      dryRun: true,
+      logger
+    }
+  );
+
+  assert.equal(success, 0);
+  assert.equal(called, false);
+});

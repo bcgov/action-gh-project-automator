@@ -563,7 +563,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     let assignmentSuccess = 0;
     if (sprintAssignments.length > 0) {
       logger.info(`Applying batched sprint updates to ${sprintAssignments.length} existing items...`);
-      assignmentSuccess = dryRun ? 0 : await setItemSprintsBatch(projectId, sprintAssignments);
+      assignmentSuccess = await setItemSprintsBatch(projectId, sprintAssignments, undefined, { dryRun, logger });
       if (!dryRun) {
         logger.incrementCounter('existing.assignments.applied', assignmentSuccess);
       }
@@ -572,7 +572,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     let removalSuccess = 0;
     if (sprintRemovals.length > 0) {
       logger.info(`Clearing sprint field for ${sprintRemovals.length} existing items (batched)...`);
-      removalSuccess = dryRun ? 0 : await clearItemSprintsBatch(projectId, sprintRemovals);
+      removalSuccess = await clearItemSprintsBatch(projectId, sprintRemovals, undefined, { dryRun, logger });
       if (!dryRun) {
         logger.incrementCounter('existing.removals.applied', removalSuccess);
       }

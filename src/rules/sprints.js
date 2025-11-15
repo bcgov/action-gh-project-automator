@@ -239,13 +239,20 @@ async function getItemCompletionDate(projectItemId) {
 async function setItemSprintsBatch(projectId, updates, batchSize = 20, options = {}) {
   const {
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
-    graphqlClient = graphql
+    graphqlClient = graphql,
+    dryRun = false,
+    logger = log
   } = options;
 
   if (!Array.isArray(updates) || updates.length === 0) return 0;
   const fieldId = await getSprintFieldIdFn(projectId);
   if (!fieldId) {
-    log.warning(`Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`);
+    logger.warning(`Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`);
+    return 0;
+  }
+
+  if (dryRun) {
+    logger.info(`[DRY_RUN] Skipping sprint assignment batch for ${updates.length} item(s).`);
     return 0;
   }
   let success = 0;
@@ -625,13 +632,20 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
 async function clearItemSprintsBatch(projectId, removals, batchSize = 20, options = {}) {
   const {
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
-    graphqlClient = graphql
+    graphqlClient = graphql,
+    dryRun = false,
+    logger = log
   } = options;
 
   if (!Array.isArray(removals) || removals.length === 0) return 0;
   const fieldId = await getSprintFieldIdFn(projectId);
   if (!fieldId) {
-    log.warning(`Sprint field not found for project ${projectId}. Aborting sprint clear batch of ${removals.length} items.`);
+    logger.warning(`Sprint field not found for project ${projectId}. Aborting sprint clear batch of ${removals.length} items.`);
+    return 0;
+  }
+
+  if (dryRun) {
+    logger.info(`[DRY_RUN] Skipping sprint removal batch for ${removals.length} item(s).`);
     return 0;
   }
 
