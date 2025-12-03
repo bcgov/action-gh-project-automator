@@ -28,7 +28,7 @@ automation:
   # ... configuration pattern ...
 ```
 
-**Location in rules.yml**: [Lines or section reference]
+**Location in rules.yml**: [Section reference, e.g., `automation.user_scope.rules.board_items` - avoid line numbers]
 
 ## Implementation Details
 
@@ -73,8 +73,8 @@ automation:
 
 ### Files Modified
 
-- `[file path]`: [What was changed]
-- `[file path]`: [What was changed]
+- `[file path]`: [What was changed - avoid line numbers, use git history]
+- `[file path]`: [What was changed - avoid line numbers, use git history]
 
 ### Related Pull Request
 
