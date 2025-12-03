@@ -1,5 +1,7 @@
 # Project Board Sync Configuration
-# This is the single source of truth for automation rules.
+# User-facing configuration template - users provide their own rules.yml in their repositories.
+# This file serves as an example template showing available configuration options.
+# For developer documentation and feature specifications, see the specs/ directory.
 # Changes here will be applied on the next sync run.
 
 project:
