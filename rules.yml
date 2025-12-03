@@ -30,6 +30,15 @@ automation:
           action: "add_to_board"
           skip_if: "item.inProject"
 
+        - name: "assigned_issues"
+          description: "Add issues assigned to any monitored user"
+          trigger:
+            type: "Issue"
+            condition: "item.assignees.some(assignee =>
+              monitored.users.includes(assignee))"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
       # Assignee rules
       assignees:
         - name: "assign_authored_prs"
