@@ -167,3 +167,4 @@ Before marking a spec as complete:
 - Root `rules.yml` - User-facing configuration template
 - `memory/constitution.md` - Project development principles
 - `README.md` - User-facing project documentation
+

@@ -168,3 +168,4 @@ test('describeBoardItemReason handles PR assigned but not authored', () => {
   assert.strictEqual(result.isAuthoredByUser, false);
   assert.strictEqual(result.isAssignedToUser, true);
 });
+
