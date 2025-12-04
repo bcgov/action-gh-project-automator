@@ -14,7 +14,7 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 
 ## Configuration
 
-All automation is configured in a flattened repo-level `config/rules.yml`. The configuration includes:
+All automation is configured in a repo-level `rules.yml` file. Users provide their own `rules.yml` or use the template in this repository. The configuration includes:
 - Project settings
 - Monitored repositories and users
 - Business rules for automation
@@ -50,9 +50,24 @@ See `.github/copilot-instructions.md` for repo-specific AI guidance and developm
 ## Files
 
 - `project-board-sync.js`: The main script that runs the automation
-- `rules.yml`: Source of truth for all automation rules (in repository root)
+- `rules.yml`: User-facing configuration template (users provide their own or use this default)
+- `specs/`: Developer-facing feature specifications using [SpecKit framework](https://github.com/github/spec-kit)
 - GitHub Issues: Roadmap and future ideas are tracked in repository Issues
 - `fetch-user-assignments.js`: Utility to find issues and PRs assigned to users
+
+## Development
+
+This project uses [SpecKit](https://github.com/github/spec-kit) for spec-driven development:
+
+- **Feature Specifications**: See `specs/` directory for feature documentation
+- **SpecKit Guide**: See [specs/README.md](specs/README.md) for how to create and work with specs
+- **User Configuration**: `rules.yml` is user-facing configuration (users customize in their repos)
+- **Developer Documentation**: Specs document features and the rules.yml patterns we support
+
+For detailed development guidelines, see:
+- `memory/constitution.md` - Project development principles
+- `specs/README.md` - SpecKit usage and guidelines
+- `.github/copilot-instructions.md` - AI coding assistant guidance
 
 ## Tests
 

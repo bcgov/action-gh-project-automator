@@ -70,6 +70,14 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
   }
 
   if (item?.__typename === 'Issue') {
+    if (isAssignedToUser) {
+      return {
+        reason: 'Issue is assigned to monitored user',
+        isMonitoredRepo,
+        isAuthoredByUser,
+        isAssignedToUser
+      };
+    }
     if (isMonitoredRepo) {
       return {
         reason: 'Issue is in a monitored repository',

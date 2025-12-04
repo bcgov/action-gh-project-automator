@@ -1,5 +1,7 @@
 # Project Board Sync Configuration
-# This is the single source of truth for automation rules.
+# User-facing configuration template - users provide their own rules.yml in their repositories.
+# This file serves as an example template showing available configuration options.
+# For developer documentation and feature specifications, see the specs/ directory.
 # Changes here will be applied on the next sync run.
 
 project:
@@ -25,6 +27,15 @@ automation:
           description: "Add pull requests assigned to any monitored user"
           trigger:
             type: "PullRequest"
+            condition: "item.assignees.some(assignee =>
+              monitored.users.includes(assignee))"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+        - name: "assigned_issues"
+          description: "Add issues assigned to any monitored user"
+          trigger:
+            type: "Issue"
             condition: "item.assignees.some(assignee =>
               monitored.users.includes(assignee))"
           action: "add_to_board"

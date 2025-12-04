@@ -340,10 +340,16 @@ async function addItemToProject(nodeId, projectId) {
 }
 
 /**
- * Get recent items (PRs and Issues) from monitored repositories and authored by monitored user
+ * Get recent items (PRs and Issues) from monitored repositories and user-scoped items.
+ * Searches:
+ * - Items in monitored repositories (limited to provided repos)
+ * - PRs authored by monitored user (across all repositories)
+ * - Issues/PRs assigned to monitored user (across all repositories)
  * @param {string} org - Organization name
- * @param {Array<string>} repos - List of repository names
- * @param {string} monitoredUser - GitHub username to monitor
+ * @param {Array<string>} repos - List of repository names for repo-scoped search
+ * @param {string} monitoredUser - GitHub username to monitor for user-scoped searches
+ * @param {number} windowHours - Hours to look back (default: 24)
+ * @param {Object} options - Additional options (minRemaining, logger, overrides)
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
 async function getRecentItems(org, repos, monitoredUser, windowHours = undefined, options = {}) {
@@ -379,6 +385,8 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   // Search for PRs authored by monitored user in ANY repository
   const authorSearchQuery = `author:${monitoredUser} created:>${since}`;
+  // Search for issues/PRs assigned to monitored user in ANY repository
+  const assigneeSearchQuery = `assignee:${monitoredUser} created:>${since}`;
 
   const results = [];
 
@@ -440,6 +448,39 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   }));
 
   results.push(...authorResult.search.nodes);
+
+  // Get issues and PRs assigned to monitored user in any repository
+  const assigneeResult = await withBackoffFn(() => graphqlClient(`
+    query($searchQuery: String!) {
+      search(query: $searchQuery, type: ISSUE, first: 100) {
+        nodes {
+          __typename
+          ... on Issue {
+            id
+            number
+            repository { nameWithOwner }
+            author { login }
+            assignees(first: 5) { nodes { login } }
+            state
+            updatedAt
+          }
+          ... on PullRequest {
+            id
+            number
+            repository { nameWithOwner }
+            author { login }
+            assignees(first: 5) { nodes { login } }
+            state
+            updatedAt
+          }
+        }
+      }
+    }
+  `, {
+    searchQuery: assigneeSearchQuery
+  }));
+
+  results.push(...assigneeResult.search.nodes);
 
   // Remove duplicates based on item ID
   const seen = new Set();
