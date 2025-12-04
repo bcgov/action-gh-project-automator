@@ -1,5 +1,7 @@
 # Feature: Issues Assigned to Monitored Users
 
+**Status**: ✅ Implemented (PR #133 merged)
+
 ## Problem Statement
 
 Issues assigned to monitored users were not being automatically added to the project board. For example, issue #522 in `nr-results-exam` repository was assigned to `DerekRoberts` but was never added to the board or assigned a sprint.
@@ -117,6 +119,7 @@ The `board-items-evaluator.js` was updated to properly recognize and report when
 - `src/github/api.js`: Added assignee search functionality across all repositories
 - `src/rules/helpers/board-items-evaluator.js`: Updated reason description to prioritize assignee check
 - `test/github/get-recent-items-rate-limit.test.mjs`: Updated to expect assignee search in addition to repo and author searches
+- `test/rules/board-items-evaluator.test.mjs`: Comprehensive unit tests for assignee priority logic in `describeBoardItemReason`
 
 ### Related Pull Request
 
