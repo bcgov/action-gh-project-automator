@@ -66,3 +66,112 @@ test('getRecentItems skips searches when rate limit guard fails', async () => {
   assert.equal(calls.length, 0, 'GraphQL must not be called when guard fails');
   assert.ok(infoMessages.some(msg => msg.includes('Skipping recent-item search due to low rate limit')));
 });
+
+test('getRecentItems constructs assignee search query correctly', async () => {
+  const { overrides, calls } = createOverrides({
+    assigneeNodes: []
+  });
+
+  await getRecentItems('org', ['repo1'], 'testuser', 48, { overrides });
+
+  const assigneeCall = calls.find(call => call.includes('assignee:'));
+  assert.ok(assigneeCall, 'Assignee search should be called');
+  assert.ok(assigneeCall.includes('assignee:testuser'), 'Query should include assignee username');
+  assert.ok(assigneeCall.includes('created:>'), 'Query should include created timestamp filter');
+  
+  // Verify timestamp format (ISO 8601)
+  const timestampMatch = assigneeCall.match(/created:>([^\s]+)/);
+  assert.ok(timestampMatch, 'Query should include timestamp in ISO format');
+  assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampMatch[1]), 'Timestamp should be ISO 8601 format');
+});
+
+test('getRecentItems returns both Issues and PullRequests from assignee search', async () => {
+  const assigneeIssue = {
+    __typename: 'Issue',
+    id: 'issue-assigned-1',
+    number: 100,
+    repository: { nameWithOwner: 'org/repo-a' },
+    author: { login: 'someone' },
+    assignees: { nodes: [{ login: 'octocat' }] },
+    state: 'OPEN',
+    updatedAt: '2024-01-01T00:00:00Z'
+  };
+
+  const assigneePR = {
+    __typename: 'PullRequest',
+    id: 'pr-assigned-1',
+    number: 200,
+    repository: { nameWithOwner: 'org/repo-b' },
+    author: { login: 'someone' },
+    assignees: { nodes: [{ login: 'octocat' }] },
+    state: 'OPEN',
+    updatedAt: '2024-01-01T00:00:00Z'
+  };
+
+  const { overrides } = createOverrides({
+    repoNodes: [],
+    authorNodes: [],
+    assigneeNodes: [assigneeIssue, assigneePR]
+  });
+
+  const items = await getRecentItems('org', [], 'octocat', 1, { overrides });
+
+  assert.equal(items.length, 2, 'Should return both Issue and PullRequest');
+  assert.ok(items.some(item => item.__typename === 'Issue' && item.id === 'issue-assigned-1'), 'Should include assigned Issue');
+  assert.ok(items.some(item => item.__typename === 'PullRequest' && item.id === 'pr-assigned-1'), 'Should include assigned PullRequest');
+});
+
+test('getRecentItems deduplicates items found in multiple searches', async () => {
+  // Same item appears in both repo search and assignee search
+  const duplicateItem = {
+    __typename: 'Issue',
+    id: 'duplicate-item-1',
+    number: 500,
+    repository: { nameWithOwner: 'org/repo1' },
+    author: { login: 'someone' },
+    assignees: { nodes: [{ login: 'octocat' }] },
+    state: 'OPEN',
+    updatedAt: '2024-01-01T00:00:00Z'
+  };
+
+  const { overrides, calls } = createOverrides({
+    repoNodes: [duplicateItem],
+    authorNodes: [],
+    assigneeNodes: [duplicateItem]
+  });
+
+  const items = await getRecentItems('org', ['repo1'], 'octocat', 1, { overrides });
+
+  // Should only appear once despite being in both searches
+  assert.equal(items.length, 1, 'Should deduplicate items found in multiple searches');
+  assert.equal(items[0].id, 'duplicate-item-1', 'Should include the deduplicated item');
+  
+  // Verify all three searches still executed
+  assert.equal(calls.length, 3, 'All three searches should still execute even with duplicates');
+});
+
+test('getRecentItems deduplicates items across all search types', async () => {
+  // Item that could match repo, author, and assignee searches
+  const tripleMatchItem = {
+    __typename: 'PullRequest',
+    id: 'triple-match-1',
+    number: 600,
+    repository: { nameWithOwner: 'org/repo1' },
+    author: { login: 'octocat' },
+    assignees: { nodes: [{ login: 'octocat' }] },
+    state: 'OPEN',
+    updatedAt: '2024-01-01T00:00:00Z'
+  };
+
+  const { overrides } = createOverrides({
+    repoNodes: [tripleMatchItem],
+    authorNodes: [tripleMatchItem],
+    assigneeNodes: [tripleMatchItem]
+  });
+
+  const items = await getRecentItems('org', ['repo1'], 'octocat', 1, { overrides });
+
+  // Should only appear once despite matching all three searches
+  assert.equal(items.length, 1, 'Should deduplicate items found in all searches');
+  assert.equal(items[0].id, 'triple-match-1', 'Should include the deduplicated item');
+});
