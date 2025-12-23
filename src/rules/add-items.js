@@ -94,7 +94,9 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
           type: item.__typename,
           number: item.number,
           repo: item.repository.nameWithOwner,
-          reason: analysis.reason
+          reason: analysis.reason,
+          isAssignedToUser: analysis.isAssignedToUser,
+          isMonitoredRepo: analysis.isMonitoredRepo
         });
         logger.info(`  ⨯ Action Required: Skip - ${analysis.reason}\n`, true);
         continue;
@@ -138,7 +140,9 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
         reason: analysis.reason,
         id: item.id,
         projectItemId: projectItemId,
-        author: item.author  // Pass author info for assignee rules
+        author: item.author,  // Pass author info for assignee rules
+        isAssignedToUser: analysis.isAssignedToUser,
+        isMonitoredRepo: analysis.isMonitoredRepo
       });
 
       logger.info('  ✓ Successfully processed board actions\n', true);
