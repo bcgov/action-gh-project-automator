@@ -232,6 +232,7 @@ test('processAddItems skips assigned issue when board rules do not match', async
   assert.equal(logger.getCounter('board.actions.skipped'), 1);
 });
 
+<<<<<<< HEAD
 test('processAddItems skips adding assigned issue already in project', async () => {
   const logger = createLogger();
 
