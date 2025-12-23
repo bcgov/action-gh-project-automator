@@ -168,3 +168,4 @@ Before marking a spec as complete:
 - `memory/constitution.md` - Project development principles
 - `README.md` - User-facing project documentation
 
+
