@@ -27,8 +27,7 @@ automation:
           description: "Add pull requests assigned to any monitored user"
           trigger:
             type: "PullRequest"
-            condition: "item.assignees.some(assignee =>
-              monitored.users.includes(assignee))"
+            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
           action: "add_to_board"
           skip_if: "item.inProject"
 
@@ -36,8 +35,7 @@ automation:
           description: "Add issues assigned to any monitored user"
           trigger:
             type: "Issue"
-            condition: "item.assignees.some(assignee =>
-              monitored.users.includes(assignee))"
+            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
           action: "add_to_board"
           skip_if: "item.inProject"
 
@@ -138,9 +136,7 @@ automation:
           skip_if: "item.sprint === 'current'"
 
         - name: "waiting_sprint_assignment"
-          description:
-            "Assign current sprint to items in Waiting column (only if no sprint
-            set)"
+          description: "Assign current sprint to items in Waiting column (only if no sprint set)"
           trigger:
             type: ["PullRequest", "Issue"]
             condition: "item.column === 'Waiting'"
@@ -173,8 +169,7 @@ automation:
             type: "LinkedIssue"
             condition: "!item.pr.closed || item.pr.merged"
           action: ["inherit_column", "inherit_assignees"]
-          skip_if: "item.column === item.pr.column && item.assignees ===
-            item.pr.assignees"
+          skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
 
 technical:
   batch_size: 10

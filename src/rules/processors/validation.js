@@ -112,6 +112,14 @@ class RuleValidation {
                 return result;
             }
 
+            // Inactive columns check (New, Parked, Backlog)
+            if (condition.condition === "item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog'" ||
+                condition.condition === "item.column === \"New\" || item.column === \"Parked\" || item.column === \"Backlog\"") {
+                const result = item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog';
+                log.debug(`Column check (inactive): ${item.column} in ['New', 'Parked', 'Backlog'] -> ${result}`);
+                return result;
+            }
+
             // Sprint conditions
             if (condition.condition === "item.sprint === 'current'") {
                 const result = item.sprint === 'current';
@@ -129,7 +137,7 @@ class RuleValidation {
             // Column inheritance conditions
             if (condition.condition === "item.column === item.pr.column && item.assignees === item.pr.assignees") {
                 const result = item.column === item.pr?.column &&
-                              JSON.stringify(item.assignees) === JSON.stringify(item.pr?.assignees);
+                    JSON.stringify(item.assignees) === JSON.stringify(item.pr?.assignees);
                 log.debug(`Column/assignee inheritance check: ${result}`);
                 return result;
             }
@@ -178,6 +186,20 @@ class RuleValidation {
                 skipIf === "item.sprint === \"current\"") {
                 const result = item.sprint === 'current';
                 log.debug(`Skip check (current sprint): ${item.sprint} === 'current' -> ${result}`);
+                return result;
+            }
+
+            // Sprint null check - skip if sprint is not null (has a sprint)
+            if (skipIf === "item.sprint != null") {
+                const result = item.sprint != null;
+                log.debug(`Skip check (sprint not null): ${item.sprint} != null -> ${result}`);
+                return result;
+            }
+
+            // Sprint null check - skip if sprint is null (no sprint)
+            if (skipIf === "item.sprint == null") {
+                const result = item.sprint == null;
+                log.debug(`Skip check (sprint is null): ${item.sprint} == null -> ${result}`);
                 return result;
             }
 
