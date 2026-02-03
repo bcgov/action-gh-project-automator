@@ -71,7 +71,7 @@ async function getSprintIterations(projectId) {
   // Combine active and completed iterations
   const activeIterations = result?.node?.field?.configuration?.iterations || [];
   const completedIterations = result?.node?.field?.configuration?.completedIterations || [];
-  const allIterations = [ ...activeIterations, ...completedIterations ];
+  const allIterations = [...activeIterations, ...completedIterations];
 
   sprintIterationsCache.set(projectId, allIterations);
   return allIterations;
@@ -79,8 +79,8 @@ async function getSprintIterations(projectId) {
 
 
 // Columns eligible for sprint assignment
-const ELIGIBLE_COLUMNS = [ 'Next', 'Active', 'Done', 'Waiting' ];
-const INACTIVE_COLUMNS = [ 'New', 'Parked', 'Backlog' ];
+const ELIGIBLE_COLUMNS = ['Next', 'Active', 'Done', 'Waiting'];
+const INACTIVE_COLUMNS = ['New', 'Parked', 'Backlog'];
 
 /**
  * Get current sprint information for a project item
@@ -265,7 +265,7 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
       const vName = `input${idx}`;
       varDecls.push(`$${vName}: UpdateProjectV2ItemFieldValueInput!`);
       parts.push(`m${idx}: updateProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
-      variables[ vName ] = {
+      variables[vName] = {
         projectId,
         itemId: u.projectItemId,
         fieldId,
@@ -276,7 +276,7 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
     const res = await graphqlClient(mutation, variables);
     // Each alias key (m0, m1, ...) maps to a mutation result
     Object.keys(res || {}).forEach(mutationKey => {
-      if (res[ mutationKey ]?.projectV2Item?.id) success += 1;
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
     });
   }
   return success;
@@ -393,7 +393,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
 
       const iterations = await getSprintIterationsFn(projectId);
       const completionDate = new Date(completedAt);
-      const sortedIterations = [ ...iterations ].sort(
+      const sortedIterations = [...iterations].sort(
         (a, b) => new Date(a.startDate) - new Date(b.startDate)
       );
       const nextSprint = sortedIterations.find(sprint => {
@@ -421,38 +421,12 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
         };
       }
 
-      // No historical sprint and no next sprint - fall back to current sprint
-      try {
-        const { sprintId: currentSprintId, title: currentSprintTitle } = await getCurrentSprintFn(projectId);
-        if (String(currentSprintId) === String(currentSprintId)) {
-          return {
-            action: 'skip',
-            reason: 'No sprint covers completion date and already in current sprint',
-            currentSprintId,
-            currentSprintTitle
-          };
-        }
-
-        return {
-          action: 'assign',
-          reason: `No historical sprint found; assigned to current sprint (${currentSprintTitle})`,
-          targetIterationId: currentSprintId,
-          targetSprintTitle: currentSprintTitle,
-          currentSprintId,
-          currentSprintTitle
-        };
-      } catch (error) {
-        const message = error?.message || '';
-        if (message.includes('No active sprint') || message.includes('field(name: "Sprint")')) {
-          return {
-            action: 'skip',
-            reason: 'No sprint covers completion date and no active sprint configured',
-            currentSprintId,
-            currentSprintTitle
-          };
-        }
-        throw error;
-      }
+      return {
+        action: 'skip',
+        reason: 'No sprint covers completion date and no future sprint available',
+        currentSprintId,
+        currentSprintTitle
+      };
     }
 
     try {
@@ -686,7 +660,7 @@ async function clearItemSprintsBatch(projectId, removals, batchSize = 20, option
       const vName = `input${idx}`;
       varDecls.push(`$${vName}: ClearProjectV2ItemFieldValueInput!`);
       parts.push(`m${idx}: clearProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
-      variables[ vName ] = {
+      variables[vName] = {
         projectId,
         itemId: removal.projectItemId,
         fieldId
@@ -696,7 +670,7 @@ async function clearItemSprintsBatch(projectId, removals, batchSize = 20, option
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     const res = await graphqlClient(mutation, variables);
     Object.keys(res || {}).forEach(mutationKey => {
-      if (res[ mutationKey ]?.projectV2Item?.id) success += 1;
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
     });
   }
 
