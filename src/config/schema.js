@@ -60,6 +60,13 @@ const schema = {
         batch_size: { type: 'integer', minimum: 1 },
         batch_delay_seconds: { type: 'integer', minimum: 0 },
         update_window_hours: { type: 'integer', minimum: 1 },
+        existing_items: {
+          type: 'object',
+          properties: {
+            sweep_enabled: { type: 'boolean' },
+            min_rate_limit_remaining: { type: 'integer', minimum: 0 }
+          }
+        },
         optimization: {
           type: 'object',
           required: [ 'skip_unchanged', 'dedup_by_id' ],

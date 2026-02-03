@@ -47,11 +47,10 @@ The URL resolution feature automatically extracts the organization and project n
 
 ## Files
 
-- `project-board-sync.js`: The main script that runs the automation
+- `src/index.js`: The main entry point that runs the automation
 - `rules.yml`: User-facing configuration template (users provide their own or use this default)
 - `specs/`: Developer-facing feature specifications using [SpecKit framework](https://github.com/github/spec-kit)
 - GitHub Issues: Roadmap and future ideas are tracked in repository Issues
-- `fetch-user-assignments.js`: Utility to find issues and PRs assigned to users
 
 ## Development
 
@@ -69,4 +68,8 @@ For detailed development guidelines, see:
 
 ## Tests
 
-Test scripts are located in the `tests/` directory. See the [tests README](tests/README.md) for more information.
+Test scripts are located in the `test/` directory. Run tests with:
+
+```bash
+npm test
+```
