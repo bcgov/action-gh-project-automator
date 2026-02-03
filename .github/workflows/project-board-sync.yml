@@ -21,7 +21,7 @@ env:
   VERBOSE: true
   CONFIG_FILE: rules.yml
   OVERRIDE_REPOS: nr-nerds
-  ENABLE_EXISTING_SWEEP: "false"
+  ENABLE_EXISTING_SWEEP: "true"
 
 jobs:
   tests:
