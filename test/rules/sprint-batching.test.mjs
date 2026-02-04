@@ -64,6 +64,61 @@ test('determineSprintAction assigns historical sprint for Done items using compl
   assert.equal(decision.reason, 'Assigned to historical sprint (Sprint 5)');
 });
 
+test('determineSprintAction assigns Done item to current sprint when no historical sprint found', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-5',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: null, sprintTitle: null }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => ({ sprintId: 'current-iter', title: 'Current Sprint' })
+  });
+
+  assert.equal(decision.action, 'assign');
+  assert.equal(decision.targetIterationId, 'current-iter');
+  assert.equal(decision.targetSprintTitle, 'Current Sprint');
+  assert.equal(decision.reason, 'No historical sprint found; assigned to current sprint (Current Sprint)');
+});
+
+test('determineSprintAction skips Done item when already in current sprint', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-6',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: 'current-iter', sprintTitle: 'Current Sprint' }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => ({ sprintId: 'current-iter', title: 'Current Sprint' })
+  });
+
+  assert.equal(decision.action, 'skip');
+  assert.equal(decision.reason, 'No historical sprint found; already in current sprint');
+});
+
+test('determineSprintAction skips Done item when no active sprint configured', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-7',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: null, sprintTitle: null }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => {
+      throw new Error('No active sprint');
+    }
+  });
+
+  assert.equal(decision.action, 'skip');
+  assert.equal(decision.reason, 'No historical sprint found and no active sprint configured');
+});
+
 test('setItemSprintsBatch batches GraphQL calls', async () => {
   const graphqlCalls = [];
   const success = await sprints.setItemSprintsBatch(
