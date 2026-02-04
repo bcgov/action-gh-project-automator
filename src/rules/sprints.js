@@ -3,6 +3,7 @@ import { log } from '../utils/log.js';
 // Cache Sprint field ID and iterations per project during a run
 const sprintFieldIdCache = new Map(); // projectId -> fieldId
 const sprintIterationsCache = new Map(); // projectId -> iterations array
+const currentSprintCache = new Map(); // projectId -> { sprintId, title, timestamp }
 
 /**
  * Compute sprint window [start, end) given startDate ISO and duration (days)
@@ -136,6 +137,17 @@ async function getItemSprint(projectId, itemId) {
  * @returns {Promise<{sprintId: string, title: string}>}
  */
 async function getCurrentSprint(projectId) {
+  // Check cache first
+  if (currentSprintCache.has(projectId)) {
+    const cached = currentSprintCache.get(projectId);
+    const now = Date.now();
+    // Cache is valid for 60 seconds
+    if (now - cached.timestamp < 60000) {
+      log.debug(`Using cached current sprint: ${cached.title}`);
+      return { sprintId: cached.sprintId, title: cached.title };
+    }
+  }
+
   const today = new Date().toISOString();
   log.info('Getting current sprint:');
   log.info(`  • Current date: ${today}`);
@@ -156,10 +168,16 @@ async function getCurrentSprint(projectId) {
   }
 
   log.info(`  • Current sprint: ${currentSprint.title} (${currentSprint.id})`);
-  return {
-    sprintId: currentSprint.id,
-    title: currentSprint.title
-  };
+  const result = { sprintId: currentSprint.id, title: currentSprint.title };
+
+  // Cache the result
+  currentSprintCache.set(projectId, {
+    sprintId: result.sprintId,
+    title: result.title,
+    timestamp: Date.now()
+  });
+
+  return result;
 }
 
 /**

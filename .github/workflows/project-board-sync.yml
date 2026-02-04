@@ -3,7 +3,7 @@ name: GH Project Board Sync
 on:
   pull_request:
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "0 10 * * *" # daily at 02:00 PT / 10:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -21,7 +21,7 @@ env:
   VERBOSE: true
   CONFIG_FILE: rules.yml
   OVERRIDE_REPOS: nr-nerds
-  ENABLE_EXISTING_SWEEP: "true"
+  SWEEP_RATE_LIMIT_MIN: "350"
 
 jobs:
   tests:
@@ -81,5 +81,4 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
-          ENABLE_EXISTING_SWEEP: ${{ env.ENABLE_EXISTING_SWEEP }}
         run: npm run start
