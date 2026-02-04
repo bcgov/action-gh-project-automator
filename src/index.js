@@ -239,6 +239,9 @@ async function main() {
       log.info('DRY_RUN enabled – mutations will be skipped.');
     }
 
+    // Use seed-only mode when we have event items (process webhook payload only)
+    // When no event items, search for items using getRecentItems
+    const seedOnlyMode = eventItems.length > 0;
 
     const { addedItems, skippedItems } = await processAddItems({
       org: context.org,
@@ -247,7 +250,7 @@ async function main() {
       projectId: context.projectId,
       windowHours,
       seedItems: eventItems,
-      seedOnlyMode: true
+      seedOnlyMode
     });
 
     // Process additional rules for added items
