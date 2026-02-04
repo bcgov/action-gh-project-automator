@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "hours=3" >> "$GITHUB_OUTPUT"
+            echo "hours=1" >> "$GITHUB_OUTPUT"
           else
             echo "hours=24" >> "$GITHUB_OUTPUT"
           fi
