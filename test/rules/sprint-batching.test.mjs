@@ -64,6 +64,61 @@ test('determineSprintAction assigns historical sprint for Done items using compl
   assert.equal(decision.reason, 'Assigned to historical sprint (Sprint 5)');
 });
 
+test('determineSprintAction assigns Done item to current sprint when no historical sprint found', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-5',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: null, sprintTitle: null }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => ({ sprintId: 'current-iter', title: 'Current Sprint' })
+  });
+
+  assert.equal(decision.action, 'assign');
+  assert.equal(decision.targetIterationId, 'current-iter');
+  assert.equal(decision.targetSprintTitle, 'Current Sprint');
+  assert.equal(decision.reason, 'No historical sprint found; assigned to current sprint (Current Sprint)');
+});
+
+test('determineSprintAction skips Done item when already in current sprint', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-6',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: 'current-iter', sprintTitle: 'Current Sprint' }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => ({ sprintId: 'current-iter', title: 'Current Sprint' })
+  });
+
+  assert.equal(decision.action, 'skip');
+  assert.equal(decision.reason, 'No historical sprint found; already in current sprint');
+});
+
+test('determineSprintAction skips Done item when no active sprint configured', async () => {
+  const decision = await sprints.determineSprintAction({
+    projectId: 'proj',
+    projectItemId: 'item-7',
+    currentColumn: 'Done'
+  }, {
+    getItemSprint: async () => ({ sprintId: null, sprintTitle: null }),
+    getItemCompletionDate: async () => '2024-01-10T12:00:00Z',
+    findSprintForDate: async () => null,
+    getSprintIterations: async () => [],
+    getCurrentSprint: async () => {
+      throw new Error('No active sprint');
+    }
+  });
+
+  assert.equal(decision.action, 'skip');
+  assert.equal(decision.reason, 'No historical sprint found and no active sprint configured');
+});
+
 test('setItemSprintsBatch batches GraphQL calls', async () => {
   const graphqlCalls = [];
   const success = await sprints.setItemSprintsBatch(
@@ -86,8 +141,8 @@ test('setItemSprintsBatch batches GraphQL calls', async () => {
 
   assert.equal(success, 2);
   assert.equal(graphqlCalls.length, 2);
-  assert.match(graphqlCalls[0].mutation, /UpdateProjectV2ItemFieldValueInput/);
-  assert.deepEqual(graphqlCalls[0].variables.input0, {
+  assert.match(graphqlCalls[ 0 ].mutation, /UpdateProjectV2ItemFieldValueInput/);
+  assert.deepEqual(graphqlCalls[ 0 ].variables.input0, {
     projectId: 'proj',
     itemId: 'item-1',
     fieldId: 'field-1',
@@ -118,8 +173,8 @@ test('clearItemSprintsBatch batches clear mutations', async () => {
 
   assert.equal(success, 2);
   assert.equal(graphqlCalls.length, 1);
-  assert.match(graphqlCalls[0].mutation, /ClearProjectV2ItemFieldValueInput/);
-  assert.deepEqual(graphqlCalls[0].variables.input0, {
+  assert.match(graphqlCalls[ 0 ].mutation, /ClearProjectV2ItemFieldValueInput/);
+  assert.deepEqual(graphqlCalls[ 0 ].variables.input0, {
     projectId: 'proj',
     itemId: 'item-1',
     fieldId: 'field-2'
@@ -128,7 +183,7 @@ test('clearItemSprintsBatch batches clear mutations', async () => {
 
 test('setItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
   const logger = new Logger();
-  logger.info = () => {};
+  logger.info = () => { };
   let called = false;
 
   const success = await sprints.setItemSprintsBatch(
@@ -154,7 +209,7 @@ test('setItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
 
 test('clearItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
   const logger = new Logger();
-  logger.info = () => {};
+  logger.info = () => { };
   let called = false;
 
   const success = await sprints.clearItemSprintsBatch(
