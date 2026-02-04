@@ -141,8 +141,8 @@ test('setItemSprintsBatch batches GraphQL calls', async () => {
 
   assert.equal(success, 2);
   assert.equal(graphqlCalls.length, 2);
-  assert.match(graphqlCalls[ 0 ].mutation, /UpdateProjectV2ItemFieldValueInput/);
-  assert.deepEqual(graphqlCalls[ 0 ].variables.input0, {
+  assert.match(graphqlCalls[0].mutation, /UpdateProjectV2ItemFieldValueInput/);
+  assert.deepEqual(graphqlCalls[0].variables.input0, {
     projectId: 'proj',
     itemId: 'item-1',
     fieldId: 'field-1',
@@ -173,8 +173,8 @@ test('clearItemSprintsBatch batches clear mutations', async () => {
 
   assert.equal(success, 2);
   assert.equal(graphqlCalls.length, 1);
-  assert.match(graphqlCalls[ 0 ].mutation, /ClearProjectV2ItemFieldValueInput/);
-  assert.deepEqual(graphqlCalls[ 0 ].variables.input0, {
+  assert.match(graphqlCalls[0].mutation, /ClearProjectV2ItemFieldValueInput/);
+  assert.deepEqual(graphqlCalls[0].variables.input0, {
     projectId: 'proj',
     itemId: 'item-1',
     fieldId: 'field-2'
@@ -183,7 +183,7 @@ test('clearItemSprintsBatch batches clear mutations', async () => {
 
 test('setItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
   const logger = new Logger();
-  logger.info = () => { };
+  logger.info = () => {};
   let called = false;
 
   const success = await sprints.setItemSprintsBatch(
@@ -209,7 +209,7 @@ test('setItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
 
 test('clearItemSprintsBatch skips GraphQL when dryRun enabled', async () => {
   const logger = new Logger();
-  logger.info = () => { };
+  logger.info = () => {};
   let called = false;
 
   const success = await sprints.clearItemSprintsBatch(
