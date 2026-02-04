@@ -21,7 +21,6 @@ env:
   VERBOSE: true
   CONFIG_FILE: rules.yml
   OVERRIDE_REPOS: nr-nerds
-  ENABLE_EXISTING_SWEEP: "true"
   SWEEP_RATE_LIMIT_MIN: "350"
 
 jobs:
@@ -82,5 +81,4 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
-          ENABLE_EXISTING_SWEEP: ${{ env.ENABLE_EXISTING_SWEEP }}
         run: npm run start

@@ -12,17 +12,6 @@ function createLogger() {
   return logger;
 }
 
-test('existing items sweep is skipped when disabled', async () => {
-  const logger = createLogger();
-  const result = await processExistingItemsSprintAssignments('project-id', {
-    enabled: false,
-    logger
-  });
-
-  assert.deepEqual(result, { skipped: true, reason: 'disabled' });
-  assert.equal(logger.getCounter('existing.sweep.disabled'), 1);
-});
-
 test('existing items sweep is skipped when rate limit is low', async () => {
   const logger = createLogger();
   const futureDate = new Date(Date.now() + 3600000).toISOString();
@@ -40,7 +29,6 @@ test('existing items sweep is skipped when rate limit is low', async () => {
   };
 
   const result = await processExistingItemsSprintAssignments('project-id', {
-    enabled: true,
     logger,
     rateLimitFn,
     getProjectItemsFn
@@ -70,7 +58,6 @@ test('existing items sweep passes rate guard settings to getProjectItems', async
   };
 
   const result = await processExistingItemsSprintAssignments('project-id', {
-    enabled: true,
     minRateLimitRemaining: 275,
     logger,
     rateLimitFn,
@@ -81,4 +68,3 @@ test('existing items sweep passes rate guard settings to getProjectItems', async
   assert.equal(result.processedCount, 0);
   assert.equal(logger.getCounter('existing.sweep.completed'), 1);
 });
-

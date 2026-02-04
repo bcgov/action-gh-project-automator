@@ -205,8 +205,6 @@ async function main() {
     const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
     const existingItemConfig = boardConfig?.technical?.existing_items ?? {};
-    const envSweep = process.env.ENABLE_EXISTING_SWEEP;
-    const sweepEnabled = envSweep === 'true' || (envSweep === undefined && existingItemConfig.sweep_enabled !== false);
     const parsedMinRate = parseInt(process.env.SWEEP_RATE_LIMIT_MIN ?? '', 10);
     const minRateLimitRemaining = Number.isFinite(parsedMinRate)
       ? parsedMinRate
@@ -228,7 +226,6 @@ async function main() {
       strictMode: envConfig.strictMode,
       dryRun: process.env.DRY_RUN === 'true',
       sweep: {
-        enabled: sweepEnabled,
         minRateLimitRemaining
       }
     };
@@ -298,9 +295,9 @@ async function main() {
 
         // Process sprint assignment or removal based on column
         const currentColumn = columnResult.newStatus || columnResult.currentStatus;
-        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
-        const inactiveColumns = ['New', 'Parked', 'Backlog'];
-        
+        const eligibleColumns = [ 'Next', 'Active', 'Done', 'Waiting' ];
+        const inactiveColumns = [ 'New', 'Parked', 'Backlog' ];
+
         let sprintResult = null;
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
@@ -376,10 +373,9 @@ async function main() {
       }
     }
 
-    // NEW: Process sprint assignments for existing items on the board
+    // Process sprint assignments for existing items on the board
     const sweepResult = await processExistingItemsSprintAssignments(context.projectId, {
       dryRun: context.dryRun,
-      enabled: context.sweep.enabled,
       minRateLimitRemaining: context.sweep.minRateLimitRemaining,
       logger: log
     });
@@ -388,9 +384,6 @@ async function main() {
       switch (sweepResult.reason) {
         case 'rate_limit':
           reasonLabel = 'rate limit guard';
-          break;
-        case 'disabled':
-          reasonLabel = 'configuration (disabled)';
           break;
         default:
           reasonLabel = `unknown reason: ${sweepResult.reason}`;
@@ -463,19 +456,11 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
   try {
     const {
       dryRun = false,
-      enabled = true,
       minRateLimitRemaining = 200,
       logger = log,
       rateLimitFn = shouldProceed,
       getProjectItemsFn = getProjectItems
     } = options;
-
-    if (!enabled) {
-      logger.info('Skipping sprint assignments for existing items (disabled by configuration).');
-      logger.incrementCounter('existing.sweep.disabled');
-      await reportSweepSummary(logger, 'Skipped (disabled)', 'ENABLE_EXISTING_SWEEP or config disabled the sweep.');
-      return { skipped: true, reason: 'disabled' };
-    }
 
     const rateStatus = await rateLimitFn(minRateLimitRemaining);
     if (!rateStatus.proceed) {
@@ -509,7 +494,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
     const sprintRemovals = [];
 
     // Process each existing item
-    for (const [itemNodeId, projectItemId] of projectItems) {
+    for (const [ itemNodeId, projectItemId ] of projectItems) {
       try {
         // Get item details including current column
         const itemDetails = await getItemDetails(projectItemId);
@@ -521,9 +506,9 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
         const currentColumn = await getItemColumn(projectId, projectItemId);
 
         // Process sprint assignment or removal based on column
-        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
-        const inactiveColumns = ['New', 'Parked', 'Backlog'];
-        
+        const eligibleColumns = [ 'Next', 'Active', 'Done', 'Waiting' ];
+        const inactiveColumns = [ 'New', 'Parked', 'Backlog' ];
+
         if (eligibleColumns.includes(currentColumn) || inactiveColumns.includes(currentColumn)) {
           const decision = await determineSprintAction({
             projectId,
@@ -607,7 +592,7 @@ async function processExistingItemsSprintAssignments(projectId, options = {}) {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[ 1 ]}`) {
   main().catch(err => {
     log.error('Unhandled error:', err);
     process.exit(1);
