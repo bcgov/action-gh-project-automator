@@ -3,7 +3,7 @@ name: GH Project Board Sync
 on:
   pull_request:
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "0 10 * * *" # daily at 02:00 PT / 10:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -22,6 +22,7 @@ env:
   CONFIG_FILE: rules.yml
   OVERRIDE_REPOS: nr-nerds
   ENABLE_EXISTING_SWEEP: "true"
+  SWEEP_RATE_LIMIT_MIN: "350"
 
 jobs:
   tests:
