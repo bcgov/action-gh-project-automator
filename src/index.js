@@ -43,7 +43,7 @@
  */
 
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { Logger, SWEEP_RATE_LIMIT_WARNING, SWEEP_RATE_LIMIT_GUIDANCE } from './utils/log.js';
+import { Logger } from './utils/log.js';
 const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
 import { processAddItems } from './rules/add-items.js';
@@ -61,27 +61,7 @@ import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
-import { shouldProceed, formatRateLimitInfo } from './utils/rate-limit.js';
-import { appendFile } from 'node:fs/promises';
 
-async function reportSweepSummary(logger, status, details) {
-  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-  if (!summaryPath) {
-    return;
-  }
-  const lines = [
-    '### Existing Item Sweep',
-    `- Status: ${status}`,
-    `- Details: ${details}`,
-    ''
-  ].join('\n');
-
-  try {
-    await appendFile(summaryPath, `${lines}\n`);
-  } catch (error) {
-    logger.debug(`Failed to write sweep summary: ${error.message}`);
-  }
-}
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -204,11 +184,7 @@ async function main() {
     // Load board rules configuration
     const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
-    const existingItemConfig = boardConfig?.technical?.existing_items ?? {};
-    const parsedMinRate = parseInt(process.env.SWEEP_RATE_LIMIT_MIN ?? '', 10);
-    const minRateLimitRemaining = Number.isFinite(parsedMinRate)
-      ? parsedMinRate
-      : existingItemConfig.min_rate_limit_remaining ?? 200;
+
 
     // Initialize transition rules for state validation
     // StateVerifier is already imported at the top
@@ -224,10 +200,7 @@ async function main() {
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
       strictMode: envConfig.strictMode,
-      dryRun: process.env.DRY_RUN === 'true',
-      sweep: {
-        minRateLimitRemaining
-      }
+      dryRun: process.env.DRY_RUN === 'true'
     };
 
     log.info('Starting Project Board Sync...');
@@ -265,7 +238,7 @@ async function main() {
     if (context.dryRun) {
       log.info('DRY_RUN enabled – mutations will be skipped.');
     }
-    log.info(`Existing item sweep: enabled=${context.sweep.enabled}, minRateLimitRemaining=${context.sweep.minRateLimitRemaining}`);
+
 
     const { addedItems, skippedItems } = await processAddItems({
       org: context.org,
@@ -274,7 +247,7 @@ async function main() {
       projectId: context.projectId,
       windowHours,
       seedItems: eventItems,
-      seedOnlyMode: !context.sweep.enabled
+      seedOnlyMode: true
     });
 
     // Process additional rules for added items
@@ -373,24 +346,7 @@ async function main() {
       }
     }
 
-    // Process sprint assignments for existing items on the board
-    const sweepResult = await processExistingItemsSprintAssignments(context.projectId, {
-      dryRun: context.dryRun,
-      minRateLimitRemaining: context.sweep.minRateLimitRemaining,
-      logger: log
-    });
-    if (sweepResult?.skipped) {
-      let reasonLabel;
-      switch (sweepResult.reason) {
-        case 'rate_limit':
-          reasonLabel = 'rate limit guard';
-          break;
-        default:
-          reasonLabel = `unknown reason: ${sweepResult.reason}`;
-          log.warning(`Existing item sweep skipped for unexpected reason: ${sweepResult.reason}`);
-      }
-      log.info(`Existing item sweep skipped (${reasonLabel}).`);
-    }
+
 
     // Print final status and handle errors
     const endTime = new Date();
@@ -448,149 +404,6 @@ async function main() {
   }
 }
 
-/**
- * Process sprint assignments for existing items on the project board
- * This fixes Issue #135: existing project items not getting sprint updates
- */
-async function processExistingItemsSprintAssignments(projectId, options = {}) {
-  try {
-    const {
-      dryRun = false,
-      minRateLimitRemaining = 200,
-      logger = log,
-      rateLimitFn = shouldProceed,
-      getProjectItemsFn = getProjectItems
-    } = options;
-
-    const rateStatus = await rateLimitFn(minRateLimitRemaining);
-    if (!rateStatus.proceed) {
-      const remainingInfo = formatRateLimitInfo(rateStatus);
-      const warningMessage = `${SWEEP_RATE_LIMIT_WARNING}${remainingInfo}. ${SWEEP_RATE_LIMIT_GUIDANCE}`;
-      logger.warning(warningMessage);
-      logger.incrementCounter('existing.sweep.rate_limited');
-      await reportSweepSummary(logger, 'Skipped (rate limit)', warningMessage);
-      return {
-        skipped: true,
-        reason: 'rate_limit',
-        remaining: rateStatus.remaining,
-        resetAt: rateStatus.resetAt
-      };
-    }
-
-    logger.info('Processing sprint assignments for existing project items...');
-
-    // Get all items currently on the project board
-    const projectItems = await getProjectItemsFn(projectId, {
-      minRemaining: minRateLimitRemaining,
-      logger
-    });
-    logger.info(`Found ${projectItems.size} total items on project board (not all will be processed)`);
-
-    let processedCount = 0;
-    let assignmentQueued = 0;
-    let removalQueued = 0;
-
-    const sprintAssignments = [];
-    const sprintRemovals = [];
-
-    // Process each existing item
-    for (const [ itemNodeId, projectItemId ] of projectItems) {
-      try {
-        // Get item details including current column
-        const itemDetails = await getItemDetails(projectItemId);
-        if (!itemDetails || !itemDetails.content) {
-          continue;
-        }
-
-        const { content, type } = itemDetails;
-        const currentColumn = await getItemColumn(projectId, projectItemId);
-
-        // Process sprint assignment or removal based on column
-        const eligibleColumns = [ 'Next', 'Active', 'Done', 'Waiting' ];
-        const inactiveColumns = [ 'New', 'Parked', 'Backlog' ];
-
-        if (eligibleColumns.includes(currentColumn) || inactiveColumns.includes(currentColumn)) {
-          const decision = await determineSprintAction({
-            projectId,
-            projectItemId,
-            currentColumn
-          });
-
-          if (decision.action === 'assign' && decision.targetIterationId) {
-            sprintAssignments.push({
-              projectItemId,
-              iterationId: decision.targetIterationId
-            });
-            assignmentQueued++;
-            logger.incrementCounter('existing.assignments.queued');
-            logger.debug(`Queued sprint update for ${type} #${content.number} -> ${decision.targetSprintTitle || decision.targetIterationId}`);
-          } else if (decision.action === 'remove') {
-            sprintRemovals.push({ projectItemId });
-            removalQueued++;
-            logger.incrementCounter('existing.removals.queued');
-            logger.debug(`Queued sprint removal for ${type} #${content.number}`);
-          } else {
-            logger.debug(`Skipped sprint change for ${type} #${content.number}: ${decision.reason}`);
-          }
-        }
-        processedCount++;
-        logger.incrementCounter('existing.items.processed');
-
-      } catch (error) {
-        logger.error(`Failed to process sprint for existing item ${itemNodeId}: ${error.message}`);
-      }
-    }
-
-    if (dryRun) {
-      logger.info('[DRY_RUN] Skipping sprint mutation batches; reporting queued counts only.');
-    }
-
-    let assignmentSuccess = 0;
-    if (sprintAssignments.length > 0) {
-      logger.info(`Applying batched sprint updates to ${sprintAssignments.length} existing items...`);
-      assignmentSuccess = await setItemSprintsBatch(projectId, sprintAssignments, undefined, { dryRun, logger });
-      if (!dryRun) {
-        logger.incrementCounter('existing.assignments.applied', assignmentSuccess);
-      }
-    }
-
-    let removalSuccess = 0;
-    if (sprintRemovals.length > 0) {
-      logger.info(`Clearing sprint field for ${sprintRemovals.length} existing items (batched)...`);
-      removalSuccess = await clearItemSprintsBatch(projectId, sprintRemovals, undefined, { dryRun, logger });
-      if (!dryRun) {
-        logger.incrementCounter('existing.removals.applied', removalSuccess);
-      }
-    }
-
-    const updatedCount = assignmentSuccess + removalSuccess;
-
-    const completionMessage = `Processed ${processedCount} existing items. Queued: ${assignmentQueued} assignments, ${removalQueued} removals. Successfully updated: ${dryRun ? 0 : updatedCount} items.`;
-    logger.info(completionMessage);
-    logger.incrementCounter('existing.sweep.completed');
-    await reportSweepSummary(logger, dryRun ? 'Completed (dry run)' : 'Completed', completionMessage);
-    return {
-      skipped: false,
-      processedCount,
-      assignmentQueued,
-      removalQueued,
-      assignmentsApplied: dryRun ? 0 : assignmentSuccess,
-      removalsApplied: dryRun ? 0 : removalSuccess
-    };
-
-  } catch (error) {
-    // Handle rate limits as temporary failures
-    if (error.message && error.message.includes('rate limit')) {
-      logger.error('GitHub rate limit exceeded during existing items processing. This is a temporary failure.');
-      logger.error(`Rate limit error: ${error.message}`);
-      throw error; // Re-throw to fail the workflow
-    }
-
-    logger.error(`Failed to process existing items sprint assignments: ${error.message}`);
-    throw error;
-  }
-}
-
 // Run if called directly
 if (import.meta.url === `file://${process.argv[ 1 ]}`) {
   main().catch(err => {
@@ -599,4 +412,4 @@ if (import.meta.url === `file://${process.argv[ 1 ]}`) {
   });
 }
 
-export { main, validateEnvironment, ItemNotAddedError, CriticalError, classifyError, processExistingItemsSprintAssignments };
+export { main, validateEnvironment, ItemNotAddedError, CriticalError, classifyError };
