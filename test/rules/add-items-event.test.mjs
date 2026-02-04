@@ -12,50 +12,49 @@ const seedPullRequest = {
   assignees: { nodes: [] }
 };
 
-test('processAddItems uses seed items when provided', async () => {
+test('processAddItems always searches via API regardless of seedItems', async () => {
   const calls = [];
   const { addedItems, skippedItems } = await processAddItems(
     {
       org: 'org',
-      repos: ['repo'],
+      repos: [ 'repo' ],
       monitoredUser: 'octocat',
       projectId: 'proj',
       windowHours: 1,
-      seedItems: [seedPullRequest]
+      seedItems: [ seedPullRequest ]
     },
     {
       getRecentItemsFn: async () => {
         calls.push('getRecentItems');
-        return [];
+        return [ seedPullRequest ];
       },
-      processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
+      processBoardItemRulesFn: async () => [ { action: 'add_to_board', params: {} } ],
       isItemInProjectFn: async () => ({ isInProject: false }),
       addItemToProjectFn: async () => 'PROJECT_ITEM_ID',
-      delayFn: async () => {}
+      delayFn: async () => { }
     }
   );
 
-  assert.equal(calls.length, 0, 'getRecentItems should not be called when seedItems provided');
+  assert.equal(calls.length, 1, 'getRecentItems should always be called');
   assert.equal(addedItems.length, 1);
   assert.equal(skippedItems.length, 0);
-  assert.equal(addedItems[0].number, 101);
+  assert.equal(addedItems[ 0 ].number, 101);
 });
 
-test('processAddItems skips repository search when seed-only mode enabled without payload items', async () => {
+test('processAddItems always searches for items via API', async () => {
   let getRecentItemsCalled = false;
   const logger = new Logger();
-  logger.info = () => {};
-  logger.warning = () => {};
+  logger.info = () => { };
+  logger.warning = () => { };
 
   const { addedItems, skippedItems } = await processAddItems(
     {
       org: 'org',
-      repos: ['repo'],
+      repos: [ 'repo' ],
       monitoredUser: 'octocat',
       projectId: 'proj',
       windowHours: 1,
-      seedItems: [],
-      seedOnlyMode: true
+      seedItems: []
     },
     {
       getRecentItemsFn: async () => {
@@ -66,9 +65,8 @@ test('processAddItems skips repository search when seed-only mode enabled withou
     }
   );
 
-  assert.equal(getRecentItemsCalled, false, 'getRecentItems should not be called in seed-only mode');
+  assert.equal(getRecentItemsCalled, true, 'getRecentItems should always be called');
   assert.equal(addedItems.length, 0);
   assert.equal(skippedItems.length, 0);
-  assert.equal(logger.getCounter('board.seed.skipped'), 1);
 });
 
