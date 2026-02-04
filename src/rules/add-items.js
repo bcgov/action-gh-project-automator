@@ -16,7 +16,7 @@ import { analyzeBoardItem } from './helpers/board-items-evaluator.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], seedOnlyMode = false }, overrides = {}) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [] }, overrides = {}) {
   const {
     getRecentItemsFn = getRecentItems,
     processBoardItemRulesFn = processBoardItemRules,
@@ -28,19 +28,10 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   } = overrides;
 
   logger.info(`Starting item processing for user ${monitoredUser}`);
-  const hasSeedItems = Array.isArray(seedItems) && seedItems.length > 0;
-  let items = hasSeedItems ? seedItems : null;
-  if (hasSeedItems) {
-    logger.info(`Using ${items.length} item(s) from event payload\n`, true);
-  } else {
-    if (seedOnlyMode) {
-      logger.info('Seed-only mode enabled: no event payload items found, skipping repository search.');
-      logger.incrementCounter('board.seed.skipped');
-      return { addedItems: [], skippedItems: [] };
-    }
-    items = await getRecentItemsFn(org, repos, monitoredUser, windowHours);
-    logger.info(`Found ${items.length} items to process\n`, true);
-  }
+
+  // Always search for items via GitHub API based on configured rules
+  const items = await getRecentItemsFn(org, repos, monitoredUser, windowHours);
+  logger.info(`Found ${items.length} items to process\n`, true);
 
   const addedItems = [];
   const skippedItems = [];
@@ -61,7 +52,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
           if (!item.repository?.nameWithOwner) missingFields.push('repository.nameWithOwner');
           if (typeof item.number !== 'number') missingFields.push('number');
         }
-        
+
         logger.warning(`Skipping item with incomplete data from search results. Missing: ${missingFields.join(', ')}`);
         logger.incrementCounter('board.actions.skipped');
         continue;
@@ -151,7 +142,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
       logger.error(`Failed to process ${itemIdentifier}: ${error.message}`);
       logger.incrementCounter('board.actions.failed');
-      
+
       if (error.stack) {
         logger.debug(`Error details: ${error.stack}`);
       }
@@ -159,33 +150,33 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       // Classify errors for better handling
       const errorMessage = error.message || '';
       const errorCode = error.code || '';
-      
+
       // Critical errors that should stop processing
       // Check both error codes and messages for reliability
-      const isAuthError = errorMessage.includes('Bad credentials') || 
-                          errorMessage.includes('Not authenticated');
-      const isRateLimitError = errorMessage.includes('rate limit') || 
-                               errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
-      
+      const isAuthError = errorMessage.includes('Bad credentials') ||
+        errorMessage.includes('Not authenticated');
+      const isRateLimitError = errorMessage.includes('rate limit') ||
+        errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
+
       if (isAuthError || isRateLimitError) {
         const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
         apiError.cause = error;
         throw apiError;
       }
-      
+
       // Network/timeout errors - log but continue
       // Prefer error codes for network errors, fallback to message matching
-      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const networkErrorCodes = [ 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED' ];
       const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                             errorMessage.includes('timeout') ||
-                             errorMessage.includes('ECONNRESET') ||
-                             errorMessage.includes('ENOTFOUND');
-      
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ENOTFOUND');
+
       if (isNetworkError) {
         logger.warning(`Network error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
         continue;
       }
-      
+
       // Other errors - log but continue processing
       logger.warning(`Error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
     }

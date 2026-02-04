@@ -45,7 +45,7 @@ test('processAddItems adds monitored PR to board and increments counters', async
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_1',
     processBoardItemRulesFn: async () => [
@@ -62,7 +62,7 @@ test('processAddItems adds monitored PR to board and increments counters', async
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 1);
@@ -82,7 +82,7 @@ test('processAddItems skips items when board rules do not match', async () => {
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     processBoardItemRulesFn: async () => [],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
@@ -95,7 +95,7 @@ test('processAddItems skips items when board rules do not match', async () => {
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 0);
@@ -121,7 +121,7 @@ test('processAddItems adds issue assigned to monitored user to board', async () 
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_2',
     processBoardItemRulesFn: async () => [
@@ -138,7 +138,7 @@ test('processAddItems adds issue assigned to monitored user to board', async () 
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 1);
@@ -167,7 +167,7 @@ test('processAddItems prioritizes issue assignment over monitored repo', async (
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_3',
     processBoardItemRulesFn: async () => [
@@ -184,7 +184,7 @@ test('processAddItems prioritizes issue assignment over monitored repo', async (
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 1);
@@ -205,7 +205,7 @@ test('processAddItems skips assigned issue when board rules do not match', async
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     processBoardItemRulesFn: async () => [], // No matching rules
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
@@ -218,7 +218,7 @@ test('processAddItems skips assigned issue when board rules do not match', async
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 0);
@@ -243,7 +243,7 @@ test('processAddItems skips adding assigned issue already in project', async () 
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: true, projectItemId: 'EXISTING_ITEM_ID' }),
     processBoardItemRulesFn: async () => [
       { action: 'add_to_board', params: {} }
@@ -259,7 +259,7 @@ test('processAddItems skips adding assigned issue already in project', async () 
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   // Item should be added to addedItems (with existing projectItemId) but add_to_board action should be skipped
@@ -288,7 +288,7 @@ test('processAddItems includes flags for PR assigned to monitored user', async (
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_4',
     processBoardItemRulesFn: async () => [
@@ -305,7 +305,7 @@ test('processAddItems includes flags for PR assigned to monitored user', async (
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 1);
@@ -325,7 +325,7 @@ test('processAddItems includes flags for issue in monitored repo when skipped', 
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     processBoardItemRulesFn: async () => [], // No matching rules
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
@@ -338,7 +338,7 @@ test('processAddItems includes flags for issue in monitored repo when skipped', 
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 0);
@@ -359,7 +359,7 @@ test('processAddItems includes flags for added issue in monitored repo', async (
   ];
 
   const overrides = {
-    getRecentItemsFn: async () => [],
+    getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_5',
     processBoardItemRulesFn: async () => [
@@ -376,7 +376,7 @@ test('processAddItems includes flags for added issue in monitored repo', async (
     monitoredUser: 'octocat',
     projectId: 'PROJECT_ID',
     windowHours: 1,
-    seedItems
+    seedItems: []
   }, overrides);
 
   assert.equal(result.addedItems.length, 1);
