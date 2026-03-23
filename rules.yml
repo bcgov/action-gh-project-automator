@@ -60,6 +60,7 @@ automation:
     # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
       - bcgov/action-builder-ghcr
+      - bcgov/action-gh-project-automator
       - bcgov/nr-nerds
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
