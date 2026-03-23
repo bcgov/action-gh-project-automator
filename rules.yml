@@ -59,16 +59,7 @@ automation:
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
       - bcgov/quickstart-openshift-helpers
-      - bcgov-c/action-builder-ghcr
-      - bcgov-c/nr-nerds
-      - bcgov-c/quickstart-openshift
-      - bcgov-c/quickstart-openshift-backends
-      - bcgov-c/quickstart-openshift-helpers
-      - bcgov-nr/action-builder-ghcr
-      - bcgov-nr/nr-nerds
-      - bcgov-nr/quickstart-openshift
-      - bcgov-nr/quickstart-openshift-backends
-      - bcgov-nr/quickstart-openshift-helpers
+      - bcgov-c/nr-mof-db
 
     rules:
       # Board addition rules
