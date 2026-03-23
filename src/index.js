@@ -181,8 +181,8 @@ async function main() {
     // Validate environment and get configuration
     const envConfig = await validateEnvironment();
 
-    // Load board rules configuration
-    const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
+     // Load board rules configuration
+     const boardConfig = await loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
 
 
@@ -190,18 +190,23 @@ async function main() {
     // StateVerifier is already imported at the top
     StateVerifier.initializeTransitionRules(boardConfig);
 
-    // Initialize context with validated environment config
-    const context = {
-      org: 'bcgov',
-      repos: process.env.OVERRIDE_REPOS
-        ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
-        : boardConfig.project?.repositories || [],
-      monitoredUser: process.env.GITHUB_AUTHOR,
-      projectId: envConfig.projectId,
-      verbose: envConfig.verbose,
-      strictMode: envConfig.strictMode,
-      dryRun: process.env.DRY_RUN === 'true'
-    };
+     // Initialize context with validated environment config
+     // Determine organization from the first monitored repository or use default
+     let org = 'bcgov'; // Default fallback
+     if (boardConfig.project?.organization) {
+       org = boardConfig.project.organization;
+     }
+     const context = {
+       org,
+       repos: process.env.OVERRIDE_REPOS
+         ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
+         : boardConfig.project?.repositories || [],
+       monitoredUser: process.env.GITHUB_AUTHOR,
+       projectId: envConfig.projectId,
+       verbose: envConfig.verbose,
+       strictMode: envConfig.strictMode,
+       dryRun: process.env.DRY_RUN === 'true'
+     };
 
     log.info('Starting Project Board Sync...');
     log.info(`User: ${context.monitoredUser}`);

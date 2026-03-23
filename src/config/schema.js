@@ -40,17 +40,17 @@ const schema = {
           }
         },
         repository_scope: {
-          type: 'object',
-          required: [ 'organization', 'repositories', 'rules' ],
-          properties: {
-            organization: { type: 'string' },
-            repositories: {
-              type: 'array',
-              items: { type: 'string' }
-            },
-            rules: { $ref: '#/definitions/ruleGroups' }
-          }
-        }
+           type: 'object',
+           required: [ 'repositories', 'rules' ],
+           properties: {
+             organization: { type: 'string' },
+             repositories: {
+               type: 'array',
+               items: { type: 'string' }
+             },
+             rules: { $ref: '#/definitions/ruleGroups' }
+           }
+         }
       }
     },
     technical: {

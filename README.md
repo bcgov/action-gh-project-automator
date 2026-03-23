@@ -12,6 +12,8 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 - Managing sprint assignments
 - Processing linked issues when PRs are merged
 
+The tool now supports monitoring multiple organizations (bcgov, bcgov-c, bcgov-nr) through repository-scoped rules.
+
 ## Configuration
 
 All automation is configured in a repo-level `rules.yml` file. Users provide their own `rules.yml` or use the template in this repository. The configuration includes:

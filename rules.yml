@@ -52,13 +52,23 @@ automation:
 
   # Rules limited to specific repositories
   repository_scope:
-    organization: "bcgov"
+    # List of repositories in the format "organization/repository"
     repositories:
-      - action-builder-ghcr
-      - nr-nerds
-      - quickstart-openshift
-      - quickstart-openshift-backends
-      - quickstart-openshift-helpers
+      - bcgov/action-builder-ghcr
+      - bcgov/nr-nerds
+      - bcgov/quickstart-openshift
+      - bcgov/quickstart-openshift-backends
+      - bcgov/quickstart-openshift-helpers
+      - bcgov-c/action-builder-ghcr
+      - bcgov-c/nr-nerds
+      - bcgov-c/quickstart-openshift
+      - bcgov-c/quickstart-openshift-backends
+      - bcgov-c/quickstart-openshift-helpers
+      - bcgov-nr/action-builder-ghcr
+      - bcgov-nr/nr-nerds
+      - bcgov-nr/quickstart-openshift
+      - bcgov-nr/quickstart-openshift-backends
+      - bcgov-nr/quickstart-openshift-helpers
 
     rules:
       # Board addition rules
