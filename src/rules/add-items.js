@@ -29,16 +29,28 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   logger.info(`Starting item processing for user ${monitoredUser}`);
 
-  // Always search for items via GitHub API based on configured rules
-  const items = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { allowedOrgs });
-  logger.info(`Found ${items.length} items to process\n`, true);
+  // Get recent items from API
+  const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { allowedOrgs });
+  logger.info(`Found ${apiItems.length} items from API search\n`, true);
+
+  // Combine seed items from event with API results
+  const items = [...seedItems, ...apiItems];
+  // Deduplicate by item ID
+  const seen = new Set();
+  const uniqueItems = items.filter(item => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+
+  logger.info(`Processing ${uniqueItems.length} total items (${seedItems.length} from event + ${apiItems.length} from API)\n`, true);
 
   const addedItems = [];
   const skippedItems = [];
   const monitoredRepos = new Set(repos.map(repo => `${org}/${repo}`));
   logger.info(`📋 Monitoring repositories:\n${[ ...monitoredRepos ].map(r => `  • ${r}`).join('\n')}\n`, true);
 
-  for (const item of items) {
+  for (const item of uniqueItems) {
     try {
       logger.incrementCounter('board.items.total');
       // Guard against incomplete items returned from search
