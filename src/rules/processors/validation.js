@@ -17,8 +17,13 @@ class RuleValidation {
         const config = loadBoardRules();
 
         // Initialize monitored repositories from config
+        // Support both fully qualified (org/repo) and simple (repo) formats
         this.monitoredRepos = new Set(
-            config.project?.repositories?.map(repo => `${config.project.organization}/${repo}`) || []
+            config.project?.repositories?.map(repo => {
+                if (repo.includes('/')) return repo;
+                const org = config.project?.organization || 'bcgov';
+                return `${org}/${repo}`;
+            }) || []
         );
 
         // Initialize monitored users from config

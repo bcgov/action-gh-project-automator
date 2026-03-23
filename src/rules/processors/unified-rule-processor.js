@@ -62,7 +62,7 @@ async function processRuleType(item, ruleType, overrides = {}) {
             ruleValidator = validator
         } = overrides;
 
-        const config = loadBoardRulesFn();
+        const config = await loadBoardRulesFn();
         const actions = [];
         ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
@@ -181,7 +181,7 @@ async function processAllRules(item) {
         validator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
         // Process all rule types dynamically from configuration
-        const config = loadBoardRules();
+        const config = await loadBoardRules();
         const ruleTypes = Object.keys(config.rules || {});
 
         for (const ruleType of ruleTypes) {
