@@ -343,20 +343,22 @@ async function addItemToProject(nodeId, projectId) {
  * Get recent items (PRs and Issues) from monitored repositories and user-scoped items.
  * Searches:
  * - Items in monitored repositories (limited to provided repos)
- * - PRs authored by monitored user (across all repositories)
- * - Issues/PRs assigned to monitored user (across all repositories)
+ * - PRs authored by monitored user (in allowed organizations only)
+ * - Issues/PRs assigned to monitored user (in allowed organizations only)
  * @param {string} org - Organization name
  * @param {Array<string>} repos - List of repository names for repo-scoped search
  * @param {string} monitoredUser - GitHub username to monitor for user-scoped searches
  * @param {number} windowHours - Hours to look back (default: 24)
- * @param {Object} options - Additional options (minRemaining, logger, overrides)
+ * @param {Object} options - Additional options (minRemaining, logger, overrides, allowedOrgs)
+ * @param {Array<string>} options.allowedOrgs - List of allowed orgs for user-scoped searches
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
 async function getRecentItems(org, repos, monitoredUser, windowHours = undefined, options = {}) {
   const {
     minRemaining = 200,
     logger = log,
-    overrides = {}
+    overrides = {},
+    allowedOrgs = []
   } = options;
 
   const {
@@ -383,10 +385,19 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   const repoQueries = repos.map(repo => `repo:${org}/${repo} created:>${since}`);
   const repoSearchQuery = repoQueries.join(' ');
 
-  // Search for PRs authored by monitored user in ANY repository
-  const authorSearchQuery = `author:${monitoredUser} created:>${since}`;
-  // Search for issues/PRs assigned to monitored user in ANY repository
-  const assigneeSearchQuery = `assignee:${monitoredUser} created:>${since}`;
+  // Search for PRs authored by monitored user in allowed organizations only
+  const authorOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
+  const authorSearchQuery = authorOrgsQuery 
+    ? `${authorOrgsQuery} author:${monitoredUser} created:>${since}`
+    : `author:${monitoredUser} created:>${since}`;
+  
+  // Search for issues/PRs assigned to monitored user in allowed organizations only
+  const assigneeOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
+  const assigneeSearchQuery = assigneeOrgsQuery
+    ? `${assigneeOrgsQuery} assignee:${monitoredUser} created:>${since}`
+    : `assignee:${monitoredUser} created:>${since}`;
+
+  logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
   const results = [];
 

@@ -16,7 +16,13 @@ const schema = {
       type: 'object',
       properties: {
         id: { type: 'string' },
-        url: { type: 'string' }
+        url: { type: 'string' },
+        organization: { type: 'string' },
+        allowedOrgs: {
+          type: 'array',
+          items: { type: 'string' },
+          default: [ 'bcgov', 'bcgov-c', 'bcgov-nr' ]
+        }
       },
       oneOf: [
         { required: [ 'id' ] },
@@ -40,17 +46,17 @@ const schema = {
           }
         },
         repository_scope: {
-           type: 'object',
-           required: [ 'repositories', 'rules' ],
-           properties: {
-             organization: { type: 'string' },
-             repositories: {
-               type: 'array',
-               items: { type: 'string' }
-             },
-             rules: { $ref: '#/definitions/ruleGroups' }
-           }
-         }
+          type: 'object',
+          required: [ 'repositories', 'rules' ],
+          properties: {
+            organization: { type: 'string' },
+            repositories: {
+              type: 'array',
+              items: { type: 'string' }
+            },
+            rules: { $ref: '#/definitions/ruleGroups' }
+          }
+        }
       }
     },
     technical: {

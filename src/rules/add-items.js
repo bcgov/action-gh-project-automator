@@ -16,7 +16,7 @@ import { analyzeBoardItem } from './helpers/board-items-evaluator.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [] }, overrides = {}) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], allowedOrgs = [] }, overrides = {}) {
   const {
     getRecentItemsFn = getRecentItems,
     processBoardItemRulesFn = processBoardItemRules,
@@ -30,7 +30,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   logger.info(`Starting item processing for user ${monitoredUser}`);
 
   // Always search for items via GitHub API based on configured rules
-  const items = await getRecentItemsFn(org, repos, monitoredUser, windowHours);
+  const items = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { allowedOrgs });
   logger.info(`Found ${items.length} items to process\n`, true);
 
   const addedItems = [];
