@@ -110,7 +110,7 @@ class StateVerifier {
           : [];
 
       if (columnRules.length === 0) {
-        verifierLog.warn('⚠ No column rules found while initializing validTransitions; skipping enforcement.');
+        verifierLog.warning('⚠ No column rules found while initializing validTransitions; skipping enforcement.');
         return;
       }
 
@@ -136,7 +136,7 @@ class StateVerifier {
       if (transitionCount > 0) {
         verifierLog.info(`✓ Loaded ${transitionCount} validTransitions from rules.yml`);
       } else {
-        verifierLog.warn('⚠ No validTransitions found in rules.yml column rules');
+        verifierLog.warning('⚠ No validTransitions found in rules.yml column rules');
       }
 
       this.steps.markStepComplete('RULES_INITIALIZED');

@@ -22,13 +22,13 @@ function validateColumnTransition(fromColumn, toColumn, item) {
     const result = validator.validateColumnTransition(fromColumn, toColumn, context);
 
     if (!result.valid) {
-      log.warn(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
-      log.warn(`   Reason: ${result.reason}`);
+      log.warning(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
+      log.warning(`   Reason: ${result.reason}`);
       if (result.recovery) {
-        log.warn(`   Recovery: ${result.recovery}`);
+        log.warning(`   Recovery: ${result.recovery}`);
       }
       if (result.allowedTransitions) {
-        log.warn(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
+        log.warning(`   Allowed transitions: ${result.allowedTransitions.join(', ')}`);
       }
     }
 
