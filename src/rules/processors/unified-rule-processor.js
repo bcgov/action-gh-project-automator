@@ -77,6 +77,17 @@ async function processRuleType(item, ruleType, overrides = {}) {
 
         for (const rule of rules) {
             try {
+                // Debug: log item structure for repository rules
+                if (ruleType === 'board_items' && rule.trigger?.condition?.includes('repository')) {
+                    console.log(`[DEBUG] Item for ${rule.name}:`, JSON.stringify({
+                        repo: item.repository?.nameWithOwner,
+                        repoRaw: item.repository,
+                        fullRepo: item.repository,
+                        typename: item.__typename,
+                        number: item.number
+                    }));
+                }
+
                 // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
                 // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
                 // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
