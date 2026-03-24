@@ -77,15 +77,13 @@ async function processRuleType(item, ruleType, overrides = {}) {
 
         for (const rule of rules) {
             try {
-                // Debug: log item structure for repository rules
+                // Debug: log item structure and monitored repos for repository rules
                 if (ruleType === 'board_items' && rule.trigger?.condition?.includes('repository')) {
+                    const monitoredRepos = [...(ruleValidator.monitoredRepos || [])];
                     console.log(`[DEBUG] Item for ${rule.name}:`, JSON.stringify({
                         repo: item.repository?.nameWithOwner,
-                        repoRaw: item.repository,
-                        fullRepo: item.repository,
-                        typename: item.__typename,
-                        number: item.number
                     }));
+                    console.log(`[DEBUG] Monitored repos:`, monitoredRepos);
                 }
 
                 // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
