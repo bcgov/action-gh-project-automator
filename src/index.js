@@ -191,8 +191,14 @@ async function main() {
     StateVerifier.initializeTransitionRules(boardConfig);
 
     // Initialize context with validated environment config
+    // Determine organization from the first monitored repository or use default
+    let org = 'bcgov'; // Default fallback
+    if (boardConfig.project?.organization) {
+      org = boardConfig.project.organization;
+    }
+    const allowedOrgs = boardConfig.project?.allowedOrgs || [ 'bcgov', 'bcgov-c', 'bcgov-nr' ];
     const context = {
-      org: 'bcgov',
+      org,
       repos: process.env.OVERRIDE_REPOS
         ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
         : boardConfig.project?.repositories || [],
@@ -200,7 +206,8 @@ async function main() {
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
       strictMode: envConfig.strictMode,
-      dryRun: process.env.DRY_RUN === 'true'
+      dryRun: process.env.DRY_RUN === 'true',
+      allowedOrgs
     };
 
     log.info('Starting Project Board Sync...');
@@ -245,7 +252,8 @@ async function main() {
       monitoredUser: context.monitoredUser,
       projectId: context.projectId,
       windowHours,
-      seedItems: eventItems
+      seedItems: eventItems,
+      allowedOrgs: context.allowedOrgs
     });
 
     // Process additional rules for added items

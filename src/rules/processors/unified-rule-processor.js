@@ -62,33 +62,51 @@ async function processRuleType(item, ruleType, overrides = {}) {
             ruleValidator = validator
         } = overrides;
 
-        const config = loadBoardRulesFn();
+        const config = await loadBoardRulesFn();
         const actions = [];
         ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
+        // Debug: log config structure
+        if (ruleType === 'board_items') {
+            console.log('[DEBUG] config.project:', config.project);
+            console.log('[DEBUG] config.project.repositories:', config.project?.repositories);
+        }
+
         const rules = config.rules[ruleType] || [];
+        
+        // Debug logging
+        if (ruleType === 'board_items') {
+            console.log(`[DEBUG] processRuleType: ${rules.length} ${ruleType} rules loaded`);
+            console.log(`[DEBUG] config.monitoredUsers:`, config.monitoredUsers);
+            console.log(`[DEBUG] item.author:`, item.author?.login);
+        }
 
         for (const rule of rules) {
             try {
-                // Special handling for board_items rules
-                if (ruleType === 'board_items') {
-                    // Skip if already in project (skip condition)
-                    if (item.projectItems?.nodes?.length > 0) {
-                        log.info(`Skipping ${item.__typename} #${item.number} - Already in project`);
-                        continue;
-                    }
+                // Debug: log item structure and monitored repos for repository rules
+                if (ruleType === 'board_items' && rule.trigger?.condition?.includes('repository')) {
+                    const monitoredRepos = [...(ruleValidator.monitoredRepos || [])];
+                    console.log(`[DEBUG] Item for ${rule.name}:`, JSON.stringify({
+                        repo: item.repository?.nameWithOwner,
+                    }));
+                    console.log(`[DEBUG] Monitored repos:`, monitoredRepos);
                 }
 
                 // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
                 // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
                 // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
                 const skipCondition = rule.skip_if ?? rule.skipIf;
-                if (skipCondition && ruleValidator.validateSkipRule?.(item, skipCondition)) {
+                if (skipCondition && await ruleValidator.validateSkipRule?.(item, skipCondition)) {
+                    console.log(`[DEBUG] Rule ${rule.name} skipped by skipCondition`);
                     continue;
                 }
 
                 // Check trigger conditions
-                if (ruleValidator.validateItemCondition?.(item, rule.trigger)) {
+                const conditionResult = await ruleValidator.validateItemCondition?.(item, rule.trigger);
+                if (ruleType === 'board_items') {
+                    console.log(`[DEBUG] Rule ${rule.name} condition check:`, conditionResult, 'trigger:', rule.trigger);
+                }
+                if (conditionResult) {
                     const action = formatAction(rule, ruleType);
                     const params = { item };
 
@@ -181,7 +199,7 @@ async function processAllRules(item) {
         validator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
         // Process all rule types dynamically from configuration
-        const config = loadBoardRules();
+        const config = await loadBoardRules();
         const ruleTypes = Object.keys(config.rules || {});
 
         for (const ruleType of ruleTypes) {

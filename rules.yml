@@ -6,6 +6,11 @@
 
 project:
   url: "https://github.com/orgs/bcgov/projects/16" # Project URL for dynamic resolution
+  organization: "bcgov" # Default organization for repository-scoped rules
+  allowedOrgs: # Organizations to search for user-scoped items (author/assignee)
+    - bcgov
+    - bcgov-c
+    - bcgov-nr
 
 automation:
   # Rules that follow users across all repositories
@@ -52,13 +57,15 @@ automation:
 
   # Rules limited to specific repositories
   repository_scope:
-    organization: "bcgov"
+    # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
-      - action-builder-ghcr
-      - nr-nerds
-      - quickstart-openshift
-      - quickstart-openshift-backends
-      - quickstart-openshift-helpers
+      - bcgov/action-builder-ghcr
+      - bcgov/action-gh-project-automator
+      - bcgov/nr-nerds
+      - bcgov/quickstart-openshift
+      - bcgov/quickstart-openshift-backends
+      - bcgov/quickstart-openshift-helpers
+      - bcgov-c/nr-mof-db
 
     rules:
       # Board addition rules

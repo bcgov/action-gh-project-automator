@@ -16,7 +16,13 @@ const schema = {
       type: 'object',
       properties: {
         id: { type: 'string' },
-        url: { type: 'string' }
+        url: { type: 'string' },
+        organization: { type: 'string' },
+        allowedOrgs: {
+          type: 'array',
+          items: { type: 'string' },
+          default: [ 'bcgov', 'bcgov-c', 'bcgov-nr' ]
+        }
       },
       oneOf: [
         { required: [ 'id' ] },
@@ -41,7 +47,7 @@ const schema = {
         },
         repository_scope: {
           type: 'object',
-          required: [ 'organization', 'repositories', 'rules' ],
+          required: [ 'repositories', 'rules' ],
           properties: {
             organization: { type: 'string' },
             repositories: {

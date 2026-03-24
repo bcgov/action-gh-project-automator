@@ -101,7 +101,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                 projectItemId = inProject.projectItemId;
             }
         } catch (error) {
-            logger.warn(`Unable to resolve project item ID for PR #${pullRequestNumber}: ${error.message}`);
+                logger.warning(`Unable to resolve project item ID for PR #${pullRequestNumber}: ${error.message}`);
         }
     }
 
@@ -111,13 +111,13 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
             prActualAssignees = await getItemAssigneesFn(projectId, projectItemId);
             logger.info(`PR #${pullRequestNumber} actual state - Column: ${prActualColumn || 'None'}, Assignees: ${prActualAssignees.join(', ') || 'None'}`);
         } catch (error) {
-            logger.warn(`Could not get PR actual state from project board: ${error.message}, using fallback`);
+                logger.warning(`Could not get PR actual state from project board: ${error.message}, using fallback`);
             // Fallback to parameter if project board lookup fails
             prActualColumn = currentColumn;
             prActualAssignees = pullRequest.assignees?.nodes?.map(a => a.login) || [];
         }
     } else {
-        logger.warn(`PR #${pullRequestNumber} has no projectItemId, using fallback values`);
+        logger.warning(`PR #${pullRequestNumber} has no projectItemId, using fallback values`);
         prActualColumn = currentColumn;
         prActualAssignees = pullRequest.assignees?.nodes?.map(a => a.login) || [];
     }
@@ -164,7 +164,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                     linkedIssueProjectItemId = issueProjectItemId;
                 }
             } catch (error) {
-                logger.warn(`Unable to resolve project item for linked issue ${linkedIssueNumber}: ${error.message}`);
+                logger.warning(`Unable to resolve project item for linked issue ${linkedIssueNumber}: ${error.message}`);
             }
         }
 
@@ -233,7 +233,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                                 logger.incrementCounter('linked.actions.column.assigned');
                                 changed = true;
                             } else {
-                                logger.warn(`Unable to resolve column option for '${prActualColumn}' in project ${projectId}`);
+                                logger.warning(`Unable to resolve column option for '${prActualColumn}' in project ${projectId}`);
                             }
                         }
                         break;
@@ -251,7 +251,7 @@ async function processLinkedIssues(pullRequest, projectId, currentColumn, curren
                         break;
 
                     default:
-                        logger.warn(`Unknown linked issue action: ${action}`);
+                        logger.warning(`Unknown linked issue action: ${action}`);
                 }
             }
 

@@ -12,10 +12,12 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 - Managing sprint assignments
 - Processing linked issues when PRs are merged
 
+The tool now supports monitoring multiple organizations (bcgov, bcgov-c, bcgov-nr) through repository-scoped rules and user-scoped searches are limited to allowed organizations.
+
 ## Configuration
 
 All automation is configured in a repo-level `rules.yml` file. Users provide their own `rules.yml` or use the template in this repository. The configuration includes:
-- Project settings
+- Project settings (URL, organization, allowedOrgs)
 - Monitored repositories and users
 - Business rules for automation
 - Performance settings
@@ -44,6 +46,23 @@ The tool supports multiple ways to specify the GitHub project:
    ```
 
 The URL resolution feature automatically extracts the organization and project number from GitHub project URLs and resolves them to the correct project ID via the GitHub API.
+
+### Organization Configuration
+
+By default, the action monitors these organizations: `bcgov`, `bcgov-c`, `bcgov-nr`. To customize:
+
+```yaml
+project:
+  url: https://github.com/orgs/bcgov/projects/16
+  organization: bcgov
+  allowedOrgs:
+    - bcgov
+    - bcgov-c
+    - bcgov-nr
+```
+
+- `organization`: The primary organization for repository-scoped rules
+- `allowedOrgs`: Organizations to search for user-scoped items (authored/assigned by monitored users)
 
 ## Files
 

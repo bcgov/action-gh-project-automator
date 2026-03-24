@@ -4,9 +4,10 @@ import ConfigLoader from './loader.js';
 
 /**
  * Load the board rules configuration and normalize it for backward compatibility.
- * @returns {object} The parsed and validated configuration
+ * @async
+ * @returns {Promise<object>} The parsed and validated configuration
  */
-function loadBoardRules(context = {}) {
+async function loadBoardRules(context = {}) {
     const loader = new ConfigLoader();
 
     // Resolve config path with flattening preference for repo-level config
