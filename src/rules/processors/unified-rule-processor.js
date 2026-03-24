@@ -96,13 +96,13 @@ async function processRuleType(item, ruleType, overrides = {}) {
                 // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
                 // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
                 const skipCondition = rule.skip_if ?? rule.skipIf;
-                if (skipCondition && ruleValidator.validateSkipRule?.(item, skipCondition)) {
+                if (skipCondition && await ruleValidator.validateSkipRule?.(item, skipCondition)) {
                     console.log(`[DEBUG] Rule ${rule.name} skipped by skipCondition`);
                     continue;
                 }
 
                 // Check trigger conditions
-                const conditionResult = ruleValidator.validateItemCondition?.(item, rule.trigger);
+                const conditionResult = await ruleValidator.validateItemCondition?.(item, rule.trigger);
                 if (ruleType === 'board_items') {
                     console.log(`[DEBUG] Rule ${rule.name} condition check:`, conditionResult, 'trigger:', rule.trigger);
                 }

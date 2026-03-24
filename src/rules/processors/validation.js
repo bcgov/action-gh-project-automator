@@ -11,37 +11,78 @@
 import { loadBoardRules } from '../../config/board-rules.js';
 import { log } from '../../utils/log.js';
 
+let cachedConfig = null;
+
+async function getConfig() {
+    if (!cachedConfig) {
+        cachedConfig = await loadBoardRules();
+    }
+    return cachedConfig;
+}
+
 class RuleValidation {
     constructor() {
-        // Load configuration for monitored users and repositories
-        const config = loadBoardRules();
+        // Configuration will be loaded lazily
+    }
 
-        // Initialize monitored repositories from config
-        // Support both fully qualified (org/repo) and simple (repo) formats
-        this.monitoredRepos = new Set(
-            config.project?.repositories?.map(repo => {
-                if (repo.includes('/')) return repo;
-                const org = config.project?.organization || 'bcgov';
-                return `${org}/${repo}`;
-            }) || []
-        );
+    async ensureConfig() {
+        if (!this._config) {
+            this._config = await getConfig();
+            // Initialize monitored repositories from config
+            // Support both fully qualified (org/repo) and simple (repo) formats
+            this.monitoredRepos = new Set(
+                this._config.project?.repositories?.map(repo => {
+                    if (repo.includes('/')) return repo;
+                    const org = this._config.project?.organization || 'bcgov';
+                    return `${org}/${repo}`;
+                }) || []
+            );
 
-        // Initialize monitored users from config
-        this.monitoredUsers = new Set(config.monitoredUsers || []);
+            // Initialize monitored users from config
+            this.monitoredUsers = new Set(this._config.monitoredUsers || []);
+        }
+        return this._config;
+    }
 
-        // Simple steps tracking for validation
-        // Enhanced step tracking for validation
-        this.steps = {
-            markStepComplete: (step) => {
-                log.debug(`Validation step completed: ${step}`);
-            }
-        };
+    get monitoredRepos() {
+        // Lazy initialization
+        if (!this._monitoredRepos) {
+            return new Set();
+        }
+        return this._monitoredRepos;
+    }
+
+    set monitoredRepos(value) {
+        this._monitoredRepos = value;
+    }
+
+    get monitoredUsers() {
+        if (!this._monitoredUsers) {
+            return new Set();
+        }
+        return this._monitoredUsers;
+    }
+
+    set monitoredUsers(value) {
+        this._monitoredUsers = value;
+    }
+
+    get steps() {
+        if (!this._steps) {
+            this._steps = {
+                markStepComplete: (step) => {
+                    log.debug(`Validation step completed: ${step}`);
+                }
+            };
+        }
+        return this._steps;
     }
 
     /**
      * Validate item condition based on rule requirements
      */
-    validateItemCondition(item, condition) {
+    async validateItemCondition(item, condition) {
+        await this.ensureConfig();
         try {
             // Type validation
             if (condition.type) {
@@ -164,7 +205,8 @@ class RuleValidation {
     /**
      * Validate skip conditions
      */
-    validateSkipRule(item, skipIf) {
+    async validateSkipRule(item, skipIf) {
+        await this.ensureConfig();
         try {
             // Project membership check
             if (skipIf === "item.inProject") {
