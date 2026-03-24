@@ -67,6 +67,13 @@ async function processRuleType(item, ruleType, overrides = {}) {
         ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
         const rules = config.rules[ruleType] || [];
+        
+        // Debug logging
+        if (ruleType === 'board_items') {
+            console.log(`[DEBUG] processRuleType: ${rules.length} ${ruleType} rules loaded`);
+            console.log(`[DEBUG] config.monitoredUsers:`, config.monitoredUsers);
+            console.log(`[DEBUG] item.author:`, item.author?.login);
+        }
 
         for (const rule of rules) {
             try {
