@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       backfill:
-        description: 'Backfill: discover all items without date filter (one-time use for initial population)'
+        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
         required: false
-        default: false
-        type: boolean
+        default: ''
+        type: string
 
 permissions:
   contents: read
