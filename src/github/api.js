@@ -373,12 +373,12 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     hours = Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 24;
   }
 
-  // Backfill mode: skip date filter to discover all existing items
-  const backfill = process.env.BACKFILL === 'true';
-  const sinceClause = backfill ? '' : ` created:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
+  // Backfill mode: BACKFILL=<org>/<repo> searches only that repo without a date filter
+  const backfillRepo = process.env.BACKFILL && process.env.BACKFILL.includes('/') ? process.env.BACKFILL : null;
+  const sinceClause = backfillRepo ? '' : ` created:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
 
-  if (backfill) {
-    logger.info('🔄 BACKFILL mode enabled — searching all items without date filter');
+  if (backfillRepo) {
+    logger.info(`🔄 BACKFILL mode — searching only ${backfillRepo} without date filter`);
   }
 
   const rateStatus = await shouldProceedFn(minRemaining);
@@ -390,29 +390,33 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   // Search for items in monitored repositories
   // Repos may be fully qualified (org/repo) or partial (repo under default org)
-  const repoQueries = repos.map(repo => {
+  // Query each repo separately so each gets its own 1000-item GitHub API cap
+  // In backfill mode, only search the specified repo
+  const reposToSearch = backfillRepo ? [backfillRepo] : repos;
+  const repoSearchQueries = reposToSearch.map(repo => {
     const qualifiedName = repo.includes('/') ? repo : `${org}/${repo}`;
     return `repo:${qualifiedName}${sinceClause}`;
   });
-  const repoSearchQuery = repoQueries.join(' ');
 
   // Search for PRs authored by monitored user in allowed organizations only
+  // Author/assignee searches always use the date filter (only repo search is unlimited in backfill)
+  const sinceFilter = ` created:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
   const authorOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
   const authorSearchQuery = authorOrgsQuery
-    ? `${authorOrgsQuery} author:${monitoredUser}${sinceClause}`
-    : `author:${monitoredUser}${sinceClause}`;
+    ? `${authorOrgsQuery} author:${monitoredUser}${sinceFilter}`
+    : `author:${monitoredUser}${sinceFilter}`;
 
   // Search for issues/PRs assigned to monitored user in allowed organizations only
   const assigneeOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
   const assigneeSearchQuery = assigneeOrgsQuery
-    ? `${assigneeOrgsQuery} assignee:${monitoredUser}${sinceClause}`
-    : `assignee:${monitoredUser}${sinceClause}`;
+    ? `${assigneeOrgsQuery} assignee:${monitoredUser}${sinceFilter}`
+    : `assignee:${monitoredUser}${sinceFilter}`;
 
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
   // In backfill mode, paginate through all pages (up to 10 pages = 1000 items).
   // In normal mode, only fetch the first page (100 items).
-  const maxPages = backfill ? 10 : 1;
+  const maxPages = backfillRepo ? 10 : 1;
 
   /**
    * Paginate through a GraphQL search query, collecting all nodes.
@@ -452,8 +456,9 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   const results = [];
 
-  // Get items from monitored repositories
-  if (repoSearchQuery) {
+  // Get items from monitored repositories — one search per repo
+  // so each repo gets its own 1000-item cap (GitHub limit per query)
+  for (const repoQuery of repoSearchQueries) {
     const repoNodes = await paginatedSearch(`
       query($searchQuery: String!, $cursor: String) {
         search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
@@ -461,12 +466,13 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
           pageInfo { hasNextPage endCursor }
         }
       }
-    `, repoSearchQuery, maxPages);
+    `, repoQuery, maxPages);
     results.push(...repoNodes);
-    logger.info(`Repo search returned ${repoNodes.length} items`);
   }
+  logger.info(`Repo search returned ${results.length} items`);
 
   // Get PRs authored by monitored user in any repository
+  // Always 1 page — these searches use the date filter
   const authorNodes = await paginatedSearch(`
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
@@ -483,11 +489,12 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, authorSearchQuery, maxPages);
+  `, authorSearchQuery, 1);
   results.push(...authorNodes);
   logger.info(`Author search returned ${authorNodes.length} items`);
 
   // Get issues and PRs assigned to monitored user in any repository
+  // Always 1 page — these searches use the date filter
   const assigneeNodes = await paginatedSearch(`
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
@@ -495,7 +502,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, assigneeSearchQuery, maxPages);
+  `, assigneeSearchQuery, 1);
   results.push(...assigneeNodes);
   logger.info(`Assignee search returned ${assigneeNodes.length} items`);
 
