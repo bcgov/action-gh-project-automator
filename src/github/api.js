@@ -410,99 +410,94 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
+  // In backfill mode, paginate through all pages (up to 10 pages = 1000 items).
+  // In normal mode, only fetch the first page (100 items).
+  const maxPages = backfill ? 10 : 1;
+
+  /**
+   * Paginate through a GraphQL search query, collecting all nodes.
+   */
+  async function paginatedSearch(query, searchQuery, pages) {
+    const nodes = [];
+    let cursor = null;
+    for (let page = 0; page < pages; page++) {
+      const vars = { searchQuery };
+      if (cursor) vars.cursor = cursor;
+      const result = await withBackoffFn(() => graphqlClient(query, vars));
+      nodes.push(...result.search.nodes);
+      const pageInfo = result.search.pageInfo;
+      if (!pageInfo || !pageInfo.hasNextPage) break;
+      cursor = pageInfo.endCursor;
+    }
+    return nodes;
+  }
+
+  const ITEM_FRAGMENT = `
+    __typename
+    ... on Issue {
+      id number
+      repository { nameWithOwner }
+      author { login }
+      assignees(first: 5) { nodes { login } }
+      state updatedAt
+    }
+    ... on PullRequest {
+      id number
+      repository { nameWithOwner }
+      author { login }
+      assignees(first: 5) { nodes { login } }
+      state updatedAt
+    }
+  `;
+
   const results = [];
 
   // Get items from monitored repositories
   if (repoSearchQuery) {
-    const repoResult = await withBackoffFn(() => graphqlClient(`
-      query($searchQuery: String!) {
-        search(query: $searchQuery, type: ISSUE, first: 100) {
-          nodes {
-            __typename
-            ... on Issue {
-              id
-              number
-              repository { nameWithOwner }
-              author { login }
-              assignees(first: 5) { nodes { login } }
-              state
-              updatedAt
-            }
-            ... on PullRequest {
-              id
-              number
-              repository { nameWithOwner }
-              author { login }
-              assignees(first: 5) { nodes { login } }
-              state
-              updatedAt
-            }
-          }
+    const repoNodes = await paginatedSearch(`
+      query($searchQuery: String!, $cursor: String) {
+        search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
+          nodes { ${ITEM_FRAGMENT} }
+          pageInfo { hasNextPage endCursor }
         }
       }
-    `, {
-      searchQuery: repoSearchQuery
-    }));
-
-    results.push(...repoResult.search.nodes);
+    `, repoSearchQuery, maxPages);
+    results.push(...repoNodes);
+    logger.info(`Repo search returned ${repoNodes.length} items`);
   }
 
   // Get PRs authored by monitored user in any repository
-  const authorResult = await withBackoffFn(() => graphqlClient(`
-    query($searchQuery: String!) {
-      search(query: $searchQuery, type: ISSUE, first: 100) {
+  const authorNodes = await paginatedSearch(`
+    query($searchQuery: String!, $cursor: String) {
+      search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
         nodes {
           __typename
           ... on PullRequest {
-            id
-            number
+            id number
             repository { nameWithOwner }
             author { login }
             assignees(first: 5) { nodes { login } }
-            state
-            updatedAt
+            state updatedAt
           }
         }
+        pageInfo { hasNextPage endCursor }
       }
     }
-  `, {
-    searchQuery: authorSearchQuery
-  }));
-
-  results.push(...authorResult.search.nodes);
+  `, authorSearchQuery, maxPages);
+  results.push(...authorNodes);
+  logger.info(`Author search returned ${authorNodes.length} items`);
 
   // Get issues and PRs assigned to monitored user in any repository
-  const assigneeResult = await withBackoffFn(() => graphqlClient(`
-    query($searchQuery: String!) {
-      search(query: $searchQuery, type: ISSUE, first: 100) {
-        nodes {
-          __typename
-          ... on Issue {
-            id
-            number
-            repository { nameWithOwner }
-            author { login }
-            assignees(first: 5) { nodes { login } }
-            state
-            updatedAt
-          }
-          ... on PullRequest {
-            id
-            number
-            repository { nameWithOwner }
-            author { login }
-            assignees(first: 5) { nodes { login } }
-            state
-            updatedAt
-          }
-        }
+  const assigneeNodes = await paginatedSearch(`
+    query($searchQuery: String!, $cursor: String) {
+      search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
+        nodes { ${ITEM_FRAGMENT} }
+        pageInfo { hasNextPage endCursor }
       }
     }
-  `, {
-    searchQuery: assigneeSearchQuery
-  }));
-
-  results.push(...assigneeResult.search.nodes);
+  `, assigneeSearchQuery, maxPages);
+  results.push(...assigneeNodes);
+  logger.info(`Assignee search returned ${assigneeNodes.length} items`);
 
   // Remove duplicates based on item ID
   const seen = new Set();
