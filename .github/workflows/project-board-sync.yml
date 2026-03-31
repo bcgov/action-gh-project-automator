@@ -5,6 +5,12 @@ on:
   schedule:
     - cron: "0 10 * * *" # daily at 02:00 PT / 10:00 UTC
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill: discover all items without date filter (one-time use for initial population)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -63,6 +69,7 @@ jobs:
           echo "  PROJECT_URL: ${{ env.PROJECT_URL }}"
           echo "  VERBOSE: ${{ env.VERBOSE }}"
           echo "  GITHUB_AUTHOR: ${{ env.GITHUB_AUTHOR_DEFAULT }}"
+          echo "  BACKFILL: ${{ github.event.inputs.backfill || 'false' }}"
           echo ""
           echo "Workflow Context:"
           echo "  Event: ${{ github.event_name }}"
@@ -80,4 +87,5 @@ jobs:
           UPDATE_WINDOW_HOURS: ${{ steps.compute.outputs.hours }}
           VERBOSE: ${{ env.VERBOSE }}
           CONFIG_FILE: ${{ env.CONFIG_FILE }}
+          BACKFILL: ${{ github.event.inputs.backfill }}
         run: npm run start

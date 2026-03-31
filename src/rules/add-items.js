@@ -47,7 +47,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   const addedItems = [];
   const skippedItems = [];
-  const monitoredRepos = new Set(repos.map(repo => `${org}/${repo}`));
+  const monitoredRepos = new Set(repos.map(repo => repo.includes('/') ? repo : `${org}/${repo}`));
   logger.info(`📋 Monitoring repositories:\n${[ ...monitoredRepos ].map(r => `  • ${r}`).join('\n')}\n`, true);
 
   for (const item of uniqueItems) {

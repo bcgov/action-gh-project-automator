@@ -229,7 +229,7 @@ async function main() {
       log.info('State tracking enabled');
     }
     const startTime = new Date();
-    log.info('Monitored Repos: ' + context.repos.map(r => `${context.org}/${r}`).join(', '));
+    log.info('Monitored Repos: ' + context.repos.map(r => r.includes('/') ? r : `${context.org}/${r}`).join(', '));
 
     // Determine tighter search window (1h) in PR context unless overridden via env
     const windowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'

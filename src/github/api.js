@@ -372,7 +372,14 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   if (!Number.isFinite(hours) || hours <= 0) {
     hours = Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 24;
   }
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  // Backfill mode: skip date filter to discover all existing items
+  const backfill = process.env.BACKFILL === 'true';
+  const sinceClause = backfill ? '' : ` created:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
+
+  if (backfill) {
+    logger.info('🔄 BACKFILL mode enabled — searching all items without date filter');
+  }
 
   const rateStatus = await shouldProceedFn(minRemaining);
   if (!rateStatus.proceed) {
@@ -382,20 +389,24 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   }
 
   // Search for items in monitored repositories
-  const repoQueries = repos.map(repo => `repo:${org}/${repo} created:>${since}`);
+  // Repos may be fully qualified (org/repo) or partial (repo under default org)
+  const repoQueries = repos.map(repo => {
+    const qualifiedName = repo.includes('/') ? repo : `${org}/${repo}`;
+    return `repo:${qualifiedName}${sinceClause}`;
+  });
   const repoSearchQuery = repoQueries.join(' ');
 
   // Search for PRs authored by monitored user in allowed organizations only
   const authorOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
-  const authorSearchQuery = authorOrgsQuery 
-    ? `${authorOrgsQuery} author:${monitoredUser} created:>${since}`
-    : `author:${monitoredUser} created:>${since}`;
-  
+  const authorSearchQuery = authorOrgsQuery
+    ? `${authorOrgsQuery} author:${monitoredUser}${sinceClause}`
+    : `author:${monitoredUser}${sinceClause}`;
+
   // Search for issues/PRs assigned to monitored user in allowed organizations only
   const assigneeOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
   const assigneeSearchQuery = assigneeOrgsQuery
-    ? `${assigneeOrgsQuery} assignee:${monitoredUser} created:>${since}`
-    : `assignee:${monitoredUser} created:>${since}`;
+    ? `${assigneeOrgsQuery} assignee:${monitoredUser}${sinceClause}`
+    : `assignee:${monitoredUser}${sinceClause}`;
 
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
