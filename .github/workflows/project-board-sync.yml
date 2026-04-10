@@ -11,6 +11,11 @@ on:
         required: false
         default: ''
         type: string
+      window_hours:
+        description: 'Update window (hours) — set to 24 for heavy/sweep mode'
+        required: false
+        default: '2'
+        type: string
 
 permissions:
   contents: read
@@ -58,6 +63,8 @@ jobs:
             echo "hours=1" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "hours=2" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "hours=${{ github.event.inputs.window_hours || 2 }}" >> "$GITHUB_OUTPUT"
           else
             echo "hours=2" >> "$GITHUB_OUTPUT"
           fi
