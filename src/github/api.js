@@ -130,11 +130,11 @@ async function getProjectItems(projectId, options = {}) {
     forceRefresh = false,
     skipRateGuard = false,
     logger = log,
-    shouldProceedFn = shouldProceed,
     overrides = {}
   } = options;
 
   const {
+    shouldProceedFn = shouldProceed,
     withBackoffFn = withBackoff,
     graphqlClient = graphqlWithAuth
   } = overrides;
@@ -351,11 +351,11 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   const {
     logger = log,
     overrides = {},
-    allowedOrgs = [],
-    shouldProceedFn = shouldProceed
+    allowedOrgs = []
   } = options;
 
   const {
+    shouldProceedFn = shouldProceed,
     withBackoffFn = withBackoff,
     graphqlClient = graphqlWithAuth
   } = overrides;
