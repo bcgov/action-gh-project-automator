@@ -3,7 +3,6 @@ name: PR Event Sync
 on:
   pull_request:
     types: [opened, reopened, synchronized]
-  workflow_dispatch:
 
 permissions:
   contents: read
