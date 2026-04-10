@@ -1,0 +1,36 @@
+name: Scheduled Project Sync
+
+on:
+  schedule:
+    - cron: "0 * * * *" # hourly
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
+        required: false
+        default: ''
+        type: string
+      window_hours:
+        description: 'Update window (hours)'
+        required: false
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: scheduled-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-sync:
+    uses: ./.github/workflows/reusable-sync-logic.yml
+    with:
+      backfill: ${{ github.event.inputs.backfill }}
+      window_hours: ${{ github.event.inputs.window_hours || '2' }}
+      verbose: 'true'
+    secrets:
+      PROJECT_SYNC_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}

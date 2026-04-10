@@ -1,0 +1,23 @@
+name: PR Event Sync
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronized]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  run-sync:
+    uses: ./.github/workflows/reusable-sync-logic.yml
+    with:
+      window_hours: '1' # Tight window for PR-specific triggers
+      verbose: 'true'
+    secrets:
+      PROJECT_SYNC_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
