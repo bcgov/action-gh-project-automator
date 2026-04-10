@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff, formatRateLimitInfo } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo, RatePriority } from '../utils/rate-limit.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
@@ -114,34 +114,24 @@ async function getColumnOptionId(projectId, columnName) {
 
 /**
  * Get all items from a project board with caching.
- * @param {string} projectId - The project board ID.
- * @param {Object|boolean} [options] - Options object or boolean for backward compatibility.
- * @param {number} [options.minRemaining=200] - Minimum rate limit remaining before skipping pagination.
+ * @param {string} projectId - Graphql node ID of the project
+ * @param {Object} options - Options for retrieval
  * @param {boolean} [options.forceRefresh=false] - Force a cache refresh for the project.
- * @param {boolean} [options.skipRateGuard=false] - Skip rate limit checking (useful for nested calls).
+ * @param {boolean} [options.skipRateGuard=false] - If true, bypass initial rate limit check
  * @param {Logger} [options.logger] - Logger instance to use for informational messages. Defaults to the global log instance.
+ * @param {Function} [options.shouldProceedFn=shouldProceed] - Rate limit check function
  * @param {Object} [options.overrides] - Optional dependency overrides, primarily for tests.
- * @param {Function} [options.overrides.shouldProceedFn] - Custom rate-limit check implementation.
  * @param {Function} [options.overrides.withBackoffFn] - Custom retry/backoff wrapper.
  * @param {Function} [options.overrides.graphqlClient] - Custom GraphQL executor.
  * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
 async function getProjectItems(projectId, options = {}) {
-  let params = {};
-
-  if (typeof options === 'boolean') {
-    params = { forceRefresh: options };
-  } else if (options && typeof options === 'object') {
-    params = options;
-  }
-
   const {
-    minRemaining = 200,
     forceRefresh = false,
     skipRateGuard = false,
     logger = log,
     overrides = {}
-  } = params;
+  } = options;
 
   const {
     shouldProceedFn = shouldProceed,
@@ -158,7 +148,8 @@ async function getProjectItems(projectId, options = {}) {
   }
 
   if (!skipRateGuard) {
-    const rateStatus = await shouldProceedFn(minRemaining);
+    // Project item preloading is considered MAINTENANCE since we can fall back to direct lookups
+    const rateStatus = await shouldProceedFn(RatePriority.MAINTENANCE);
     if (!rateStatus.proceed) {
       const remainingInfo = formatRateLimitInfo(rateStatus);
       logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
@@ -346,16 +337,18 @@ async function addItemToProject(nodeId, projectId) {
  * - PRs authored by monitored user (in allowed organizations only)
  * - Issues/PRs assigned to monitored user (in allowed organizations only)
  * @param {string} org - Organization name
- * @param {Array<string>} repos - List of repository names for repo-scoped search
- * @param {string} monitoredUser - GitHub username to monitor for user-scoped searches
- * @param {number} windowHours - Hours to look back (default: 24)
- * @param {Object} options - Additional options (minRemaining, logger, overrides, allowedOrgs)
- * @param {Array<string>} options.allowedOrgs - List of allowed orgs for user-scoped searches
+ * @param {string[]} repos - List of repository names
+ * @param {string} monitoredUser - GitHub username to filter for
+ * @param {number} windowHours - Hours to look back for updates
+ * @param {Object} options - Search options
+ * @param {string[]} [options.allowedOrgs] - List of allowed organizations for author search
+ * @param {Function} [options.shouldProceedFn=shouldProceed] - Override rate check logic
+ * @param {Logger} [options.logger] - Logger instance
+ * @param {Object} [options.overrides] - Dependency overrides
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
 async function getRecentItems(org, repos, monitoredUser, windowHours = undefined, options = {}) {
   const {
-    minRemaining = 200,
     logger = log,
     overrides = {},
     allowedOrgs = []
@@ -381,7 +374,8 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     logger.info(`🔄 BACKFILL mode — searching only ${backfillRepo} without date filter`);
   }
 
-  const rateStatus = await shouldProceedFn(minRemaining);
+  // Discovery is CRITICAL
+  const rateStatus = await shouldProceedFn(RatePriority.CRITICAL);
   if (!rateStatus.proceed) {
     const info = formatRateLimitInfo(rateStatus);
     logger.info(`Skipping recent-item search due to low rate limit${info}`);

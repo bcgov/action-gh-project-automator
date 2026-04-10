@@ -33,6 +33,16 @@ describe('AuditLogger', () => {
     assert.match(summary, /Duration: \d+s/);
   });
 
+  it('includes the API health indicator in the summary', () => {
+    const summary = auditLog.generateSummary({ health: 'RED' });
+    assert.match(summary, /API Health: 🔴 RED/);
+  });
+
+  it('includes 💀 for BLACK health level', () => {
+    const summary = auditLog.generateSummary({ health: 'BLACK' });
+    assert.match(summary, /API Health: 💀 BLACK/);
+  });
+
   it('generates a populated summary with correct item links', () => {
     auditLog.logEvent({
       type: 'Issue',
