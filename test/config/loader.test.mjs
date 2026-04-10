@@ -49,7 +49,7 @@ test('ConfigLoader', async (t) => {
 
       // Technical settings
       assert.equal(config.technical.batch_size, 10, 'correct batch size');
-      assert.equal(config.technical.update_window_hours, 24, 'correct update window');
+      assert.equal(config.technical.update_window_hours, 2, 'correct update window');
       assert.ok(config.technical.optimization.skip_unchanged, 'optimization enabled');
     });
 });
