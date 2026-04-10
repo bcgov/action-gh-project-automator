@@ -2,7 +2,20 @@ name: GH Project Board Sync
 
 on:
   pull_request:
-    types: [opened, reopened, synchronized]
+  schedule:
+    - cron: "0 * * * *" # hourly
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
+        required: false
+        default: ''
+        type: string
+      window_hours:
+        description: 'Update window (hours) — set to 24 for heavy/sweep mode'
+        required: false
+        default: '1'
+        type: string
 
 permissions:
   contents: read
@@ -10,7 +23,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: pr-sync-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
