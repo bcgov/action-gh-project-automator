@@ -14,18 +14,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-and-sync:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Tests
-        shell: bash
-        run: |
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: |
           npm ci
           npm test
-      - name: Run Sync Engine
-        uses: ./.github/actions/sync-engine
+
+  sync:
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          window_hours: '1'
-          verbose: 'true'
-          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          node-version: "24"
+      - run: npm ci
+      - name: Run Project Board Sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          GITHUB_AUTHOR: DerekRoberts
+          PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+          UPDATE_WINDOW_HOURS: '1'
+          VERBOSE: 'true'
+          CONFIG_FILE: rules.yml
+        run: npm run start
