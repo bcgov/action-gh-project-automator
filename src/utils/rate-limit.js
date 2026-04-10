@@ -27,6 +27,12 @@ export const RatePriority = {
   MAINTENANCE: 1000 // Verification and deep cleanup
 };
 
+const PriorityLabels = {
+  200: 'CRITICAL',
+  500: 'STANDARD',
+  1000: 'MAINTENANCE'
+};
+
 async function shouldProceed(priority = RatePriority.STANDARD) {
   const rl = await getRateLimit();
   if (!rl) {
@@ -48,7 +54,8 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
 
   const proceed = rl.remaining >= priority;
   if (!proceed) {
-    log.info(`[THROTTLED] Skipping ${priority} priority task: remaining=${rl.remaining}/${rl.limit}, health=${health}`);
+    const label = PriorityLabels[priority] || priority;
+    log.info(`[THROTTLED] Skipping ${label} priority task: remaining=${rl.remaining}/${rl.limit}, health=${health}`);
   }
 
   return {
