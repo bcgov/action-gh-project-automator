@@ -1,4 +1,4 @@
-name: PR Event Sync
+name: GH Project Board Sync
 
 on:
   pull_request:
