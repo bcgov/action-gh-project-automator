@@ -3,7 +3,7 @@ name: GH Project Board Sync
 on:
   pull_request:
   schedule:
-    - cron: "0 10 * * *" # daily at 02:00 PT / 10:00 UTC
+    - cron: "0 * * * *" # hourly
   workflow_dispatch:
     inputs:
       backfill:
@@ -56,8 +56,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "hours=1" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "hours=2" >> "$GITHUB_OUTPUT"
           else
-            echo "hours=24" >> "$GITHUB_OUTPUT"
+            echo "hours=2" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install dependencies

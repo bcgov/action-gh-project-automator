@@ -181,7 +181,7 @@ automation:
 technical:
   batch_size: 10
   batch_delay_seconds: 1
-  update_window_hours: 24
+  update_window_hours: 2
   existing_items:
     sweep_enabled: false
     min_rate_limit_remaining: 250
