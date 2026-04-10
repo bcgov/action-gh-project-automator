@@ -14,9 +14,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-sync:
-    uses: ./.github/workflows/reusable-sync-logic.yml
-    with:
-      window_hours: '1' # Tight window for PR-specific triggers
-      verbose: 'true'
-    secrets: inherit
+  test-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Tests
+        shell: bash
+        run: |
+          npm ci
+          npm test
+      - name: Run Sync Engine
+        uses: ./.github/actions/sync-engine
+        with:
+          window_hours: '1'
+          verbose: 'true'
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
