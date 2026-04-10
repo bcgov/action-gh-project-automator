@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import { log } from './log.js';
 
 class AuditLogger {
@@ -27,7 +27,8 @@ class AuditLogger {
     
     // Also log to standard output for real-time visibility
     const itemRef = `${event.type} #${event.number} [${event.repo}]`;
-    log.info(`[AUDIT] ${itemRef}: ${event.action} | ${event.from} -> ${event.to} (Rule: ${event.rule})`);
+    const reasonText = event.reason ? ` | Reason: ${event.reason}` : '';
+    log.info(`[AUDIT] ${itemRef}: ${event.action} | ${event.from} -> ${event.to} (Rule: ${event.rule})${reasonText}`);
   }
 
   /**
@@ -35,17 +36,22 @@ class AuditLogger {
    * @returns {string} Markdown content
    */
   generateSummary() {
+    const durationSec = Math.round((new Date() - this.startTime) / 1000);
+    const timeStr = new Date().toLocaleTimeString();
+    
     if (this.events.length === 0) {
-      return '### ✅ Run Complete: No changes needed.\nAll items are currently perfectly aligned with board rules.';
+      return `### ✅ Run Complete: No changes needed.\nAll items are currently perfectly aligned with board rules.\n\n*Completed at ${timeStr} (Duration: ${durationSec}s)*`;
     }
 
-    let summary = `### 🤖 Automator Run Summary (${new Date().toLocaleTimeString()})\n\n`;
-    summary += '| Item | Action | Transition | Rule |\n';
-    summary += '| :--- | :--- | :--- | :--- |\n';
+    let summary = `### 🤖 Automator Run Summary (${timeStr})\n\n`;
+    summary += `*Run Duration: ${durationSec}s*\n\n`;
+    summary += '| Item | Action | Transition | Rule | Reason |\n';
+    summary += '| :--- | :--- | :--- | :--- | :--- |\n';
 
     for (const e of this.events) {
-      const itemLink = `[${e.type} #${e.number}](https://github.com/${e.repo}/issues/${e.number})`;
-      summary += `| ${itemLink} | **${e.action}** | \`${e.from}\` → \`${e.to}\` | ${e.rule} |\n`;
+      const segment = e.type === 'PullRequest' ? 'pull' : 'issues';
+      const itemLink = `[${e.type} #${e.number}](https://github.com/${e.repo}/${segment}/${e.number})`;
+      summary += `| ${itemLink} | **${e.action}** | \`${e.from}\` → \`${e.to}\` | ${e.rule} | ${e.reason || '-'} |\n`;
     }
 
     summary += `\n**Total Actions taken: ${this.events.length}**`;
@@ -64,7 +70,8 @@ class AuditLogger {
 
     const markdown = this.generateSummary();
     try {
-      fs.appendFileSync(summaryPath, markdown);
+      // Ensure leading newline to avoid concatenation issues
+      await fs.appendFile(summaryPath, `\n${markdown}\n`);
       log.info('Successfully pushed audit summary to GitHub Actions.');
     } catch (error) {
       log.error(`Failed to write GHA summary: ${error.message}`);

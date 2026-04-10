@@ -13,6 +13,15 @@ This tool automates the management of GitHub Projects v2 boards based on configu
 - Processing linked issues when PRs are merged
 
 The tool now supports monitoring multiple organizations (bcgov, bcgov-c, bcgov-nr) through repository-scoped rules and user-scoped searches are limited to allowed organizations.
+## Visibility & Auditing
+
+This tool is designed for transparency. Every run provides:
+
+- **GitHub Actions Job Summary**: A clean Markdown report generated in the Action's summary tab, showing which items were processed, the actions taken, and the reasons why.
+- **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions (column moves, sprint changes, etc.).
+- **Run Statistics**: A summary of total items processed, added, or skipped is printed at the end of every run.
+
+These features allow Scrum Masters and teams to monitor the automation with confidence.
 
 ## Configuration
 

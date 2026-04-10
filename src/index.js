@@ -315,7 +315,7 @@ async function main() {
               number: item.number,
               repo: item.repo || item.repository?.nameWithOwner,
               action: 'Assign Sprint',
-              from: 'None',
+              from: sprintResult.previousSprint || 'None',
               to: sprintResult.newSprint,
               rule: 'Sprint Assignment',
               reason: sprintResult.reason
@@ -336,7 +336,7 @@ async function main() {
               number: item.number,
               repo: item.repo || item.repository?.nameWithOwner,
               action: 'Remove Sprint',
-              from: 'Active Sprint',
+              from: sprintRemovalResult.previousSprint || 'Unknown',
               to: 'None',
               rule: 'Sprint Cleanup',
               reason: sprintRemovalResult.reason
@@ -355,10 +355,10 @@ async function main() {
             number: item.number,
             repo: item.repo || item.repository?.nameWithOwner,
             action: 'Update Assignees',
-            from: 'Previous',
+            from: assigneeResult.previousAssignees?.join(', ') || 'none',
             to: assigneeResult.assignees.join(', '),
             rule: 'Assignee Sync',
-            reason: 'Synchronizing project assignees with issue state'
+            reason: assigneeResult.reason || 'Synchronizing project assignees'
           });
         }
 
@@ -407,26 +407,15 @@ async function main() {
 
 
 
-    // Print final status and handle errors
+    // Final report logging
     const endTime = new Date();
     const duration = (endTime - startTime) / 1000;
 
     if (errors.length > 0) {
-      log.error('Project Board Sync completed with errors');
+      log.error(`Project Board Sync completed with ${errors.length} errors`);
     } else {
       log.info('Project Board Sync completed successfully');
     }
-
-    // Always print summary and optional verbose output
-    log.printSummary();
-    if (process.env.VERBOSE) {
-      log.info(`\nCompleted in ${duration}s`);
-      log.printStateSummary();
-      StateVerifier.printReports();
-    }
-
-    // Push the audit summary to GitHub Actions Job Summary
-    await auditLog.pushToGhaSummary();
 
     // Robust error classification - no more fragile string matching
     const errorClassifications = errors.map(error => ({
@@ -460,9 +449,20 @@ async function main() {
       process.exit(1); // Still a failure, but temporary
     }
 
+    log.error('Global execution error:');
     log.error(error);
-    log.printSummary();
     process.exit(1);
+  } finally {
+    // Ensure summary and reports are printed even on failure
+    log.printSummary();
+
+    if (process.env.VERBOSE) {
+      log.printStateSummary();
+      StateVerifier.printReports();
+    }
+
+    // Push the audit summary to GitHub Actions Job Summary
+    await auditLog.pushToGhaSummary();
   }
 }
 
