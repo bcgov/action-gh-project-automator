@@ -61,8 +61,6 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "hours=1" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "hours=2" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "hours=${{ github.event.inputs.window_hours || 2 }}" >> "$GITHUB_OUTPUT"
           else
