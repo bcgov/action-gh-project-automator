@@ -1,0 +1,31 @@
+name: PR Event Sync
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronized]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Tests
+        shell: bash
+        run: |
+          npm ci
+          npm test
+      - name: Run Sync Engine
+        uses: ./.github/actions/sync-engine
+        with:
+          window_hours: '1'
+          verbose: 'true'
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
