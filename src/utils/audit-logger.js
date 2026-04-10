@@ -33,18 +33,33 @@ class AuditLogger {
 
   /**
    * Generate a Markdown summary for GHA
+   * @param {Object} [stats]
+   * @param {string} [stats.health] - 'GREEN', 'YELLOW', 'RED', 'BLACK'
    * @returns {string} Markdown content
    */
-  generateSummary() {
+  generateSummary(stats = {}) {
     const durationSec = Math.round((new Date() - this.startTime) / 1000);
     const timeStr = new Date().toLocaleTimeString();
+
+    let healthIndicator = '';
+    if (stats.health) {
+      const emoji = {
+        GREEN: '🟢',
+        YELLOW: '🟡',
+        RED: '🔴',
+        BLACK: '💀',
+        UNKNOWN: '⚪'
+      }[stats.health] || '⚪';
+      healthIndicator = `\n**API Health: ${emoji} ${stats.health}**\n`;
+    }
     
     if (this.events.length === 0) {
-      return `### ✅ Run Complete: No changes needed.\nAll items are currently perfectly aligned with board rules.\n\n*Completed at ${timeStr} (Duration: ${durationSec}s)*`;
+      return `### ✅ Run Complete: No changes needed.\n${healthIndicator}\nAll items are currently perfectly aligned with board rules.\n\n*Completed at ${timeStr} (Duration: ${durationSec}s)*`;
     }
 
     let summary = `### 🤖 Automator Run Summary (${timeStr})\n\n`;
-    summary += `*Run Duration: ${durationSec}s*\n\n`;
+    summary += healthIndicator;
+    summary += `\n*Run Duration: ${durationSec}s*\n\n`;
     summary += '| Item | Action | Transition | Rule | Reason |\n';
     summary += '| :--- | :--- | :--- | :--- | :--- |\n';
 
@@ -60,15 +75,16 @@ class AuditLogger {
 
   /**
    * Write the summary to the GHA environment if available
+   * @param {Object} [stats]
    */
-  async pushToGhaSummary() {
+  async pushToGhaSummary(stats = {}) {
     const summaryPath = process.env.GITHUB_STEP_SUMMARY;
     if (!summaryPath) {
       log.debug('GITHUB_STEP_SUMMARY not set, skipping summary output.');
       return;
     }
 
-    const markdown = this.generateSummary();
+    const markdown = this.generateSummary(stats);
     try {
       // Ensure leading newline to avoid concatenation issues
       await fs.appendFile(summaryPath, `\n${markdown}\n`);

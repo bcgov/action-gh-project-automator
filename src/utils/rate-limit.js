@@ -21,7 +21,13 @@ async function getRateLimit() {
   }
 }
 
-async function shouldProceed(minRemaining = 200) {
+export const RatePriority = {
+  CRITICAL: 200,    // "Add to Board" - items must appear
+  STANDARD: 500,    // General sync (Columns, Sprints)
+  MAINTENANCE: 1000 // Verification and deep cleanup
+};
+
+async function shouldProceed(priority = RatePriority.STANDARD) {
   const rl = await getRateLimit();
   if (!rl) {
     return {
@@ -29,13 +35,20 @@ async function shouldProceed(minRemaining = 200) {
       remaining: null,
       limit: null,
       resetAt: null,
-      cost: null
+      cost: null,
+      health: 'UNKNOWN'
     };
   }
 
-  const proceed = rl.remaining >= minRemaining;
+  // Determine health level
+  let health = 'GREEN';
+  if (rl.remaining < RatePriority.CRITICAL) health = 'BLACK';
+  else if (rl.remaining < RatePriority.STANDARD) health = 'RED';
+  else if (rl.remaining < RatePriority.MAINTENANCE) health = 'YELLOW';
+
+  const proceed = rl.remaining >= priority;
   if (!proceed) {
-    log.info(`Rate limit low: remaining=${rl.remaining}/${rl.limit}, resetAt=${rl.resetAt}`);
+    log.info(`[THROTTLED] Skipping ${priority} priority task: remaining=${rl.remaining}/${rl.limit}, health=${health}`);
   }
 
   return {
@@ -43,7 +56,8 @@ async function shouldProceed(minRemaining = 200) {
     remaining: rl.remaining,
     limit: rl.limit,
     resetAt: rl.resetAt,
-    cost: rl.cost ?? null
+    cost: rl.cost ?? null,
+    health
   };
 }
 

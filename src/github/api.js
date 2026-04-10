@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff, formatRateLimitInfo } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo, RatePriority } from '../utils/rate-limit.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
@@ -158,7 +158,8 @@ async function getProjectItems(projectId, options = {}) {
   }
 
   if (!skipRateGuard) {
-    const rateStatus = await shouldProceedFn(minRemaining);
+    // Project item preloading is considered MAINTENANCE since we can fall back to direct lookups
+    const rateStatus = await shouldProceedFn(RatePriority.MAINTENANCE);
     if (!rateStatus.proceed) {
       const remainingInfo = formatRateLimitInfo(rateStatus);
       logger.info(`Skipping full project item preload due to low rate limit${remainingInfo}`);
@@ -377,11 +378,11 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   const backfillRepo = process.env.BACKFILL && process.env.BACKFILL.includes('/') ? process.env.BACKFILL : null;
   const sinceClause = backfillRepo ? '' : ` updated:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
 
-  if (backfillRepo) {
-    logger.info(`🔄 BACKFILL mode — searching only ${backfillRepo} without date filter`);
+  logger.info(`🔄 BACKFILL mode — searching only ${backfillRepo} without date filter`);
   }
 
-  const rateStatus = await shouldProceedFn(minRemaining);
+  // Discovery is CRITICAL
+  const rateStatus = await shouldProceedFn(RatePriority.CRITICAL);
   if (!rateStatus.proceed) {
     const info = formatRateLimitInfo(rateStatus);
     logger.info(`Skipping recent-item search due to low rate limit${info}`);
