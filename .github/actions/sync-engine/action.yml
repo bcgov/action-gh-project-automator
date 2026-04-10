@@ -1,0 +1,38 @@
+name: 'Sync Engine'
+description: 'Core logic for project board synchronization'
+inputs:
+  backfill:
+    description: 'Backfill repo (org/repo)'
+    required: false
+    default: ''
+  window_hours:
+    description: 'Update window (hours)'
+    required: false
+    default: '2'
+  verbose:
+    description: 'Enable verbose logging'
+    required: false
+    default: 'true'
+  github_token:
+    description: 'GitHub Token'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+    - shell: bash
+      run: |
+        npm ci
+    - shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_AUTHOR: DerekRoberts
+        PROJECT_URL: https://github.com/orgs/bcgov/projects/16
+        UPDATE_WINDOW_HOURS: ${{ inputs.window_hours }}
+        VERBOSE: ${{ inputs.verbose }}
+        CONFIG_FILE: rules.yml
+        BACKFILL: ${{ inputs.backfill }}
+      run: npm run start

@@ -1,0 +1,44 @@
+name: Scheduled Project Sync
+
+on:
+  schedule:
+    - cron: "0 * * * *" # hourly
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
+        required: false
+        default: ''
+        type: string
+      window_hours:
+        description: 'Update window (hours)'
+        required: false
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: scheduled-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Tests
+        shell: bash
+        run: |
+          npm ci
+          npm test
+      - name: Run Sync Engine
+        uses: ./.github/actions/sync-engine
+        with:
+          backfill: ${{ inputs.backfill }}
+          window_hours: ${{ inputs.window_hours || '2' }}
+          verbose: 'true'
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
