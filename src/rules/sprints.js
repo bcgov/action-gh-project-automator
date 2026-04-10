@@ -561,7 +561,8 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
     log.info(`  • Assigned sprint: ${decision.targetSprintTitle || decision.targetIterationId}`);
     return {
       changed: true,
-      newSprint: decision.targetIterationId,
+      newSprint: decision.targetSprintTitle || decision.targetIterationId,
+      previousSprint: decision.currentSprintTitle || 'None',
       reason: decision.reason
     };
   } catch (error) {
@@ -648,6 +649,8 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
 
     return {
       changed: true,
+      previousSprint: decision.currentSprintTitle || 'Active Sprint',
+      newSprint: 'None',
       reason: decision.reason
     };
   } catch (error) {

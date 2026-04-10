@@ -279,6 +279,7 @@ async function processAssignees(item, projectId, itemId) {
       return {
         changed: false,
         assignees: currentAssignees,
+        previousAssignees: currentAssignees,
         reason: 'No assignee rules triggered'
       };
     }
@@ -329,6 +330,7 @@ async function processAssignees(item, projectId, itemId) {
     return {
       changed: true,
       assignees: targetAssignees,
+      previousAssignees: currentAssignees,
       reason: `Added ${assigneeToAdd} as assignee`
     };
   } catch (error) {

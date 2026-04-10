@@ -66,46 +66,20 @@ async function processRuleType(item, ruleType, overrides = {}) {
         const actions = [];
         ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
-        // Debug: log config structure
-        if (ruleType === 'board_items') {
-            console.log('[DEBUG] config.project:', config.project);
-            console.log('[DEBUG] config.project.repositories:', config.project?.repositories);
-        }
-
         const rules = config.rules[ruleType] || [];
         
-        // Debug logging
-        if (ruleType === 'board_items') {
-            console.log(`[DEBUG] processRuleType: ${rules.length} ${ruleType} rules loaded`);
-            console.log(`[DEBUG] config.monitoredUsers:`, config.monitoredUsers);
-            console.log(`[DEBUG] item.author:`, item.author?.login);
-        }
-
         for (const rule of rules) {
             try {
-                // Debug: log item structure and monitored repos for repository rules
-                if (ruleType === 'board_items' && rule.trigger?.condition?.includes('repository')) {
-                    const monitoredRepos = [...(ruleValidator.monitoredRepos || [])];
-                    console.log(`[DEBUG] Item for ${rule.name}:`, JSON.stringify({
-                        repo: item.repository?.nameWithOwner,
-                    }));
-                    console.log(`[DEBUG] Monitored repos:`, monitoredRepos);
-                }
-
                 // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
                 // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
                 // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
                 const skipCondition = rule.skip_if ?? rule.skipIf;
                 if (skipCondition && await ruleValidator.validateSkipRule?.(item, skipCondition)) {
-                    console.log(`[DEBUG] Rule ${rule.name} skipped by skipCondition`);
                     continue;
                 }
 
                 // Check trigger conditions
                 const conditionResult = await ruleValidator.validateItemCondition?.(item, rule.trigger);
-                if (ruleType === 'board_items') {
-                    console.log(`[DEBUG] Rule ${rule.name} condition check:`, conditionResult, 'trigger:', rule.trigger);
-                }
                 if (conditionResult) {
                     const action = formatAction(rule, ruleType);
                     const params = { item };

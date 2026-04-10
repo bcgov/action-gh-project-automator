@@ -61,6 +61,7 @@ import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
+import { auditLog } from './utils/audit-logger.js';
 
 
 // Custom error classes for robust error handling
@@ -264,12 +265,33 @@ async function main() {
 
         // First verify the item was added successfully
         await StateVerifier.verifyAddition(item, context.projectId);
+        auditLog.logEvent({
+          type: item.type,
+          number: item.number,
+          repo: item.repo || item.repository?.nameWithOwner,
+          action: 'Add to Board',
+          from: 'None',
+          to: 'Project',
+          rule: 'Board Addition',
+          reason: 'Item matched auto-add criteria'
+        });
 
         // Set initial column
         const columnResult = await processColumnAssignment(item, item.projectItemId, context.projectId);
         if (columnResult.changed) {
           log.info(`Set column for ${itemRef} to ${columnResult.newStatus}`);
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
+          
+          auditLog.logEvent({
+            type: item.type,
+            number: item.number,
+            repo: item.repo || item.repository?.nameWithOwner,
+            action: 'Move Column',
+            from: columnResult.currentStatus || 'None',
+            to: columnResult.newStatus,
+            rule: 'Column Rule',
+            reason: columnResult.reason
+          });
         }
 
         // Process sprint assignment or removal based on column
@@ -288,6 +310,16 @@ async function main() {
           );
           if (sprintResult.changed) {
             log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
+            auditLog.logEvent({
+              type: item.type,
+              number: item.number,
+              repo: item.repo || item.repository?.nameWithOwner,
+              action: 'Assign Sprint',
+              from: sprintResult.previousSprint || 'None',
+              to: sprintResult.newSprint,
+              rule: 'Sprint Assignment',
+              reason: sprintResult.reason
+            });
           }
         } else if (inactiveColumns.includes(currentColumn)) {
           // Remove sprint for inactive columns
@@ -299,6 +331,16 @@ async function main() {
           );
           if (sprintRemovalResult.changed) {
             log.info(`Removed sprint for ${itemRef} from inactive column`);
+            auditLog.logEvent({
+              type: item.type,
+              number: item.number,
+              repo: item.repo || item.repository?.nameWithOwner,
+              action: 'Remove Sprint',
+              from: sprintRemovalResult.previousSprint || 'Unknown',
+              to: 'None',
+              rule: 'Sprint Cleanup',
+              reason: sprintRemovalResult.reason
+            });
           }
         }
 
@@ -307,6 +349,17 @@ async function main() {
         if (assigneeResult.changed) {
           log.info(`Updated assignees for ${itemRef}: ${assigneeResult.assignees.join(', ')}`);
           await StateVerifier.verifyAssignees(item, context.projectId, assigneeResult.assignees);
+          
+          auditLog.logEvent({
+            type: item.type,
+            number: item.number,
+            repo: item.repo || item.repository?.nameWithOwner,
+            action: 'Update Assignees',
+            from: assigneeResult.previousAssignees?.join(', ') || 'none',
+            to: assigneeResult.assignees.join(', '),
+            rule: 'Assignee Sync',
+            reason: assigneeResult.reason || 'Synchronizing project assignees'
+          });
         }
 
         // Process linked issues if it's a PR and has required properties
@@ -354,22 +407,14 @@ async function main() {
 
 
 
-    // Print final status and handle errors
+    // Final report logging
     const endTime = new Date();
     const duration = (endTime - startTime) / 1000;
 
     if (errors.length > 0) {
-      log.error('Project Board Sync completed with errors');
+      log.error(`Project Board Sync completed with ${errors.length} errors`);
     } else {
       log.info('Project Board Sync completed successfully');
-    }
-
-    // Always print summary and optional verbose output
-    log.printSummary();
-    if (process.env.VERBOSE) {
-      log.info(`\nCompleted in ${duration}s`);
-      log.printStateSummary();
-      StateVerifier.printReports();
     }
 
     // Robust error classification - no more fragile string matching
@@ -404,9 +449,20 @@ async function main() {
       process.exit(1); // Still a failure, but temporary
     }
 
+    log.error('Global execution error:');
     log.error(error);
-    log.printSummary();
     process.exit(1);
+  } finally {
+    // Ensure summary and reports are printed even on failure
+    log.printSummary();
+
+    if (process.env.VERBOSE) {
+      log.printStateSummary();
+      StateVerifier.printReports();
+    }
+
+    // Push the audit summary to GitHub Actions Job Summary
+    await auditLog.pushToGhaSummary();
   }
 }
 

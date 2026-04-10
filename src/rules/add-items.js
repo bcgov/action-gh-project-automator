@@ -31,7 +31,6 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   // Get recent items from API
   const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { allowedOrgs });
-  logger.info(`Found ${apiItems.length} items from API search\n`, true);
 
   // Combine seed items from event with API results
   const items = [...seedItems, ...apiItems];
