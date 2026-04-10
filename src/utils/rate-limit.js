@@ -36,8 +36,10 @@ const PriorityLabels = {
 async function shouldProceed(priority = RatePriority.STANDARD) {
   const rl = await getRateLimit();
   if (!rl) {
+    // If we can't check the budget, default to defensive (don't proceed)
+    log.warning('[THROTTLED] Unable to verify rate limit budget; skipping task for safety.');
     return {
-      proceed: true,
+      proceed: false,
       remaining: null,
       limit: null,
       resetAt: null,
@@ -45,6 +47,7 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
       health: 'UNKNOWN'
     };
   }
+
 
   // Determine health level
   let health = 'GREEN';
@@ -54,8 +57,9 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
 
   const proceed = rl.remaining >= priority;
   if (!proceed) {
-    const label = PriorityLabels[priority] || priority;
-    log.info(`[THROTTLED] Skipping ${label} priority task: remaining=${rl.remaining}/${rl.limit}, health=${health}`);
+    const label = Object.keys(RatePriority).find(k => RatePriority[k] === priority) || priority;
+    log.info(`[THROTTLED/RESERVE] Skipping ${label} task (Priority: ${priority}): remaining=${rl.remaining}/${rl.limit}, health=${health}`);
+
   }
 
   return {
