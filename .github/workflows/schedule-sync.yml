@@ -29,8 +29,8 @@ jobs:
   run-sync:
     uses: ./.github/workflows/reusable-sync-logic.yml
     with:
-      backfill: ${{ github.event.inputs.backfill }}
-      window_hours: ${{ github.event.inputs.window_hours || '2' }}
+      backfill: ${{ inputs.backfill }}
+      window_hours: ${{ inputs.window_hours || '2' }}
       verbose: 'true'
-    secrets:
-      PROJECT_SYNC_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+    secrets: inherit
+

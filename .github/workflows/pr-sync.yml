@@ -19,5 +19,4 @@ jobs:
     with:
       window_hours: '1' # Tight window for PR-specific triggers
       verbose: 'true'
-    secrets:
-      PROJECT_SYNC_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+    secrets: inherit
