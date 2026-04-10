@@ -77,10 +77,10 @@ test('getRecentItems constructs assignee search query correctly', async () => {
   const assigneeCall = calls.find(call => call.includes('assignee:'));
   assert.ok(assigneeCall, 'Assignee search should be called');
   assert.ok(assigneeCall.includes('assignee:testuser'), 'Query should include assignee username');
-  assert.ok(assigneeCall.includes('created:>'), 'Query should include created timestamp filter');
+  assert.ok(assigneeCall.includes('updated:>'), 'Query should include updated timestamp filter');
   
   // Verify timestamp format (ISO 8601)
-  const timestampMatch = assigneeCall.match(/created:>([^\s]+)/);
+  const timestampMatch = assigneeCall.match(/updated:>([^\s]+)/);
   assert.ok(timestampMatch, 'Query should include timestamp in ISO format');
   assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampMatch[1]), 'Timestamp should be ISO 8601 format');
 });
