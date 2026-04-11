@@ -3,11 +3,12 @@
  * Integrates functionality from standalone scripts into main application
  */
 
-const path = require('path');
-const { validateEnvironment } = require('../index');
-const ConfigLoader = require('../config/loader');
-const { log } = require('./log');
-const { StateVerifier } = require('./state-verifier');
+import path from 'path';
+import { validateEnvironment } from '../index.js';
+import ConfigLoader from '../config/loader.js';
+import { log } from './log.js';
+import { StateVerifier } from './state-verifier.js';
+import { loadBoardRules } from '../config/board-rules.js';
 
 class ValidationRunner {
   /**
@@ -56,8 +57,6 @@ class ValidationRunner {
       }
 
       // 2. Configuration validation (respect flattened config resolution)
-      const loader = new ConfigLoader();
-      const { loadBoardRules } = require('../config/board-rules');
       const config = loadBoardRules();
       
       // Verify project configuration (supports URL, ID, or number)
@@ -148,4 +147,4 @@ class ValidationRunner {
   }
 }
 
-module.exports = { ValidationRunner };
+export { ValidationRunner };
