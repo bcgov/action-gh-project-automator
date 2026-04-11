@@ -11,7 +11,8 @@ describe('ValidationRunner', () => {
     process.env = {
       ...originalEnv,
       GITHUB_TOKEN: 'test-token',
-      PROJECT_ID: 'test-project-id'
+      PROJECT_ID: 'test-project-id',
+      GITHUB_AUTHOR: 'test-user'
     };
     
     // Mock environment validation to prevent real network calls
