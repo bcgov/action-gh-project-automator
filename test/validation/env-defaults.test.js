@@ -1,7 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { EnvironmentValidator } = require('../../src/utils/environment-validator');
-const { loadBoardRules } = require('../../src/config/board-rules');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
+import { loadBoardRules } from '../../src/config/board-rules.js';
+
 
 // Store original env
 const originalEnv = { ...process.env };
@@ -12,7 +13,11 @@ function resetEnv() {
 
 test('environment validation with defaults', async (t) => {
   // Reset env before each test
-  t.beforeEach(resetEnv);
+  t.beforeEach(() => {
+    resetEnv();
+    t.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve(config.monitoredUser));
+    t.mock.method(EnvironmentValidator, 'resolveProjectFromUrl', () => Promise.resolve('test-project-id'));
+  });
   t.afterEach(resetEnv);
 
   const config = await loadBoardRules();

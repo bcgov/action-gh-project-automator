@@ -1,19 +1,22 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { shouldProceed, RatePriority } from '../../src/utils/rate-limit.js';
 
 describe('RateLimit Utility', () => {
-  it('correctly maps remaining tokens to health levels', async () => {
-    // Mock getRateLimit by overriding it or using the implementation details
-    // For unit testing without network, we can verify the priority thresholds
+  it('correctly exports priority levels', () => {
     assert.strictEqual(RatePriority.CRITICAL, 200);
     assert.strictEqual(RatePriority.STANDARD, 500);
     assert.strictEqual(RatePriority.MAINTENANCE, 1000);
   });
 
-  it('allows CRITICAL tasks even when remaining is low but above threshold', async () => {
-    // This would require mocking getRateLimit accurately. 
-    // Since we're in a real repo, I'll assume the implementation of shouldProceed 
-    // is what we're testing.
+  it('fails defensively when rate limit info is unavailable', async () => {
+    // Note: shouldProceed calls getRateLimit, which we haven't mocked here
+    // But since it will fail (API down in tests), we expect it to return continue: false
+    // based on our new defensive change.
+    const result = await shouldProceed(RatePriority.CRITICAL);
+    assert.strictEqual(result.proceed, false);
+    assert.strictEqual(result.health, 'UNKNOWN');
   });
+
+  // Future improvement: Add more robust mocking for success scenarios
 });

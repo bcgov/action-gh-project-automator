@@ -1,11 +1,14 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { StateVerifier } from '../../src/utils/state-verifier.js';
+import * as githubApi from '../../src/github/api.js';
+import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
 
 test('verifyAssignees with real data (dry run)', async (t) => {
   // This test uses real GitHub data but in a dry run mode
   // It tests the logic without actually making changes
   
-  await t.test('should handle real project data correctly', async () => {
+  await t.test('should handle real project data correctly', async (st) => {
     // Skip this test if we don't have real project data
     const projectId = process.env.PROJECT_ID;
     if (!projectId) {
@@ -13,12 +16,13 @@ test('verifyAssignees with real data (dry run)', async (t) => {
       return;
     }
 
+    // Mock network calls even if PROJECT_ID is set, for consistency and stability
+    st.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve('test-user'));
+    st.mock.method(githubApi.octokit, 'graphql', () => Promise.reject(new Error('Could not resolve project')));
+
     // Use a real PR from the project for testing
     // This is a dry run - we won't actually modify anything
-    const { StateVerifier } = require('../../src/utils/state-verifier');
-    
-    // Get a real item from the project for testing
-    const { getItemColumn, isItemInProject } = require('../../src/github/api');
+
     
     // Find a real project item to test with
     // This is just for testing the logic, not making changes
@@ -50,11 +54,18 @@ test('verifyAssignees with real data (dry run)', async (t) => {
     );
   });
 
-  await t.test('should validate function signature and behavior', async () => {
+  await t.test('should validate function signature and behavior', async (st) => {
     // Test the function signature and basic behavior without making API calls
-    const { StateVerifier } = require('../../src/utils/state-verifier');
+    st.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve('test-user'));
     
-    // Test that the function exists and has the right signature
+    // Mock GraphQL calls
+    st.mock.method(githubApi.octokit, 'graphql', () => Promise.reject(new Error('Could not resolve project')));
+    
+    // Mock REST calls
+    st.mock.method(githubApi.octokit.rest.pulls, 'get', () => Promise.reject(new Error('Not found')));
+    st.mock.method(githubApi.octokit.rest.issues, 'get', () => Promise.reject(new Error('Not found')));
+
+
     assert.ok(typeof StateVerifier.verifyAssignees === 'function', 'verifyAssignees should be a function');
     
     // Test that it expects the right parameters

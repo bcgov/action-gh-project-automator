@@ -5,11 +5,11 @@
   "main": "src/index.js",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "validate": "node scripts/validate.js",
-    "test": "node --test \"test/**/*.test.mjs\"",
+    "test": "node --test test/*.test.* test/*/*.test.*",
     "start": "node src/index.js",
     "test:state": "node --test test/state-verifier.test.js",
     "test:validator": "node --test test/state-transition-validator.test.js",

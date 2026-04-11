@@ -1,4 +1,4 @@
-const { graphql } = require('@octokit/graphql');
+import { graphql } from '@octokit/graphql';
 
 /**
  * @typedef {Object} ProjectItem
@@ -43,7 +43,7 @@ const { graphql } = require('@octokit/graphql');
  * @test {verifyFieldValues} Ensures all required fields are present
  * @test {verifyNoMutations} Confirms query is read-only
  */
-async function fetchBoardData() {
+export async function fetchBoardData() {
   // Uses GITHUB_TOKEN from environment
   const { node } = await graphql({
     query: `
@@ -97,5 +97,3 @@ async function fetchBoardData() {
 
   return node;
 }
-
-module.exports = { fetchBoardData };

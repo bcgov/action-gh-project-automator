@@ -4,7 +4,7 @@
  * Use npm run refresh-test-data to update
  */
 
-module.exports = {
+export default {
   "items": [
     {
       "id": "test-gzgX40uU",

@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { StateVerifier } = require('../src/utils/state-verifier.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { StateVerifier } from '../src/utils/state-verifier.js';
 
 test('retryWithTracking retries column mismatch errors', async () => {
   const item = { type: 'PullRequest', number: 200 };

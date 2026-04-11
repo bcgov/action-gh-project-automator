@@ -21,7 +21,7 @@ describe('Column Transition Enforcement in columns.js', () => {
 
   test('setup: initialize transition rules', async () => {
     setupTestEnvironment();
-    boardConfig = loadBoardRules({ monitoredUser: 'test-user' });
+    boardConfig = await loadBoardRules({ monitoredUser: 'test-user' });
     
     // Initialize transition rules
     StateVerifier.getTransitionValidator(); // Initialize first

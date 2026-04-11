@@ -1,136 +1,97 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import { processAssigneeRules } from '../../src/rules/processors/unified-rule-processor.js';
+import { log } from '../../src/utils/log.js';
 
-test('PR assigned to monitored user rule', async (t) => {
-    // Shared variables for all sub-tests
-    let processBoardItemRules;
+describe('PR assigned to monitored user rule', () => {
     const logMessages = [];
     
-    // Setup test environment and mocks before each test
-    t.beforeEach(() => {
-        // Mock dependencies using require.cache
-        const sharedValidatorPath = require.resolve('../../src/rules/processors/shared-validator');
-        const boardRulesPath = require.resolve('../../src/config/board-rules');
-        const logPath = require.resolve('../../src/utils/log');
-        
-        require.cache[sharedValidatorPath] = {
-            exports: {
-                validator: {
-                    validateItemCondition: (item, trigger) => {
-                        if (trigger.condition === 'item.assignees.some(assignee => monitored.users.includes(assignee))') {
-                            return item.assignees?.nodes?.some(a => a.login === 'testAssignee');
-                        }
-                        return false;
-                    },
-                    validateSkipRule: (item, skipIf) => {
-                        if (skipIf === "item.inProject") {
-                            return item.projectItems?.nodes?.length > 0;
-                        }
-                        return false;
-                    },
-                    steps: {
-                        markStepComplete: (step) => {
-                            // Mock implementation
-                        }
-                    }
-                }
-            }
-        };
-        
-        require.cache[boardRulesPath] = {
-            exports: {
-                loadBoardRules: () => ({
-                    rules: {
-                        board_items: [{
-                            name: "PullRequest by Assignee",
-                            description: "Add pull requests assigned to monitored user",
-                            trigger: {
-                                type: "PullRequest",
-                                condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
-                            },
-                            action: "add_to_board",
-                            skip_if: "item.inProject"
-                        }]
-                    },
-                    monitoredUsers: ['testAssignee']
-                })
-            }
-        };
+    // Mock logging
+    mock.method(log, 'info', (msg) => logMessages.push(msg));
+    mock.method(log, 'debug', (msg) => logMessages.push(msg));
+    mock.method(log, 'error', (msg) => logMessages.push(msg));
 
-        require.cache[logPath] = {
-            exports: {
-                log: {
-                    info: (msg) => logMessages.push(msg),
-                    debug: (msg) => logMessages.push(msg),
-                    error: (msg) => logMessages.push(msg)
-                }
-            }
-        };
+    const mockConfig = {
+        rules: {
+            assignees: [{
+                name: "assign_authored_prs",
+                description: "Add PR author as assignee",
+                trigger: {
+                    type: "PullRequest",
+                    condition: "monitored.users.includes(item.author)"
+                },
+                action: "add_assignee",
+                value: "item.author",
+                skip_if: "item.assignees.includes(item.author)"
+            }]
+        },
+        monitoredUsers: ['DerekRoberts']
+    };
 
-        // Set test environment
-        process.env.GITHUB_ASSIGNEE = 'testAssignee';
-        
-        // Clear log messages
+    const mockValidator = {
+        validateItemCondition: async (item, trigger) => {
+            if (trigger.condition === "monitored.users.includes(item.author)") {
+                return item.author?.login === 'DerekRoberts';
+            }
+            return false;
+        },
+        validateSkipRule: async (item, skipIf) => {
+            if (skipIf === "item.assignees.includes(item.author)") {
+                return item.assignees?.nodes?.some(a => a.login === item.author?.login);
+            }
+            return false;
+        },
+        steps: {
+            markStepComplete: () => {}
+        }
+    };
+
+    const overrides = {
+        loadBoardRulesFn: async () => mockConfig,
+        ruleValidator: mockValidator
+    };
+
+    test('adds author as assignee when not already assigned', async () => {
         logMessages.length = 0;
-        
-        // Import after mocks are set up
-        const boardItems = require('../../src/rules/processors/unified-rule-processor');
-        processBoardItemRules = boardItems.processBoardItemRules;
-    });
-
-    t.afterEach(() => {
-        // Clear mocks
-        delete require.cache[require.resolve('../../src/rules/processors/shared-validator')];
-        delete require.cache[require.resolve('../../src/config/board-rules')];
-        delete require.cache[require.resolve('../../src/utils/log')];
-    });
-
-    await t.test('adds PR to board when assigned to monitored user', async () => {
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            assignees: { 
-                nodes: [{ login: 'testAssignee' }]
-            },
-            projectItems: { nodes: [] }  // Not in project
+            author: { login: 'DerekRoberts' },
+            assignees: { nodes: [] }
         };
 
-        const actions = await processBoardItemRules(pr);
-        
-        assert.equal(actions.length, 1);
-        assert.equal(actions[0].action, 'add_to_board');
-        assert.deepEqual(actions[0].params, { item: pr });
-        assert.ok(logMessages.some(msg => msg.includes('Rule PullRequest by Assignee triggered for PullRequest #123')));
+        const actions = await processAssigneeRules(pr, overrides);
+
+        assert.equal(actions.length, 1, 'should add assignee');
+        assert.equal(actions[0].action, 'add_assignee: item.author', 'action should be add_assignee');
+        assert.equal(actions[0].params.assignee, 'item.author', 'should include assignee in params');
     });
 
-    await t.test('skips PR when already in project', async () => {
+    test('skips when author is already assigned', async () => {
+        logMessages.length = 0;
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            assignees: { 
-                nodes: [{ login: 'testAssignee' }]
-            },
-            projectItems: { nodes: [{ id: 'some-id' }] }  // Already in project
+            author: { login: 'DerekRoberts' },
+            assignees: { nodes: [{ login: 'DerekRoberts' }] }
         };
 
-        const actions = await processBoardItemRules(pr);
-        
-        assert.equal(actions.length, 0);
-        assert.ok(logMessages.some(msg => msg.includes('Skipping PullRequest #123 - Already in project')));
+        const actions = await processAssigneeRules(pr, overrides);
+
+        assert.equal(actions.length, 0, 'should skip already assigned author');
     });
 
-    await t.test('skips PR when not assigned to monitored user', async () => {
+    test('skips when author is not monitored user', async () => {
+        logMessages.length = 0;
         const pr = {
             __typename: 'PullRequest',
             number: 123,
-            assignees: { 
-                nodes: [{ login: 'otherUser' }]
-            },
-            projectItems: { nodes: [] }
+            author: { login: 'otherUser' },
+            assignees: { nodes: [] }
         };
 
-        const actions = await processBoardItemRules(pr);
-        
-        assert.equal(actions.length, 0);
+        const actions = await processAssigneeRules(pr, overrides);
+
+        assert.equal(actions.length, 0, 'should skip non-monitored author');
     });
 });

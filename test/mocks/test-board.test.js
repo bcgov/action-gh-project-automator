@@ -1,7 +1,7 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const board = require('./test-board');
-const { loadBoardRules } = require('../../src/config/board-rules');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import board from './test-board.js';
+import { loadBoardRules } from '../../src/config/board-rules.js';
 
 let mockBoard;
 

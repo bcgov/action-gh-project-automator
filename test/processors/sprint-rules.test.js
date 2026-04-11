@@ -1,13 +1,11 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { processSprintRules } = require('../../src/rules/processors/unified-rule-processor');
-const { setupTestEnvironment } = require('../setup');
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { processSprintRules } from '../../src/rules/processors/unified-rule-processor.js';
+import { setupTestEnvironment } from '../setup.js';
 
-test('processSprintRules', async (t) => {
-    // Setup test environment
-    setupTestEnvironment();
-    
-    await t.test('sets sprint when PR is in Active column', async () => {
+describe('processSprintRules', () => {
+    test('sets sprint when PR is in Active column', async () => {
+        setupTestEnvironment();
         const pr = {
             __typename: 'PullRequest',
             author: { login: 'DerekRoberts' },
@@ -25,7 +23,8 @@ test('processSprintRules', async (t) => {
         assert.equal(actions[0].params.item, pr, 'should include PR in params');
     });
 
-    await t.test('sets sprint when Issue is in Next column', async () => {
+    test('sets sprint when Issue is in Next column', async () => {
+        setupTestEnvironment();
         const issue = {
             __typename: 'Issue',
             author: { login: 'DerekRoberts' },
@@ -43,7 +42,8 @@ test('processSprintRules', async (t) => {
         assert.equal(actions[0].params.item, issue, 'should include Issue in params');
     });
 
-    await t.test('sets sprint when PR is in Done column', async () => {
+    test('sets sprint when PR is in Done column', async () => {
+        setupTestEnvironment();
         const pr = {
             __typename: 'PullRequest',
             author: { login: 'DerekRoberts' },
@@ -61,7 +61,8 @@ test('processSprintRules', async (t) => {
         assert.equal(actions[0].params.item, pr, 'should include PR in params');
     });
 
-    await t.test('skips when sprint is already current', async () => {
+    test('skips when sprint is already current', async () => {
+        setupTestEnvironment();
         const pr = {
             __typename: 'PullRequest',
             author: { login: 'DerekRoberts' },
@@ -77,11 +78,12 @@ test('processSprintRules', async (t) => {
         assert.equal(actions.length, 0, 'should skip when sprint already current');
     });
 
-    await t.test('skips when item has any sprint and is not in Active/Next', async () => {
+    test('skips when item has any sprint and is not in Active/Next', async () => {
+        setupTestEnvironment();
         const pr = {
             __typename: 'PullRequest',
             author: { login: 'DerekRoberts' },
-            column: 'Backlog',
+            column: 'Triage',
             sprint: 'previous-sprint',
             projectItems: {
                 nodes: []
