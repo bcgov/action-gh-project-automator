@@ -8,9 +8,11 @@ describe('RuleValidation - Ludicrous Coverage', () => {
     beforeEach(async () => {
         validator = new RuleValidation();
         // Populate the validator manually to ensure skip/condition checks work
-        validator.monitoredUsers = new Set(['test-user', 'another-user']);
-        validator.monitoredRepos = new Set(['bcgov/some-repo', 'other-org/other-repo']);
-        validator._config = { initialized: true };
+        validator.ensureConfig = async () => {
+            validator.monitoredUsers = new Set(['test-user', 'another-user']);
+            validator.monitoredRepos = new Set(['bcgov/some-repo', 'other-org/other-repo']);
+        };
+        await validator.ensureConfig();
     });
 
     describe('Type Validation', () => {

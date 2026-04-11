@@ -76,10 +76,10 @@ npm test
 For targeted testing of the core engines:
 ```bash
 # Test the unified rule processor
-npm test -- processors/unified-rule-processor.test.js
+npm test -- test/processors/unified-rule-processor.test.js
 
 # Test the ludicrous validation matrix
-npm test -- processors/ludicrous-coverage.test.js
+npm test -- test/processors/ludicrous-coverage.test.js
 ```
 
 ---
