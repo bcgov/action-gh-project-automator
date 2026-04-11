@@ -19,7 +19,7 @@ import { log } from '../../utils/log.js';
  * @param {Array<{action: string, params: Object}>} actions List of actions to deduplicate
  * @returns {Array<{action: string, params: Object}>} Deduplicated actions
  */
-function deduplicateActions(actions) {
+export function deduplicateActions(actions) {
     const actionGroups = new Map();
 
     for (const action of actions) {

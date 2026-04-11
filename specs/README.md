@@ -39,9 +39,11 @@ specs/
 
 Specs are numbered sequentially starting from `001`:
 
-- `001-issues-assigned-to-users/` - First feature spec
-- `002-[next-feature]/` - Second feature spec
-- `003-[another-feature]/` - Third feature spec
+- `001-issues-assigned-to-users/` - Support for cross-repo issue tracking
+- `002-cross-org-repo-search/` - Fixes for cross-organization repository support
+- `004-rule-engine-architecture/` - Standardized, whitelist-based rule evaluation logic
+- `005-column-assignment-rules/` - Automated status/column transitions
+- `006-sprint-assignment-rules/` - Iteration and sprint lifecycle management
 
 **Guidelines:**
 - Use zero-padded 3-digit numbers (001, 002, etc.)
@@ -116,32 +118,17 @@ The following existing features need retroactive specs (created when time permit
    - Repository-scoped PRs
    - Repository-scoped Issues
    - User-authored PRs
-   - User-assigned PRs (already covered in 001)
 
-2. **Column Assignment Rules** - Rules for setting initial columns
-   - PRs → Active column
-   - Issues → New column
-
-3. **Sprint Assignment Rules** - Rules for sprint management
-   - Active sprint assignment
-   - Sprint removal for inactive columns
-   - Done column sprint assignment
-
-4. **Linked Issue Processing** - Inheritance of PR state to linked issues
+2. **Linked Issue Processing** - Inheritance of PR state to linked issues
    - Column inheritance
    - Assignee inheritance
    - Sprint inheritance
 
-5. **Assignee Rules** - Automatic assignee management
+3. **Assignee Rules** - Automatic assignee management
    - PR author assignment
    - Linked issue assignee inheritance
 
-6. **Existing Items Sweep** - Background processing of items already on board
-
-These will be prioritized based on:
-- Feature complexity
-- Documentation needs
-- Developer onboarding requirements
+4. **Existing Items Sweep** - Background processing of items already on board
 
 ## Spec Review Checklist
 
