@@ -1,11 +1,18 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { validateEnvironment } = require('../../src/index.js');
-const { loadBoardRules } = require('../../src/config/board-rules');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateEnvironment } from '../../src/index.js';
+import { loadBoardRules } from '../../src/config/board-rules.js';
+import { StateVerifier } from '../../src/utils/state-verifier.js';
+import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
 
 test('environment validation', async (t) => {
   const originalEnv = { ...process.env };
   const config = await loadBoardRules();
+
+  t.beforeEach(() => {
+    t.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve(config.monitoredUser));
+    t.mock.method(EnvironmentValidator, 'resolveProjectFromUrl', () => Promise.resolve('test-project-id'));
+  });
 
   t.afterEach(() => {
     process.env = { ...originalEnv };
@@ -60,7 +67,6 @@ test('environment validation', async (t) => {
     
     try {
       await validateEnvironment();
-      const { StateVerifier } = require('../../src/utils/state-verifier');
       assert(StateVerifier.steps.areAllStepsCompleted(), 'All steps should be completed');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to setup
@@ -75,7 +81,6 @@ test('environment validation', async (t) => {
     
     try {
       await validateEnvironment();
-      const { StateVerifier } = require('../../src/utils/state-verifier');
       const steps = StateVerifier.steps;
       const tokenIndex = steps.getCompletedSteps().indexOf('TOKEN_CONFIGURED');
       const projectIndex = steps.getCompletedSteps().indexOf('PROJECT_CONFIGURED');

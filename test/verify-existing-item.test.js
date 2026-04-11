@@ -1,30 +1,48 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { isItemInProject } = require('../src/github/api');
-const { loadBoardRules } = require('../src/config/board-rules');
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { shouldAddItemToProject } from '../src/rules/add-items.js';
 
-test('Verify existing item detection works correctly', async (t) => {
-    // Set up test environment
-    const config = await loadBoardRules();
-    process.env.GITHUB_AUTHOR = config.monitoredUser;
-    // This is the PR we saw in the logs
-    const prNodeId = 'PR_kwDOHWjA886cSajx'; // This is the node ID from the logs
-    const projectId = 'PVT_kwDOAA37OM4AFuzg';
-    
-    try {
-        const result = await isItemInProject(prNodeId, projectId);
-        console.log('✅ Item in project check result:', result);
-        
-        if (result.isInProject) {
-            console.log(`✅ PR was already in project with ID: ${result.projectItemId}`);
-            assert(result.projectItemId, 'Should have a project item ID if in project');
-        } else {
-            console.log('❌ PR was not in project - this would be unexpected');
-        }
-        
-        console.log('✅ Existing item detection test completed');
-    } catch (error) {
-        console.error('❌ Error checking if item is in project:', error.message);
-        throw error;
-    }
-}); 
+describe('Existing item detection', () => {
+    test('should verify detection criteria for issues and PRs', () => {
+        const monitoredUser = 'test-user';
+        const monitoredRepos = new Set(['org/monitored-repo']);
+
+        // Case 1: Item in monitored repo
+        const itemInRepo = {
+            __typename: 'Issue',
+            number: 1,
+            repository: { nameWithOwner: 'org/monitored-repo' },
+            assignees: { nodes: [] }
+        };
+        assert.strictEqual(shouldAddItemToProject(itemInRepo, monitoredUser, monitoredRepos), true, 'Should add items from monitored repos');
+
+        // Case 2: PR authored by monitored user (not in monitored repo)
+        const prByAuthor = {
+            __typename: 'PullRequest',
+            number: 2,
+            repository: { nameWithOwner: 'other/repo' },
+            author: { login: 'test-user' },
+            assignees: { nodes: [] }
+        };
+        assert.strictEqual(shouldAddItemToProject(prByAuthor, monitoredUser, monitoredRepos), true, 'Should add PRs authored by monitored user');
+
+        // Case 3: Issue assigned to monitored user (not in monitored repo)
+        const assignedIssue = {
+            __typename: 'Issue',
+            number: 3,
+            repository: { nameWithOwner: 'other/repo' },
+            assignees: { nodes: [{ login: 'test-user' }] }
+        };
+        assert.strictEqual(shouldAddItemToProject(assignedIssue, monitoredUser, monitoredRepos), true, 'Should add issues assigned to monitored user');
+
+        // Case 4: Item that doesn't match any criteria
+        const otherItem = {
+            __typename: 'Issue',
+            number: 4,
+            repository: { nameWithOwner: 'other/repo' },
+            assignees: { nodes: [{ login: 'other-user' }] }
+        };
+        assert.strictEqual(shouldAddItemToProject(otherItem, monitoredUser, monitoredRepos), false, 'Should not add items that do not match criteria');
+    });
+});
+

@@ -1,13 +1,15 @@
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import ConfigLoader from './loader.js';
 
 /**
  * Load the board rules configuration and normalize it for backward compatibility.
- * @async
- * @returns {Promise<object>} The parsed and validated configuration
+ * @param {object} context Optional context for loading
+ * @returns {object} The parsed and validated configuration
  */
-async function loadBoardRules(context = {}) {
+
+function loadBoardRules(context = {}) {
     const loader = new ConfigLoader();
 
     // Resolve config path with flattening preference for repo-level config
@@ -165,5 +167,6 @@ function resolveConfigPath() {
     }
 
     // 4) Legacy package-local config (last resort during migration)
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
     return path.join(__dirname, '../../rules.yml');
 }

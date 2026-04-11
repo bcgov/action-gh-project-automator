@@ -227,7 +227,6 @@ class EnvironmentValidator {
       log.info(`PROJECT_URL: ${process.env.PROJECT_URL || 'NOT SET'}`);
 
       // Test file access
-      const { loadBoardRules } = require('../config/board-rules');
       try {
         const rules = loadBoardRules();
         log.info(`Loaded configuration with project: ${rules?.project?.url || rules?.project?.id || 'unknown'}`);

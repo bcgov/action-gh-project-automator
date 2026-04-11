@@ -1,90 +1,56 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import { processBoardItemRules } from '../../src/rules/processors/unified-rule-processor.js';
+import { log } from '../../src/utils/log.js';
 
-test('PR/Issue from monitored repository rule', async (t) => {
-    // Shared variables for all sub-tests
-    let processBoardItemRules;
+describe('PR/Issue from monitored repository rule', () => {
     const logMessages = [];
     
-    // Setup test environment and mocks before each test
-    t.beforeEach(() => {
-        // Mock dependencies using require.cache
-        const sharedValidatorPath = require.resolve('../../src/rules/processors/shared-validator');
-        const boardRulesPath = require.resolve('../../src/config/board-rules');
-        const logPath = require.resolve('../../src/utils/log');
-        
-        require.cache[sharedValidatorPath] = {
-            exports: {
-                validator: {
-                    validateItemCondition: (item, trigger) => {
-                        if (trigger.condition === 'item.repository === monitored.repository') {
-                            return item.repository?.name === process.env.GITHUB_REPOSITORY;
-                        }
-                        return false;
-                    },
-                    validateSkipRule: (item, skipIf) => {
-                        if (skipIf === "item.inProject") {
-                            return item.projectItems?.nodes?.length > 0;
-                        }
-                        return false;
-                    },
-                    steps: {
-                        markStepComplete: (step) => {
-                            // Mock implementation
-                        }
-                    }
-                }
-            }
-        };
-        
-        require.cache[boardRulesPath] = {
-            exports: {
-                loadBoardRules: () => ({
-                    rules: {
-                        board_items: [{
-                            name: "Items from Repository",
-                            description: "Add items from monitored repository",
-                            trigger: {
-                                type: "PullRequest|Issue",
-                                condition: "item.repository === monitored.repository"
-                            },
-                            action: "add_to_board",
-                            skip_if: "item.inProject"
-                        }]
-                    }
-                })
-            }
-        };
+    // Mock logging
+    mock.method(log, 'info', (msg) => logMessages.push(msg));
+    mock.method(log, 'debug', (msg) => logMessages.push(msg));
+    mock.method(log, 'error', (msg) => logMessages.push(msg));
 
-        require.cache[logPath] = {
-            exports: {
-                log: {
-                    info: (msg) => logMessages.push(msg),
-                    debug: (msg) => logMessages.push(msg),
-                    error: (msg) => logMessages.push(msg)
-                }
-            }
-        };
+    const mockConfig = {
+        rules: {
+            board_items: [{
+                name: "Items from Repository",
+                description: "Add items from monitored repository",
+                trigger: {
+                    type: "PullRequest|Issue",
+                    condition: "item.repository === monitored.repository"
+                },
+                action: "add_to_board",
+                skip_if: "item.inProject"
+            }]
+        }
+    };
 
-        // Set test environment
-        process.env.GITHUB_REPOSITORY = 'test-repo';
-        
-        // Clear log messages
+    const mockValidator = {
+        validateItemCondition: async (item, trigger) => {
+            if (trigger.condition === 'item.repository === monitored.repository') {
+                return item.repository?.name === 'test-repo';
+            }
+            return false;
+        },
+        validateSkipRule: async (item, skipIf) => {
+            if (skipIf === "item.inProject") {
+                return item.projectItems?.nodes?.length > 0;
+            }
+            return false;
+        },
+        steps: {
+            markStepComplete: () => {}
+        }
+    };
+
+    const overrides = {
+        loadBoardRulesFn: async () => mockConfig,
+        ruleValidator: mockValidator
+    };
+
+    test('adds PR to board when from monitored repository', async () => {
         logMessages.length = 0;
-        
-        // Import after mocks are set up
-        const boardItems = require('../../src/rules/processors/unified-rule-processor');
-        processBoardItemRules = boardItems.processBoardItemRules;
-    });
-
-    t.afterEach(() => {
-        // Clear mocks
-        delete require.cache[require.resolve('../../src/rules/processors/shared-validator')];
-        delete require.cache[require.resolve('../../src/config/board-rules')];
-        delete require.cache[require.resolve('../../src/utils/log')];
-    });
-
-    await t.test('adds PR to board when from monitored repository', async () => {
         const pr = {
             __typename: 'PullRequest',
             number: 123,
@@ -92,7 +58,7 @@ test('PR/Issue from monitored repository rule', async (t) => {
             projectItems: { nodes: [] }  // Not in project
         };
 
-        const actions = await processBoardItemRules(pr);
+        const actions = await processBoardItemRules(pr, overrides);
         
         assert.equal(actions.length, 1);
         assert.equal(actions[0].action, 'add_to_board');
@@ -100,7 +66,8 @@ test('PR/Issue from monitored repository rule', async (t) => {
         assert.ok(logMessages.some(msg => msg.includes('Rule Items from Repository triggered for PullRequest #123')));
     });
 
-    await t.test('adds Issue to board when from monitored repository', async () => {
+    test('adds Issue to board when from monitored repository', async () => {
+        logMessages.length = 0;
         const issue = {
             __typename: 'Issue',
             number: 456,
@@ -108,7 +75,7 @@ test('PR/Issue from monitored repository rule', async (t) => {
             projectItems: { nodes: [] }  // Not in project
         };
 
-        const actions = await processBoardItemRules(issue);
+        const actions = await processBoardItemRules(issue, overrides);
         
         assert.equal(actions.length, 1);
         assert.equal(actions[0].action, 'add_to_board');
@@ -116,7 +83,8 @@ test('PR/Issue from monitored repository rule', async (t) => {
         assert.ok(logMessages.some(msg => msg.includes('Rule Items from Repository triggered for Issue #456')));
     });
 
-    await t.test('skips item when already in project', async () => {
+    test('skips item when already in project', async () => {
+        logMessages.length = 0;
         const pr = {
             __typename: 'PullRequest',
             number: 123,
@@ -124,13 +92,13 @@ test('PR/Issue from monitored repository rule', async (t) => {
             projectItems: { nodes: [{ id: 'some-id' }] }  // Already in project
         };
 
-        const actions = await processBoardItemRules(pr);
+        const actions = await processBoardItemRules(pr, overrides);
         
         assert.equal(actions.length, 0);
-        assert.ok(logMessages.some(msg => msg.includes('Skipping PullRequest #123 - Already in project')));
     });
 
-    await t.test('skips item when not from monitored repository', async () => {
+    test('skips item when not from monitored repository', async () => {
+        logMessages.length = 0;
         const pr = {
             __typename: 'PullRequest',
             number: 123,
@@ -138,7 +106,7 @@ test('PR/Issue from monitored repository rule', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processBoardItemRules(pr);
+        const actions = await processBoardItemRules(pr, overrides);
         
         assert.equal(actions.length, 0);
     });

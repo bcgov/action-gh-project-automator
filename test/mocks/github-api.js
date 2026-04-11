@@ -136,7 +136,7 @@ function resetMockResponses() {
 }
 
 // Export mock functions and utilities
-module.exports = {
+export {
   getColumnOptionId,
   getProjectItems,
   isItemInProject,
@@ -147,3 +147,4 @@ module.exports = {
   addMockProjectItem,
   resetMockResponses
 };
+

@@ -1,5 +1,13 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { 
+    processRuleType,
+    processColumnRules,
+    processBoardItemRules,
+    processSprintRules,
+    processAssigneeRules,
+    processLinkedIssueRules
+} from '../../src/rules/processors/unified-rule-processor.js';
 
 // Mock the dependencies
 const mockConfig = {
@@ -56,12 +64,8 @@ const mockConfig = {
     monitoredUsers: ['test-user']
 };
 
-// Mock the board rules module
-require('../../src/config/board-rules').loadBoardRules = () => mockConfig;
-
-// Mock the validator
-require('../../src/rules/processors/shared-validator').validator = {
-    validateItemCondition: (item, trigger) => {
+const mockValidator = {
+    validateItemCondition: async (item, trigger) => {
         // Check type first
         const allowedTypes = trigger.type?.split('|') || [];
         if (allowedTypes.length > 0 && !allowedTypes.includes(item.__typename)) {
@@ -83,7 +87,7 @@ require('../../src/rules/processors/shared-validator').validator = {
         }
         return false;
     },
-    validateSkipRule: (item, skipIf) => {
+    validateSkipRule: async (item, skipIf) => {
         if (skipIf === "item.inProject") {
             return item.projectItems?.nodes?.length > 0;
         }
@@ -102,6 +106,7 @@ require('../../src/rules/processors/shared-validator').validator = {
                 return false;
             }
             const columnMatch = item.column === item.pr?.column;
+            // Simple array comparison for tests
             const assigneesMatch = JSON.stringify(item.assignees) === JSON.stringify(item.pr?.assignees);
             return columnMatch && assigneesMatch;
         }
@@ -112,26 +117,13 @@ require('../../src/rules/processors/shared-validator').validator = {
     }
 };
 
-// Mock the log
-require('../../src/utils/log').log = {
-    info: () => {},
-    debug: () => {},
-    error: () => {},
-    warn: () => {}
+const overrides = {
+    loadBoardRulesFn: async () => mockConfig,
+    ruleValidator: mockValidator
 };
 
-// Now require the module under test
-const { 
-    processRuleType,
-    processColumnRules,
-    processBoardItemRules,
-    processSprintRules,
-    processAssigneeRules,
-    processLinkedIssueRules
-} = require('../../src/rules/processors/unified-rule-processor');
-
-test('Unified Rule Processor - All Rule Types', async (t) => {
-    await t.test('processRuleType processes column rules correctly', async () => {
+describe('Unified Rule Processor - All Rule Types', () => {
+    test('processRuleType processes column rules correctly', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -139,14 +131,14 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'columns');
+        const actions = await processRuleType(item, 'columns', overrides);
         
         assert.equal(actions.length, 1, 'Should process one column rule');
         assert.equal(actions[0].action, 'set_column: Active', 'Should have correct action');
         assert.equal(actions[0].params.item, item, 'Should include item in params');
     });
 
-    await t.test('processRuleType processes board_items rules correctly', async () => {
+    test('processRuleType processes board_items rules correctly', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -154,14 +146,14 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'board_items');
+        const actions = await processRuleType(item, 'board_items', overrides);
         
         assert.equal(actions.length, 1, 'Should process one board_items rule');
         assert.equal(actions[0].action, 'add_to_board', 'Should have correct action');
         assert.equal(actions[0].params.item, item, 'Should include item in params');
     });
 
-    await t.test('processRuleType processes sprint rules correctly', async () => {
+    test('processRuleType processes sprint rules correctly', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -169,14 +161,14 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'sprints');
+        const actions = await processRuleType(item, 'sprints', overrides);
         
         assert.equal(actions.length, 1, 'Should process one sprint rule');
         assert.equal(actions[0].action, 'set_sprint: current', 'Should have correct action');
         assert.equal(actions[0].params.item, item, 'Should include item in params');
     });
 
-    await t.test('processRuleType processes assignee rules correctly', async () => {
+    test('processRuleType processes assignee rules correctly', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -185,7 +177,7 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'assignees');
+        const actions = await processRuleType(item, 'assignees', overrides);
         
         assert.equal(actions.length, 1, 'Should process one assignee rule');
         assert.equal(actions[0].action, 'add_assignee: item.author', 'Should have correct action');
@@ -193,7 +185,7 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
         assert.equal(actions[0].params.assignee, 'item.author', 'Should include assignee in params');
     });
 
-    await t.test('processRuleType processes linked_issues rules correctly', async () => {
+    test('processRuleType processes linked_issues rules correctly', async () => {
         const item = {
             __typename: 'LinkedIssue',
             number: 123,
@@ -201,7 +193,7 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'linked_issues');
+        const actions = await processRuleType(item, 'linked_issues', overrides);
         
         assert.equal(actions.length, 2, 'Should process two linked issue actions');
         assert.equal(actions[0].action, 'inherit_column', 'Should have first action');
@@ -211,7 +203,7 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
         assert.deepEqual(actions[0].params.actions, ['inherit_column', 'inherit_assignees'], 'Should include all actions');
     });
 
-    await t.test('processColumnRules works as backward compatibility', async () => {
+    test('processColumnRules works as backward compatibility', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -219,13 +211,13 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processColumnRules(item);
+        const actions = await processColumnRules(item, overrides);
         
         assert.equal(actions.length, 1, 'Should process one column rule');
         assert.equal(actions[0].action, 'set_column: Active', 'Should have correct action');
     });
 
-    await t.test('processBoardItemRules works as backward compatibility', async () => {
+    test('processBoardItemRules works as backward compatibility', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -233,13 +225,13 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processBoardItemRules(item);
+        const actions = await processBoardItemRules(item, overrides);
         
         assert.equal(actions.length, 1, 'Should process one board_items rule');
         assert.equal(actions[0].action, 'add_to_board', 'Should have correct action');
     });
 
-    await t.test('processSprintRules works as backward compatibility', async () => {
+    test('processSprintRules works as backward compatibility', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -247,13 +239,13 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processSprintRules(item);
+        const actions = await processSprintRules(item, overrides);
         
         assert.equal(actions.length, 1, 'Should process one sprint rule');
         assert.equal(actions[0].action, 'set_sprint: current', 'Should have correct action');
     });
 
-    await t.test('processAssigneeRules works as backward compatibility', async () => {
+    test('processAssigneeRules works as backward compatibility', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -262,13 +254,13 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processAssigneeRules(item);
+        const actions = await processAssigneeRules(item, overrides);
         
         assert.equal(actions.length, 1, 'Should process one assignee rule');
         assert.equal(actions[0].action, 'add_assignee: item.author', 'Should have correct action');
     });
 
-    await t.test('processLinkedIssueRules works as backward compatibility', async () => {
+    test('processLinkedIssueRules works as backward compatibility', async () => {
         const item = {
             __typename: 'LinkedIssue',
             number: 123,
@@ -276,14 +268,14 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processLinkedIssueRules(item);
+        const actions = await processLinkedIssueRules(item, overrides);
         
         assert.equal(actions.length, 2, 'Should process two linked issue actions');
         assert.equal(actions[0].action, 'inherit_column', 'Should have first action');
         assert.equal(actions[1].action, 'inherit_assignees', 'Should have second action');
     });
 
-    await t.test('skips board_items rules when already in project', async () => {
+    test('skips board_items rules when already in project', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -291,12 +283,12 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [{ id: 'some-id' }] } // Already in project
         };
 
-        const actions = await processRuleType(item, 'board_items');
+        const actions = await processRuleType(item, 'board_items', overrides);
         
         assert.equal(actions.length, 0, 'Should skip when already in project');
     });
 
-    await t.test('skips rules when skip condition is met', async () => {
+    test('skips rules when skip condition is met', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -304,12 +296,12 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'columns');
+        const actions = await processRuleType(item, 'columns', overrides);
         
         assert.equal(actions.length, 0, 'Should skip when column already set');
     });
 
-    await t.test('skips sprint rules when sprint already set', async () => {
+    test('skips sprint rules when sprint already set', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -318,12 +310,12 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'sprints');
+        const actions = await processRuleType(item, 'sprints', overrides);
         
         assert.equal(actions.length, 0, 'Should skip when sprint already set');
     });
 
-    await t.test('skips assignee rules when assignee already set', async () => {
+    test('skips assignee rules when assignee already set', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -332,12 +324,12 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'assignees');
+        const actions = await processRuleType(item, 'assignees', overrides);
         
         assert.equal(actions.length, 0, 'Should skip when assignee already set');
     });
 
-    await t.test('skips linked_issues rules when conditions match', async () => {
+    test('skips linked_issues rules when conditions match', async () => {
         const item = {
             __typename: 'LinkedIssue',
             number: 123,
@@ -347,12 +339,12 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'linked_issues');
+        const actions = await processRuleType(item, 'linked_issues', overrides);
         
         assert.equal(actions.length, 0, 'Should skip when conditions match');
     });
 
-    await t.test('handles empty rule types gracefully', async () => {
+    test('handles empty rule types gracefully', async () => {
         const item = {
             __typename: 'PullRequest',
             number: 123,
@@ -360,8 +352,8 @@ test('Unified Rule Processor - All Rule Types', async (t) => {
             projectItems: { nodes: [] }
         };
 
-        const actions = await processRuleType(item, 'nonexistent_rule_type');
+        const actions = await processRuleType(item, 'nonexistent_rule_type', overrides);
         
         assert.equal(actions.length, 0, 'Should handle empty rule types');
     });
-}); 
+});

@@ -148,7 +148,16 @@ class StateTransitionValidator {
       // Check if source column has any rules
       const rules = this.columnRules.get(normalizedFrom);
       if (!rules) {
-        log.debug(`No explicit transitions defined from "${from}" – allowing "${from}" → "${to}" by default.`);
+        // If system has rules, be strict. Otherwise allow (legacy/unconfigured)
+        if (this.columnRules.size > 0) {
+            log.debug(`No explicit transitions defined from "${from}" – blocking transition.`);
+            return {
+              valid: false,
+              reason: `Transition from "${from}" is not allowed`,
+              recovery: `Define valid transitions from "${from}" in rules.yml if needed.`
+            };
+        }
+        log.debug(`No explicit transitions defined from "${from}" – allowing "${from}" → "${to}" by default (no rules defined in system).`);
         return { valid: true };
       }
 
