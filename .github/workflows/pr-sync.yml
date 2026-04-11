@@ -1,6 +1,8 @@
 name: GH Project Board Sync
 
 on:
+  push:
+    branches: [chore/update-node]
   pull_request:
     types: [opened, reopened, synchronized]
 
