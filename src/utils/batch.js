@@ -36,7 +36,7 @@ export async function processBatch(items, processItem, options = {}) {
           success = true;
         } catch (error) {
           retries++;
-          log.warn(`Failed to process item (attempt ${retries}/${opts.maxRetries}):`, error.message);
+          log.warning(`Failed to process item (attempt ${retries}/${opts.maxRetries}): ${error.message}`);
           
           if (retries < opts.maxRetries) {
             await delay(opts.retryDelay);
