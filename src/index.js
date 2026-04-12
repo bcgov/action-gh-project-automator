@@ -112,6 +112,28 @@ function classifyError(error) {
   return { isCritical: true, type: 'unknown' };
 }
 
+/**
+ * Initialize environment from GitHub Action inputs if available
+ */
+function initializeEnvironment() {
+  const mappings = {
+    github_token: 'GITHUB_TOKEN',
+    github_author: 'GITHUB_AUTHOR',
+    project_url: 'PROJECT_URL',
+    config_file: 'CONFIG_FILE',
+    window_hours: 'UPDATE_WINDOW_HOURS',
+    verbose: 'VERBOSE',
+    backfill: 'BACKFILL'
+  };
+
+  for (const [input, env] of Object.entries(mappings)) {
+    const val = core.getInput(input);
+    if (val) {
+      process.env[env] = val;
+    }
+  }
+}
+
 // Initialize environment validation steps
 const envValidator = new StepVerification([
   'TOKEN_CONFIGURED',
@@ -185,6 +207,9 @@ async function main() {
   const startTime = new Date();
   let watermark = null;
   let activeWindowHours = undefined;
+
+  // Map GHA inputs to environment variables
+  initializeEnvironment();
 
   try {
     // Validate environment and get configuration

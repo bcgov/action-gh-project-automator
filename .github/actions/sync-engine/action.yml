@@ -16,23 +16,19 @@ inputs:
   github_token:
     description: 'GitHub Token'
     required: true
+  github_author:
+    description: 'GitHub username to monitor'
+    required: false
+    default: 'DerekRoberts'
+  project_url:
+    description: 'GitHub Project URL'
+    required: false
+    default: 'https://github.com/orgs/bcgov/projects/16'
+  config_file:
+    description: 'Path to rules.yml'
+    required: false
+    default: 'rules.yml'
 
 runs:
-  using: "composite"
-  steps:
-    - uses: actions/setup-node@v6
-      with:
-        node-version: "24"
-    - shell: bash
-      run: |
-        npm ci
-    - shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        GITHUB_AUTHOR: DerekRoberts
-        PROJECT_URL: https://github.com/orgs/bcgov/projects/16
-        UPDATE_WINDOW_HOURS: ${{ inputs.window_hours }}
-        VERBOSE: ${{ inputs.verbose }}
-        CONFIG_FILE: rules.yml
-        BACKFILL: ${{ inputs.backfill }}
-      run: npm run start
+  using: 'node20'
+  main: '../../../dist/index.js'
