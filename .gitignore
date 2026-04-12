@@ -1,9 +1,6 @@
 # Dependency directory
 node_modules
 
-# Ensure project-critical directories are not ignored by global configs
-!specs/
-
 # Rest pulled from https://github.com/github/gitignore/blob/master/Node.gitignore
 # Logs
 logs
