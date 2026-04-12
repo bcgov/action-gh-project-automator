@@ -43,7 +43,8 @@
  */
 
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { shouldProceed, RatePriority } from './utils/rate-limit.js';
+import { shouldProceed } from './utils/rate-limit.js';
+import { RatePriority } from './utils/rate-priority.js';
 import { Logger } from './utils/log.js';
 const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';

@@ -45,7 +45,8 @@ class EnvironmentValidator {
    */
   static async validateGitHubToken() {
     try {
-      const { graphql, RatePriority } = await import('../github/api.js');
+      const { graphql } = await import('../github/api.js');
+      const { RatePriority } = await import('./rate-priority.js');
 
       log.info('Testing GitHub token with viewer query...');
 

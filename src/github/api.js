@@ -1,7 +1,8 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff, formatRateLimitInfo, RatePriority, taskQueue } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo, taskQueue } from '../utils/rate-limit.js';
+import { RatePriority } from '../utils/rate-priority.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**

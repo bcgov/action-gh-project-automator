@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RatePriority } from '../../src/utils/rate-limit.js';
+import { RatePriority } from '../../src/utils/rate-priority.js';
 
 test('TaskQueue - Priority-based Execution', async (t) => {
   // We need to mock some things or use a fresh instance if possible.
@@ -37,7 +37,7 @@ test('TaskQueue - Priority-based Execution', async (t) => {
     
     await Promise.all([p1, p2, p3, p4]);
     
-    // Expected order: CRITICAL (200), then STANDARD-1, STANDARD-2 (500), then MAINTENANCE (1000)
+    // Expected order: CRITICAL (1000), then STANDARD-1, STANDARD-2 (500), then MAINTENANCE (200)
     // Actually, depending on when process() loop runs, STANDARD-1 might run first.
     // But since taskQueue.process() is async, and enqueue does `if (!this.processing) this.process()`,
     // and process() has an `await rl` which is a microtask boundary...
@@ -54,18 +54,20 @@ test('TaskQueue - Priority-based Execution', async (t) => {
 
   await t.test('should skip maintenance but run critical when budget is low', async () => {
     const originalGetRL = taskQueue.getRateLimit.bind(taskQueue);
-    // Budget is 300: allows CRITICAL (200) but not STANDARD (500)
+    // Budget is 300: Health RED, Threshold CRITICAL (1000). 
+    // This blocks MAINTENANCE (200) and STANDARD (500) but allows CRITICAL (1000)
     taskQueue.getRateLimit = async () => ({ remaining: 300, limit: 5000 });
     
-    const criticalTask = async () => 'ok';
-    const standardTask = async () => 'skipped';
+    const criticalTask = async () => 'critical-ok';
+    const maintenanceTask = async () => 'should-be-throttled';
     
     const p1 = taskQueue.enqueue(criticalTask, RatePriority.CRITICAL);
-    const p2 = taskQueue.enqueue(standardTask, RatePriority.STANDARD);
+    const p2 = taskQueue.enqueue(maintenanceTask, RatePriority.MAINTENANCE);
     
     const res1 = await p1;
-    assert.strictEqual(res1, 'ok');
+    assert.strictEqual(res1, 'critical-ok');
     
+    // p2 should be throttled because threshold is 1000
     await assert.rejects(p2, { message: /Throttled/ });
     
     taskQueue.getRateLimit = originalGetRL;

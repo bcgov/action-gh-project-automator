@@ -1,16 +1,5 @@
 import { log } from './log.js';
-
-export const RatePriority = {
-  CRITICAL: 1000,   // Reserved for essential lookups
-  STANDARD: 500,    // Batch sync and regular updates
-  MAINTENANCE: 200  // Background prep and caching
-};
-
-const PriorityLabels = {
-  200: 'MAINTENANCE',
-  500: 'STANDARD',
-  1000: 'CRITICAL'
-};
+import { RatePriority, PriorityLabels } from './rate-priority.js';
 
 /**
  * Priority-aware Task Queue for GitHub API calls.
@@ -168,16 +157,7 @@ class TaskQueue {
     let threshold = 0; // Allow everything
     let allStop = false;
 
-    if (remaining < RatePriority.MAINTENANCE) { // < 200
-      health = 'BLACK';
-      allStop = true;
-    } else if (remaining < RatePriority.STANDARD) { // < 500
-      health = 'RED';
-      threshold = RatePriority.CRITICAL; // Only allow >= 1000
-    } else if (remaining < RatePriority.CRITICAL) { // This logic was wrong, let's simplify
-      // Wait, RatePriority.CRITICAL is 1000 now. 
-      // Remaining < 1000 is YELLOW/RED.
-    }
+    // Budget assessment:
 
     // Correct Logic:
     if (remaining < 200) {
