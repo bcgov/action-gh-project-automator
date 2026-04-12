@@ -480,9 +480,9 @@ async function main() {
     } else {
       log.info('Project Board Sync completed successfully');
       
-      // Save new watermark if we completed without CRITICAL errors.
+      // Save the new watermark only when the run completes without any errors.
+      // This ensures that any failed items (even non-critical) are re-processed in the next run.
       // We use the start time of the run as the new watermark.
-      // This ensures that even if the run takes 10 minutes, the next run covers everything since this run started.
       await saveWatermark(context.projectId, startTime.toISOString());
     }
 
