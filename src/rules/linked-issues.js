@@ -1,10 +1,10 @@
-const { octokit } = require('../github/api');
-const { log, Logger } = require('../utils/log');
-const { getItemColumn, setItemColumn, setItemColumnsBatch } = require('../github/api');
-const { processSprintAssignment } = require('./sprints');
-const { getItemAssignees, setItemAssignees } = require('./assignees');
+import { octokit } from '../github/api.js';
+import { log, Logger } from '../utils/log.js';
+import { getItemColumn, setItemColumn, setItemColumnsBatch } from '../github/api.js';
+import { processSprintAssignment } from './sprints.js';
+import { getItemAssignees, setItemAssignees } from './assignees.js';
 
-async function processLinkedIssues(pullRequest, projectItemId, projectId, currentColumn) {
+export async function processLinkedIssues(pullRequest, projectItemId, projectId, currentColumn) {
   const { id: pullRequestId, number: pullRequestNumber, repository: { nameWithOwner: repositoryName }, state, merged } = pullRequest;
   // Handle optional properties safely
   const assigneeNodes = pullRequest.assignees?.nodes || [];
@@ -97,7 +97,3 @@ async function processLinkedIssues(pullRequest, projectItemId, projectId, curren
 
   return { changed, reason, linkedIssues: linkedIssueResults };
 }
-
-module.exports = {
-  processLinkedIssues
-};

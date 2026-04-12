@@ -86,18 +86,27 @@ class RuleValidation {
         try {
             // Type validation
             if (condition.type) {
+                let typeMatch = false;
                 if (Array.isArray(condition.type)) {
                     // Handle array of types (e.g., ["PullRequest", "Issue"])
-                    if (!condition.type.includes(item.__typename)) {
-                        log.debug(`Type mismatch: ${item.__typename} not in ${JSON.stringify(condition.type)}`);
-                        return false;
+                    if (condition.type.includes(item.__typename)) {
+                        typeMatch = true;
                     }
                 } else {
                     // Handle single type (e.g., "PullRequest")
-                    if (item.__typename !== condition.type) {
-                        log.debug(`Type mismatch: ${item.__typename} !== ${condition.type}`);
-                        return false;
+                    if (item.__typename === condition.type) {
+                        typeMatch = true;
                     }
+                }
+
+                if (!typeMatch) {
+                    log.debug(`Type mismatch: ${item.__typename} does not match ${JSON.stringify(condition.type)}`);
+                    return false;
+                }
+
+                // If type matches and there is no further condition string, return true
+                if (!condition.condition) {
+                    return true;
                 }
             }
 

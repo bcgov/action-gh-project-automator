@@ -30,6 +30,10 @@ class Logger {
     console.warn(`WARNING: ${fullMessage}`);
   }
 
+  warn(message) {
+    this.warning(message);
+  }
+
   unchanged(message, details = {}) {
     const logEntry = { message, timestamp: new Date(), ...details };
     this.logs.unchanged.push(logEntry);

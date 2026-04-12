@@ -1,9 +1,9 @@
-const { log } = require('./log');
+import { log } from './log.js';
 
 /**
  * Default batch processing options
  */
-const DEFAULT_OPTIONS = {
+export const DEFAULT_OPTIONS = {
   batchSize: 10,
   delayBetweenBatches: 1000,
   maxRetries: 3,
@@ -17,7 +17,7 @@ const DEFAULT_OPTIONS = {
  * @param {Object} options - Processing options
  * @returns {Promise<{processed: number, errors: number}>}
  */
-async function processBatch(items, processItem, options = {}) {
+export async function processBatch(items, processItem, options = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   let processed = 0;
   let errors = 0;
@@ -36,7 +36,7 @@ async function processBatch(items, processItem, options = {}) {
           success = true;
         } catch (error) {
           retries++;
-          log.warn(`Failed to process item (attempt ${retries}/${opts.maxRetries}):`, error.message);
+          log.warning(`Failed to process item (attempt ${retries}/${opts.maxRetries}): ${error.message}`);
           
           if (retries < opts.maxRetries) {
             await delay(opts.retryDelay);
@@ -65,8 +65,3 @@ async function processBatch(items, processItem, options = {}) {
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-module.exports = {
-  processBatch,
-  DEFAULT_OPTIONS
-};

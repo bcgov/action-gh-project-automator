@@ -1,7 +1,7 @@
 /**
  * Tracks the processing status of items during sync
  */
-class StatusTracker {
+export class StatusTracker {
   constructor() {
     this.items = new Map();
     this.stats = {
@@ -93,7 +93,3 @@ class StatusTracker {
     console.log('\n═══════════════════\n');
   }
 }
-
-module.exports = {
-  StatusTracker
-};

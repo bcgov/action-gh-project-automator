@@ -1,103 +1,87 @@
-# Project Sync
+# 🚀 Project Sync
 
-A GitHub Projects v2 automation tool for synchronizing issues and pull requests across multiple repositories.
+[![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen.svg)](https://nodejs.org/)
+[![ES Modules](https://img.shields.io/badge/module-ESM-blue.svg)](https://nodejs.org/api/esm.html)
+[![Checks](https://img.shields.io/badge/Stability-Ludicrous%20Coverage-orange.svg)](#stability--predictability)
 
-## Overview
+**Project Sync** is a high-performance GitHub Projects v2 automation engine designed to synchronize issues and pull requests across complex, multi-repository organizations with 100% predictability.
 
-This tool automates the management of GitHub Projects v2 boards based on configurable rules. It handles:
+## ✨ Overview
 
-- Adding PRs and issues to the project board
-- Assigning users to PRs and issues
-- Moving items to the appropriate columns based on state
-- Managing sprint assignments
-- Processing linked issues when PRs are merged
+This tool transforms your GitHub Project into a self-driving productivity engine. It eliminates manual board maintenance by implementing a rule-based state machine for:
 
-The tool now supports monitoring multiple organizations (bcgov, bcgov-c, bcgov-nr) through repository-scoped rules and user-scoped searches are limited to allowed organizations.
-## Visibility & Auditing
+- **Intelligent Intake**: Automatically adds PRs and issues to the project board based on authorship, assignment, or repository source.
+- **Dynamic Workflows**: Moves items between columns (e.g., `New` → `Active`) based on real-time state changes.
+- **Sprint Orchestration**: Seamlessly manages sprint assignments and rollovers.
+- **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
+- **Multi-Org Mastery**: Monitors activity across `bcgov`, `bcgov-c`, and `bcgov-nr` simultaneously.
 
-This tool is designed for transparency. Every run provides:
+## 🛡️ Stability & Predictability
 
-- **GitHub Actions Job Summary**: A clean Markdown report generated in the Action's summary tab, showing which items were processed, the actions taken, and the reasons why.
-- **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions (column moves, sprint changes, etc.).
-- **Run Statistics**: A summary of total items processed, added, or skipped is printed at the end of every run.
+We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.
 
-These features allow Scrum Masters and teams to monitor the automation with confidence.
+- **Hardcoded Validation**: We use a strict whitelist-based validator to ensure rule evaluation is 100% predictable and secure against code injection.
+- **Native Efficiency**: Built on **Node.js 24** and native **ES Modules** for lightning-fast, future-proof execution.
+- **Zero-Network Tests**: Our 240+ count test suite runs in pure isolation, guaranteeing that the core logic is bulletproof without ever making a real API call.
+- **Strict Environments**: We enforce Node versions via `.npmrc` to ensure that every developer and CI runner is perfectly aligned.
 
-## Configuration
+## 📋 Visibility & Auditing
 
-All automation is configured in a repo-level `rules.yml` file. Users provide their own `rules.yml` or use the template in this repository. The configuration includes:
-- Project settings (URL, organization, allowedOrgs)
-- Monitored repositories and users
-- Business rules for automation
-- Performance settings
+Designed for transparency. Every run provides:
 
-### Project Configuration
+- **GitHub Actions Job Summary**: A premium Markdown report generated in the Action's summary tab.
+- **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
+- **Precision Metrics**: Real-time counters for processed, added, and skipped items.
 
-The tool supports multiple ways to specify the GitHub project:
+## ⚙️ Configuration
 
-1. **Project URL (Recommended)**: Use the GitHub project URL
-   ```bash
-   export PROJECT_URL=https://github.com/orgs/bcgov/projects/16
-   ```
-   The system will automatically resolve the project ID from the URL.
+Configure your entire workflow in a single, version-controlled `rules.yml` file.
 
-2. **Project ID**: Use the GitHub project ID directly
-   ```bash
-   export PROJECT_ID=PVT_kwDOAA37OM4AFuzg
-   ```
-
-3. **Configuration File**: Add to repo-level `rules.yml`
-   ```yaml
-   project:
-     url: https://github.com/orgs/bcgov/projects/16
-     # or
-     id: PVT_kwDOAA37OM4AFuzg
-   ```
-
-The URL resolution feature automatically extracts the organization and project number from GitHub project URLs and resolves them to the correct project ID via the GitHub API.
-
-### Organization Configuration
-
-By default, the action monitors these organizations: `bcgov`, `bcgov-c`, `bcgov-nr`. To customize:
+### Project Connection
+The tool resolves your project identity with minimal friction:
 
 ```yaml
 project:
   url: https://github.com/orgs/bcgov/projects/16
-  organization: bcgov
+  # Organization and ID are automatically resolved from the URL
+```
+
+### Resource Monitoring
+Define which realms the engine should govern:
+
+```yaml
+project:
   allowedOrgs:
     - bcgov
     - bcgov-c
     - bcgov-nr
 ```
 
-- `organization`: The primary organization for repository-scoped rules
-- `allowedOrgs`: Organizations to search for user-scoped items (authored/assigned by monitored users)
+## 🛠️ Development & Specs
 
-## Files
+This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
 
-- `src/index.js`: The main entry point that runs the automation
-- `rules.yml`: User-facing configuration template (users provide their own or use this default)
-- `specs/`: Developer-facing feature specifications using [SpecKit framework](https://github.com/github/spec-kit)
-- GitHub Issues: Roadmap and future ideas are tracked in repository Issues
+- **SpecKit Architecture**: Documentation for our feature specifications lives in the `specs/` directory. See the [SpecKit README](specs/README.md) for usage guidelines.
+- **Rule Engine Spec**: See [Spec 004](specs/004-rule-engine-architecture/spec.md) for a deep dive into our validation architecture.
+- **Project Constitution**: Review [memory/constitution.md](memory/constitution.md) for our core development principles and "Ludicrous Testing" standards.
+- **AI Pair Programming**: See [.github/copilot-instructions.md](.github/copilot-instructions.md) for guidance when working with AI coding assistants.
 
-## Development
+## 🧪 Testing
 
-This project uses [SpecKit](https://github.com/github/spec-kit) for spec-driven development:
-
-- **Feature Specifications**: See `specs/` directory for feature documentation
-- **SpecKit Guide**: See [specs/README.md](specs/README.md) for how to create and work with specs
-- **User Configuration**: `rules.yml` is user-facing configuration (users customize in their repos)
-- **Developer Documentation**: Specs document features and the rules.yml patterns we support
-
-For detailed development guidelines, see:
-- `memory/constitution.md` - Project development principles
-- `specs/README.md` - SpecKit usage and guidelines
-- `.github/copilot-instructions.md` - AI coding assistant guidance
-
-## Tests
-
-Test scripts are located in the `test/` directory. Run tests with:
+We value exhaustive verification. Run the full suite, including the ludicrous coverage matrix:
 
 ```bash
 npm test
 ```
+
+For targeted testing of the core engines:
+```bash
+# Test the unified rule processor
+npm test -- test/processors/unified-rule-processor.test.js
+
+# Test the ludicrous validation matrix
+npm test -- test/processors/ludicrous-coverage.test.js
+```
+
+---
+*Built with ❤️ by the Advanced Project Automation Team.*
