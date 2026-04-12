@@ -1,6 +1,7 @@
 import { describe, it, afterEach } from 'node:test';
-import assert from 'node:assert';
-import { shouldProceed, RatePriority, taskQueue } from '../../src/utils/rate-limit.js';
+import assert from 'node:assert/strict';
+import { taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
+import { RatePriority, PriorityLabels } from '../../src/utils/rate-priority.js';
 
 // Warm up dynamic imports to avoid dangling promises in tests
 await import('../../src/github/api.js');
