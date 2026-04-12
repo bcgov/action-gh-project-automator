@@ -366,9 +366,12 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     hours = Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 24;
   }
 
+  // Use explicit since date if provided, otherwise slide based on hours
+  const sinceDateStr = options.since || new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
   // Backfill mode: BACKFILL=<org>/<repo> searches only that repo without a date filter
   const backfillRepo = process.env.BACKFILL && process.env.BACKFILL.includes('/') ? process.env.BACKFILL : null;
-  const sinceClause = backfillRepo ? '' : ` updated:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
+  const sinceClause = backfillRepo ? '' : ` updated:>=${sinceDateStr}`;
 
   if (backfillRepo) {
     logger.info(`🔄 BACKFILL mode — searching only ${backfillRepo} without date filter`);
@@ -394,7 +397,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   // Search for PRs authored by monitored user in allowed organizations only
   // Author/assignee searches always use the date filter (only repo search is unlimited in backfill)
-  const sinceFilter = ` updated:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
+  const sinceFilter = ` updated:>=${sinceDateStr}`;
   const authorOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
   const authorSearchQuery = authorOrgsQuery
     ? `${authorOrgsQuery} author:${monitoredUser}${sinceFilter}`

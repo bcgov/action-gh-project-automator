@@ -63,6 +63,7 @@ import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
 import { auditLog } from './utils/audit-logger.js';
+import { getWatermark, saveWatermark } from './utils/watermark.js';
 
 
 // Custom error classes for robust error handling
@@ -238,6 +239,14 @@ async function main() {
       ? 1
       : undefined;
 
+    // Load gapless sync watermark from cache
+    const watermark = await getWatermark(context.projectId);
+    if (watermark) {
+      log.info(`Using gapless sync watermark: ${watermark}`);
+    } else {
+      log.info(`No watermark found, falling back to ${windowHours || process.env.UPDATE_WINDOW_HOURS || 24}h sliding window`);
+    }
+
     // Process items according to our enhanced rules
     const eventItems = await loadEventItems(eventName, process.env.GITHUB_EVENT_PATH);
     if (eventItems.length > 0) {
@@ -255,7 +264,8 @@ async function main() {
       projectId: context.projectId,
       windowHours,
       seedItems: eventItems,
-      allowedOrgs: context.allowedOrgs
+      allowedOrgs: context.allowedOrgs,
+      since: watermark
     });
 
     // Process additional rules for added items
@@ -469,6 +479,11 @@ async function main() {
       log.error(`Project Board Sync completed with ${errors.length} errors`);
     } else {
       log.info('Project Board Sync completed successfully');
+      
+      // Save new watermark if we completed without CRITICAL errors.
+      // We use the start time of the run as the new watermark.
+      // This ensures that even if the run takes 10 minutes, the next run covers everything since this run started.
+      await saveWatermark(context.projectId, startTime.toISOString());
     }
 
     // Robust error classification
