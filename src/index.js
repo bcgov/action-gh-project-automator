@@ -42,6 +42,7 @@
  * @see rules.yml - Core business rules and configuration
  */
 
+import * as core from '@actions/core';
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
 import { shouldProceed } from './utils/rate-limit.js';
 import { RatePriority } from './utils/rate-priority.js';
@@ -182,6 +183,9 @@ async function validateEnvironment() {
  */
 async function main() {
   const startTime = new Date();
+  let watermark = null;
+  let activeWindowHours = undefined;
+
   try {
     // Validate environment and get configuration
     const envConfig = await validateEnvironment();
@@ -236,16 +240,19 @@ async function main() {
     log.info('Monitored Repos: ' + context.repos.map(r => r.includes('/') ? r : `${context.org}/${r}`).join(', '));
 
     // Determine tighter search window (1h) in PR context unless overridden via env
-    const windowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
+    activeWindowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
       ? 1
       : undefined;
 
     // Load gapless sync watermark from cache
-    const watermark = await getWatermark(context.projectId);
+    watermark = await getWatermark(context.projectId);
     if (watermark) {
-      log.info(`Using gapless sync watermark: ${watermark}`);
+      log.info(`[SYNC] Using gapless watermark: ${watermark}`, true);
+      core.notice(`🏁 Syncing items updated since: ${watermark} (Gapless Mode)`);
     } else {
-      log.info(`No watermark found, falling back to ${windowHours || process.env.UPDATE_WINDOW_HOURS || 24}h sliding window`);
+      activeWindowHours = activeWindowHours || process.env.UPDATE_WINDOW_HOURS || 24;
+      log.info(`[SYNC] No watermark found. Falling back to ${activeWindowHours}h sliding window.`, true);
+      core.notice(`⏱️ Syncing items updated in the last ${activeWindowHours}h (Sliding Window)`);
     }
 
     // Process items according to our enhanced rules
@@ -263,7 +270,7 @@ async function main() {
       repos: context.repos,
       monitoredUser: context.monitoredUser,
       projectId: context.projectId,
-      windowHours,
+      windowHours: activeWindowHours,
       seedItems: eventItems,
       allowedOrgs: context.allowedOrgs,
       since: watermark
@@ -471,7 +478,11 @@ async function main() {
     // Push the audit summary to GitHub Actions Job Summary
     // Capture final rate limit to report health
     const finalRate = await shouldProceed(RatePriority.CRITICAL);
-    await auditLog.pushToGhaSummary({ health: finalRate.health });
+    await auditLog.pushToGhaSummary({ 
+      health: finalRate.health,
+      watermark,
+      windowHours: activeWindowHours
+    });
   }
 }
 
