@@ -16,7 +16,7 @@ import { analyzeBoardItem } from './helpers/board-items-evaluator.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], allowedOrgs = [] }, overrides = {}) {
+async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], allowedOrgs = [], since = undefined }, overrides = {}) {
   const {
     getRecentItemsFn = getRecentItems,
     processBoardItemRulesFn = processBoardItemRules,
@@ -30,7 +30,10 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
   logger.info(`Starting item processing for user ${monitoredUser}`);
 
   // Get recent items from API
-  const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { allowedOrgs });
+  const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { 
+    allowedOrgs,
+    since 
+  });
 
   // Combine seed items from event with API results
   const items = [...seedItems, ...apiItems];
