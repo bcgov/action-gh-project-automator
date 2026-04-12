@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { log } from '../utils/log.js';
-import { shouldProceed, withBackoff, formatRateLimitInfo, RatePriority } from '../utils/rate-limit.js';
+import { shouldProceed, withBackoff, formatRateLimitInfo, RatePriority, taskQueue } from '../utils/rate-limit.js';
 import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
@@ -27,10 +27,46 @@ const graphqlWithAuthRaw = graphql.defaults({
   }
 });
 
-// Create memoized client first, then wrap with backoff to avoid TDZ
-const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw, { ttlMs: 60_000, maxEntries: 300 });
-let graphqlExecutor = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
-const graphqlWithAuth = async (query, variables) => graphqlExecutor(query, variables);
+// Create memoized version of the raw client
+const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw);
+
+// Default execution wrapped in TaskQueue; priority can be overridden
+let graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) => 
+  taskQueue.enqueue(() => memoizedGraphql(query, variables), priority);
+
+const graphqlWithAuth = async (query, variables, priority) => graphqlExecutor(query, variables, priority);
+
+// Create prioritized REST client wrapper
+const restWithAuth = new Proxy(octokit.rest, {
+  get(target, prop) {
+    if (typeof target[prop] === 'function') {
+      return (...args) => taskQueue.enqueue(() => target[prop](...args), RatePriority.STANDARD);
+    }
+    if (typeof target[prop] === 'object' && target[prop] !== null) {
+      return new Proxy(target[prop], {
+        get(t, p) {
+          if (typeof t[p] === 'function') {
+            return (...args) => taskQueue.enqueue(() => t[p](...args), RatePriority.STANDARD);
+          }
+          return t[p];
+        }
+      });
+    }
+    return target[prop];
+  }
+});
+
+// Register rate limit provider to avoid circular dynamic imports
+taskQueue.setRateLimitProvider(async () => {
+  try {
+    // MUST use raw client to avoid deadlock (rate limit check can't be queued)
+    const res = await graphqlWithAuthRaw(`query { rateLimit { remaining limit resetAt cost } }`);
+    return res.rateLimit;
+  } catch (error) {
+    log.warning(`Rate limit provider check failed: ${error.message}`);
+    return null;
+  }
+});
 
 function __setGraphqlExecutor(executor) {
   graphqlExecutor = executor;
@@ -63,7 +99,7 @@ async function getStatusOptions(projectId) {
   if (statusOptionsCache.has(projectId)) {
     return statusOptionsCache.get(projectId);
   }
-  const result = await withBackoff(() => graphqlWithAuth(`
+  const result = await graphqlWithAuth(`
     query($projectId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -75,7 +111,7 @@ async function getStatusOptions(projectId) {
         }
       }
     }
-  `, { projectId }));
+  `, { projectId }, RatePriority.STANDARD);
   if (!result.node || !result.node.field) {
     log.error(`Status field not found in project ${projectId}. Please check project configuration.`);
     statusOptionsCache.set(projectId, []);
@@ -163,34 +199,29 @@ async function getProjectItems(projectId, options = {}) {
   let totalItems = 0;
 
   while (hasNextPage && totalItems < 300) { // Safety limit
-    const result = await withBackoffFn(() => graphqlClient(`
-      query($projectId: ID!, $cursor: String) {
-        node(id: $projectId) {
+    const variables = { id: projectId, cursor: endCursor };
+    const operation = () => graphqlClient(`
+      query($id: ID!, $cursor: String) {
+        node(id: $id) {
           ... on ProjectV2 {
             items(first: 100, after: $cursor) {
               nodes {
                 id
                 content {
-                  ... on PullRequest {
-                    id
-                  }
-                  ... on Issue {
-                    id
-                  }
+                  ... on Issue { id }
+                  ... on PullRequest { id }
                 }
               }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
+              pageInfo { hasNextPage endCursor }
             }
           }
         }
       }
-    `, {
-      projectId,
-      cursor: endCursor
-    }));
+    `, variables);
+
+    const result = (overrides.graphqlClient || overrides.withBackoffFn)
+      ? await withBackoffFn(operation)
+      : await taskQueue.enqueue(operation, RatePriority.MAINTENANCE);
 
     const projectItems = result.node?.items?.nodes || [];
     totalItems += projectItems.length;
@@ -230,7 +261,7 @@ async function isItemInProject(nodeId, projectId) {
     }
 
     // If not in cache, query the project items directly
-    const result = await withBackoff(() => graphqlWithAuth(`
+    const result = await graphqlWithAuth(`
       query($projectId: ID!) {
         node(id: $projectId) {
           ... on ProjectV2 {
@@ -252,7 +283,7 @@ async function isItemInProject(nodeId, projectId) {
       }
     `, {
       projectId
-    }));
+    }, RatePriority.CRITICAL);
 
     // Find the item that matches our nodeId
     const matchingItem = result.node?.items?.nodes?.find(item =>
@@ -287,24 +318,21 @@ async function addItemToProject(nodeId, projectId) {
 
   try {
     log.info(`[DEBUG] About to call withBackoff with GraphQL mutation`);
-    const result = await withBackoff(() => {
-      log.info(`[DEBUG] Inside withBackoff, calling graphqlWithAuth`);
-      return graphqlWithAuth(`
-        mutation($projectId: ID!, $contentId: ID!) {
-          addProjectV2ItemById(input: {
-            projectId: $projectId,
-            contentId: $contentId
-          }) {
-            item {
-              id
-            }
+    const result = await graphqlWithAuth(`
+      mutation($projectId: ID!, $contentId: ID!) {
+        addProjectV2ItemById(input: {
+          projectId: $projectId,
+          contentId: $contentId
+        }) {
+          item {
+            id
           }
         }
-      `, {
-        projectId,
-        contentId: nodeId
-      });
-    });
+      }
+    `, {
+      projectId,
+      contentId: nodeId
+    }, RatePriority.CRITICAL);
 
     log.info(`[DEBUG] GraphQL mutation completed, result:`, result);
 
@@ -525,7 +553,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
     return [];
   }
 
-  const result = await withBackoff(() => graphqlWithAuth(`
+  const result = await graphqlWithAuth(`
     query($pullRequestId: ID!) {
       node(id: $pullRequestId) {
         ... on PullRequest {
@@ -549,7 +577,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
         }
       }
     }
-  `, { pullRequestId }));
+  `, { pullRequestId }, RatePriority.STANDARD);
 
   const issues = result?.node?.closingIssuesReferences?.nodes || [];
 
@@ -571,7 +599,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
  * @returns {Promise<string|null>} - The current column name or null
  */
 async function getItemColumn(projectId, itemId) {
-  const result = await withBackoff(() => graphqlWithAuth(`
+  const result = await graphqlWithAuth(`
     query($projectId: ID!, $itemId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -606,7 +634,7 @@ async function getItemColumn(projectId, itemId) {
   `, {
     projectId,
     itemId
-  }));
+  }, RatePriority.STANDARD);
 
   const fieldValues = result.item?.fieldValues.nodes || [];
   const statusValue = fieldValues.find(value =>
@@ -666,7 +694,7 @@ async function setItemColumn(projectId, projectItemId, optionId) {
   };
 
   try {
-    const result = await withBackoff(() => graphqlWithAuth(mutation, { input }));
+    const result = await graphqlWithAuth(mutation, { input }, RatePriority.STANDARD);
     if (!result.updateProjectV2ItemFieldValue || !result.updateProjectV2ItemFieldValue.projectV2Item) {
       log.error(`[API] setItemColumn: No projectV2Item returned for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`);
       log.error(`[API] setItemColumn: Full response: ${JSON.stringify(result)}`);
@@ -716,7 +744,7 @@ async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
     });
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     try {
-      const result = await withBackoff(() => graphqlWithAuth(mutation, variables));
+      const result = await graphqlWithAuth(mutation, variables, RatePriority.STANDARD);
       // Collect success IDs from aliases
       for (const key of Object.keys(result || {})) {
         const item = result[key]?.projectV2Item;
@@ -747,7 +775,7 @@ async function getFieldId(projectId, fieldName) {
   }
 
   log.debug(`Fetching field ID for ${fieldName} in project ${projectId}`);
-  const result = await withBackoff(() => graphqlWithAuth(`
+  const result = await graphqlWithAuth(`
     query($projectId: ID!, $fieldName: String!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -762,7 +790,7 @@ async function getFieldId(projectId, fieldName) {
         }
       }
     }
-  `, { projectId, fieldName }));
+  `, { projectId, fieldName }, RatePriority.STANDARD);
 
   if (!result.node.field || !result.node.field.id) {
     throw new Error(`Field '${fieldName}' not found in project or doesn't have an ID`);
@@ -783,6 +811,7 @@ function __resetProjectCaches() {
 export {
   octokit,
   graphqlWithAuth as graphql,
+  restWithAuth as rest,
   isItemInProject,
   addItemToProject,
   getRecentItems,
