@@ -1,0 +1,33 @@
+name: "Project Automator Pro"
+description: "Advanced V2 Project automation: sync columns, sprints, and assignees with a powerful rule engine."
+author: "Derek Roberts"
+branding:
+  icon: "layers"
+  color: "blue"
+
+inputs:
+  gh_token:
+    description: "GitHub Token (PAT or Fine-grained) with project/repo scope"
+    required: true
+  user:
+    description: "GitHub username to monitor (e.g., DerekRoberts)"
+    required: true
+  project_url:
+    description: "Full URL of the Project V2 board (e.g., https://github.com/orgs/bcgov/projects/16)"
+    required: true
+  rules_path:
+    description: "Path to your rules.yml file (relative to repository root)"
+    default: "rules.yml"
+  dry_run:
+    description: "If true, logs actions without making changes"
+    default: "false"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
+  env:
+    GITHUB_TOKEN: ${{ inputs.gh_token }}
+    GITHUB_AUTHOR: ${{ inputs.user }}
+    PROJECT_URL: ${{ inputs.project_url }}
+    CONFIG_FILE: ${{ inputs.rules_path }}
+    DRY_RUN: ${{ inputs.dry_run }}

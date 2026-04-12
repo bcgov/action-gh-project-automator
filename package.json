@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "validate": "node scripts/validate.js",
@@ -14,12 +14,16 @@
     "test:state": "node --test test/state-verifier.test.js",
     "test:validator": "node --test test/state-transition-validator.test.js",
     "test:env": "node --test test/validation/env-defaults.test.js test/validation/environment.test.js",
-    "refresh-test": "node scripts/refresh-test-data.js"
+    "refresh-test": "node scripts/refresh-test-data.js",
+    "build": "ncc build src/index.js -o dist --minify"
   },
   "dependencies": {
     "@octokit/graphql": "^9.0.0",
     "@octokit/rest": "^22.0.0",
     "ajv": "^8.12.0",
     "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.4"
   }
 }
