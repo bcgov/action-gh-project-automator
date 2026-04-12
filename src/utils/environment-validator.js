@@ -112,7 +112,8 @@ class EnvironmentValidator {
       }
 
       const [, org, projectNumber] = urlMatch;
-      const { graphql, RatePriority } = await import('../github/api.js');
+      const { graphql } = await import('../github/api.js');
+      const { RatePriority } = await import('./rate-priority.js');
 
       log.info(`Resolving project ID from URL: ${org}/projects/${projectNumber}`);
 
