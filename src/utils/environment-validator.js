@@ -45,7 +45,7 @@ class EnvironmentValidator {
    */
   static async validateGitHubToken() {
     try {
-      const { graphql } = await import('../github/api.js');
+      const { graphql, RatePriority } = await import('../github/api.js');
 
       log.info('Testing GitHub token with viewer query...');
 
@@ -60,7 +60,7 @@ class EnvironmentValidator {
             }
           }
         }
-      `);
+      `, {}, RatePriority.CRITICAL);
 
       if (!result.viewer?.login) {
         throw new Error('Token validation failed: Could not retrieve user information');
@@ -111,7 +111,7 @@ class EnvironmentValidator {
       }
 
       const [, org, projectNumber] = urlMatch;
-      const { graphql } = await import('../github/api.js');
+      const { graphql, RatePriority } = await import('../github/api.js');
 
       log.info(`Resolving project ID from URL: ${org}/projects/${projectNumber}`);
 
@@ -124,7 +124,7 @@ class EnvironmentValidator {
             }
           }
         }
-      `, { org, number: parseInt(projectNumber) });
+      `, { org, number: parseInt(projectNumber) }, RatePriority.CRITICAL);
 
       if (!result.organization?.projectV2?.id) {
         throw new Error(`Project not found: ${org}/projects/${projectNumber}. Check the URL and ensure you have access to this project.`);

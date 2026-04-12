@@ -288,23 +288,7 @@ async function main() {
         });
 
         // Set initial column
-        const columnProceed = await shouldProceed(RatePriority.STANDARD);
-        let columnResult;
-        if (columnProceed.proceed) {
-          columnResult = await processColumnAssignment(item, item.projectItemId, context.projectId);
-        } else {
-          columnResult = { changed: false, currentStatus: 'Unknown (Throttled)', reason: 'Throttled by rate limit' };
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Move Column',
-            from: 'N/A',
-            to: 'N/A',
-            rule: 'Column Rule',
-            reason: 'Skipped: Throttled by rate limit'
-          });
-        }
+        const columnResult = await processColumnAssignment(item, item.projectItemId, context.projectId);
         if (columnResult.changed) {
           log.info(`Set column for ${itemRef} to ${columnResult.newStatus}`);
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
@@ -329,27 +313,12 @@ async function main() {
         let sprintResult = null;
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
-          const sprintProceed = await shouldProceed(RatePriority.STANDARD);
-          if (sprintProceed.proceed) {
-            sprintResult = await processSprintAssignment(
-              item,
-              item.projectItemId,
-              context.projectId,
-              currentColumn
-            );
-          } else {
-            sprintResult = { changed: false, reason: 'Throttled by rate limit' };
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Assign Sprint',
-              from: 'N/A',
-              to: 'N/A',
-              rule: 'Sprint Assignment',
-              reason: 'Skipped: Throttled by rate limit'
-            });
-          }
+          sprintResult = await processSprintAssignment(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
           if (sprintResult.changed) {
             log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
             auditLog.logEvent({
@@ -365,28 +334,12 @@ async function main() {
           }
         } else if (inactiveColumns.includes(currentColumn)) {
           // Remove sprint for inactive columns
-          const removalProceed = await shouldProceed(RatePriority.STANDARD);
-          let sprintRemovalResult;
-          if (removalProceed.proceed) {
-            sprintRemovalResult = await processSprintRemoval(
-              item,
-              item.projectItemId,
-              context.projectId,
-              currentColumn
-            );
-          } else {
-            sprintRemovalResult = { changed: false, reason: 'Throttled by rate limit' };
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Remove Sprint',
-              from: 'N/A',
-              to: 'N/A',
-              rule: 'Sprint Cleanup',
-              reason: 'Skipped: Throttled by rate limit'
-            });
-          }
+          const sprintRemovalResult = await processSprintRemoval(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
           if (sprintRemovalResult.changed) {
             log.info(`Removed sprint for ${itemRef} from inactive column`);
             auditLog.logEvent({
@@ -403,23 +356,7 @@ async function main() {
         }
 
         // Handle assignees
-        const assigneeProceed = await shouldProceed(RatePriority.STANDARD);
-        let assigneeResult;
-        if (assigneeProceed.proceed) {
-          assigneeResult = await processAssignees(item, context.projectId, item.projectItemId);
-        } else {
-          assigneeResult = { changed: false };
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Update Assignees',
-            from: 'N/A',
-            to: 'N/A',
-            rule: 'Assignee Sync',
-            reason: 'Skipped: Throttled by rate limit'
-          });
-        }
+        const assigneeResult = await processAssignees(item, context.projectId, item.projectItemId);
         if (assigneeResult.changed) {
           log.info(`Updated assignees for ${itemRef}: ${assigneeResult.assignees.join(', ')}`);
           await StateVerifier.verifyAssignees(item, context.projectId, assigneeResult.assignees);

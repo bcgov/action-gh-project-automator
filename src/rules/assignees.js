@@ -1,4 +1,4 @@
-import { octokit, graphql } from '../github/api.js';
+import { octokit, graphql, rest } from '../github/api.js';
 import { log } from '../utils/log.js';
 import { processAssigneeRules } from './processors/unified-rule-processor.js';
 
@@ -9,7 +9,7 @@ import { processAssigneeRules } from './processors/unified-rule-processor.js';
  */
 async function getItemDetails(itemId) {
   try {
-    const result = await octokit.graphql(`
+    const result = await graphql(`
       query($itemId: ID!) {
         node(id: $itemId) {
           ... on ProjectV2Item {
@@ -65,7 +65,7 @@ function arraysEqual(a, b) {
  * @returns {Promise<string[]>} Array of assignee logins
  */
 async function getItemAssignees(projectId, itemId) {
-  const result = await octokit.graphql(`
+  const result = await graphql(`
     query($projectId: ID!, $itemId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -111,11 +111,10 @@ async function getItemAssignees(projectId, itemId) {
 
   return assigneeValue.users?.nodes?.map(u => u.login) || [];
 }
-
 async function fetchRepoAssignees({ owner, repo, number, isPullRequest }) {
   const issueOrPrData = isPullRequest
-    ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
-    : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+    ? await rest.pulls.get({ owner, repo, pull_number: number })
+    : await rest.issues.get({ owner, repo, issue_number: number });
   return (issueOrPrData.data.assignees || []).map(a => a.login);
 }
 
@@ -266,8 +265,8 @@ async function processAssignees(item, projectId, itemId) {
 
     // Get current Issue/PR assignees
     const issueOrPrData = isPullRequest
-      ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
-      : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+      ? await rest.pulls.get({ owner, repo, pull_number: number })
+      : await rest.issues.get({ owner, repo, issue_number: number });
 
     const repoAssignees = issueOrPrData.data.assignees.map(a => a.login);
     log.info(`  • Current assignees in Issue/PR: ${repoAssignees.join(', ') || 'none'}`, true);

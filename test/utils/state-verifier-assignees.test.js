@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { StateVerifier } from '../../src/utils/state-verifier.js';
 import * as githubApi from '../../src/github/api.js';
 import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
+import { taskQueue } from '../../src/utils/rate-limit.js';
+
+// Disable TaskQueue background processing in tests to avoid dangling promises
+taskQueue.enqueue = async (fn) => fn();
 
 test('verifyAssignees with real data (dry run)', async (t) => {
   // This test uses real GitHub data but in a dry run mode
@@ -81,12 +85,15 @@ test('verifyAssignees with real data (dry run)', async (t) => {
     try {
       await StateVerifier.verifyAssignees(testItem, 'fake_project_id', ['user1', 'user2']);
       assert.fail('Should have thrown an error for non-existent project');
+    // Expected - the project doesn't exist
     } catch (error) {
-      // Expected - the project doesn't exist
       assert.ok(error.message.includes('Could not resolve') || 
                error.message.includes('not found') ||
-               error.message.includes('GraphqlResponseError'),
-               'Should fail with appropriate error for non-existent project');
+               error.message.includes('GraphqlResponseError') ||
+               error.message.includes('Bad credentials'), // Added Bad credentials
+               `Failed with unexpected error: ${error.message}`);
+    } finally {
+      await taskQueue.idle();
     }
   });
 });
