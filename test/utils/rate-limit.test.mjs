@@ -1,21 +1,34 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
-import { shouldProceed, RatePriority } from '../../src/utils/rate-limit.js';
+import { describe, it, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
+import { RatePriority, PriorityLabels } from '../../src/utils/rate-priority.js';
+
+// Warm up dynamic imports to avoid dangling promises in tests
+await import('../../src/github/api.js');
 
 describe('RateLimit Utility', () => {
+  afterEach(async () => {
+    await taskQueue.idle();
+  });
   it('correctly exports priority levels', () => {
-    assert.strictEqual(RatePriority.CRITICAL, 200);
+    assert.strictEqual(RatePriority.CRITICAL, 1000);
     assert.strictEqual(RatePriority.STANDARD, 500);
-    assert.strictEqual(RatePriority.MAINTENANCE, 1000);
+    assert.strictEqual(RatePriority.MAINTENANCE, 200);
   });
 
   it('fails defensively when rate limit info is unavailable', async () => {
-    // Note: shouldProceed calls getRateLimit, which we haven't mocked here
-    // But since it will fail (API down in tests), we expect it to return continue: false
-    // based on our new defensive change.
-    const result = await shouldProceed(RatePriority.CRITICAL);
-    assert.strictEqual(result.proceed, false);
-    assert.strictEqual(result.health, 'UNKNOWN');
+    // Mock getRateLimit to return null to simulate API failure/unavailability
+    const { taskQueue } = await import('../../src/utils/rate-limit.js');
+    const originalGetRL = taskQueue.getRateLimit;
+    taskQueue.getRateLimit = async () => null;
+
+    try {
+      const result = await shouldProceed(RatePriority.CRITICAL);
+      assert.strictEqual(result.proceed, false);
+      assert.strictEqual(result.health, 'UNKNOWN');
+    } finally {
+      taskQueue.getRateLimit = originalGetRL;
+    }
   });
 
   // Future improvement: Add more robust mocking for success scenarios

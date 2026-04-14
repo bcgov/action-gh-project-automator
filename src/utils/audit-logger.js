@@ -35,11 +35,20 @@ class AuditLogger {
    * Generate a Markdown summary for GHA
    * @param {Object} [stats]
    * @param {string} [stats.health] - 'GREEN', 'YELLOW', 'RED', 'BLACK'
+   * @param {string} [stats.watermark] - The sync watermark found
+   * @param {number} [stats.windowHours] - Fallback window hours if no watermark
    * @returns {string} Markdown content
    */
   generateSummary(stats = {}) {
     const durationSec = Math.round((new Date() - this.startTime) / 1000);
     const timeStr = new Date().toLocaleTimeString();
+
+    let metaInfo = '';
+    if (stats.watermark) {
+      metaInfo += `**Sync Window: Gapless (since ${stats.watermark})**\n`;
+    } else if (stats.windowHours) {
+      metaInfo += `**Sync Window: ${stats.windowHours}h Sliding Window**\n`;
+    }
 
     let healthIndicator = '';
     if (stats.health) {
@@ -59,6 +68,7 @@ class AuditLogger {
 
     let summary = `### 🤖 Automator Run Summary (${timeStr})\n\n`;
     summary += healthIndicator;
+    summary += metaInfo;
     summary += `\n*Run Duration: ${durationSec}s*\n\n`;
     summary += '| Item | Action | Transition | Rule | Reason |\n';
     summary += '| :--- | :--- | :--- | :--- | :--- |\n';

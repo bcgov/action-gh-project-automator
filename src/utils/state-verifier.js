@@ -25,7 +25,7 @@
 import { log, Logger } from './log.js';
 // Initialize logger
 const verifierLog = new Logger();
-import { getItemColumn, isItemInProject, octokit } from '../github/api.js';
+import { getItemColumn, isItemInProject, octokit, rest } from '../github/api.js';
 import { getItemSprint } from '../rules/sprints.js';
 import { getItemAssignees, getItemDetails } from '../rules/assignees.js';
 import { StateChangeTracker } from './state-changes.js';
@@ -315,8 +315,8 @@ Current: "${currentColumn}"`);
         const { repository, number } = itemDetails.content;
         const [ owner, repo ] = repository.nameWithOwner.split('/');
         const issueOrPrData = itemDetails.type === 'PullRequest'
-          ? await octokit.rest.pulls.get({ owner, repo, pull_number: number })
-          : await octokit.rest.issues.get({ owner, repo, issue_number: number });
+          ? await rest.pulls.get({ owner, repo, pull_number: number })
+          : await rest.issues.get({ owner, repo, issue_number: number });
 
         const repoAssignees = issueOrPrData.data.assignees.map(a => a.login);
 

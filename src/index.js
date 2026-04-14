@@ -42,8 +42,10 @@
  * @see rules.yml - Core business rules and configuration
  */
 
+import * as core from '@actions/core';
 import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { shouldProceed, RatePriority } from './utils/rate-limit.js';
+import { shouldProceed } from './utils/rate-limit.js';
+import { RatePriority } from './utils/rate-priority.js';
 import { Logger } from './utils/log.js';
 const log = new Logger();
 import { StateVerifier } from './utils/state-verifier.js';
@@ -63,6 +65,7 @@ import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
 import { auditLog } from './utils/audit-logger.js';
+import { getWatermark, saveWatermark } from './utils/watermark.js';
 
 
 // Custom error classes for robust error handling
@@ -107,6 +110,28 @@ function classifyError(error) {
 
   // Default to critical for unknown errors
   return { isCritical: true, type: 'unknown' };
+}
+
+/**
+ * Initialize environment from GitHub Action inputs if available
+ */
+function initializeEnvironment() {
+  const mappings = {
+    github_token: 'GITHUB_TOKEN',
+    github_author: 'GITHUB_AUTHOR',
+    project_url: 'PROJECT_URL',
+    config_file: 'CONFIG_FILE',
+    window_hours: 'UPDATE_WINDOW_HOURS',
+    verbose: 'VERBOSE',
+    backfill: 'BACKFILL'
+  };
+
+  for (const [input, env] of Object.entries(mappings)) {
+    const val = core.getInput(input);
+    if (val) {
+      process.env[env] = val;
+    }
+  }
 }
 
 // Initialize environment validation steps
@@ -180,6 +205,12 @@ async function validateEnvironment() {
  */
 async function main() {
   const startTime = new Date();
+  let watermark = null;
+  let activeWindowHours = undefined;
+
+  // Map GHA inputs to environment variables
+  initializeEnvironment();
+
   try {
     // Validate environment and get configuration
     const envConfig = await validateEnvironment();
@@ -234,9 +265,20 @@ async function main() {
     log.info('Monitored Repos: ' + context.repos.map(r => r.includes('/') ? r : `${context.org}/${r}`).join(', '));
 
     // Determine tighter search window (1h) in PR context unless overridden via env
-    const windowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
+    activeWindowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
       ? 1
       : undefined;
+
+    // Load gapless sync watermark from cache
+    watermark = await getWatermark(context.projectId);
+    if (watermark) {
+      log.info(`[SYNC] Using gapless watermark: ${watermark}`, true);
+      core.notice(`🏁 Syncing items updated since: ${watermark} (Gapless Mode)`);
+    } else {
+      activeWindowHours = activeWindowHours || process.env.UPDATE_WINDOW_HOURS || 24;
+      log.info(`[SYNC] No watermark found. Falling back to ${activeWindowHours}h sliding window.`, true);
+      core.notice(`⏱️ Syncing items updated in the last ${activeWindowHours}h (Sliding Window)`);
+    }
 
     // Process items according to our enhanced rules
     const eventItems = await loadEventItems(eventName, process.env.GITHUB_EVENT_PATH);
@@ -253,9 +295,10 @@ async function main() {
       repos: context.repos,
       monitoredUser: context.monitoredUser,
       projectId: context.projectId,
-      windowHours,
+      windowHours: activeWindowHours,
       seedItems: eventItems,
-      allowedOrgs: context.allowedOrgs
+      allowedOrgs: context.allowedOrgs,
+      since: watermark
     });
 
     // Process additional rules for added items
@@ -278,23 +321,7 @@ async function main() {
         });
 
         // Set initial column
-        const columnProceed = await shouldProceed(RatePriority.STANDARD);
-        let columnResult;
-        if (columnProceed.proceed) {
-          columnResult = await processColumnAssignment(item, item.projectItemId, context.projectId);
-        } else {
-          columnResult = { changed: false, currentStatus: 'Unknown (Throttled)', reason: 'Throttled by rate limit' };
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Move Column',
-            from: 'N/A',
-            to: 'N/A',
-            rule: 'Column Rule',
-            reason: 'Skipped: Throttled by rate limit'
-          });
-        }
+        const columnResult = await processColumnAssignment(item, item.projectItemId, context.projectId);
         if (columnResult.changed) {
           log.info(`Set column for ${itemRef} to ${columnResult.newStatus}`);
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
@@ -319,27 +346,12 @@ async function main() {
         let sprintResult = null;
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
-          const sprintProceed = await shouldProceed(RatePriority.STANDARD);
-          if (sprintProceed.proceed) {
-            sprintResult = await processSprintAssignment(
-              item,
-              item.projectItemId,
-              context.projectId,
-              currentColumn
-            );
-          } else {
-            sprintResult = { changed: false, reason: 'Throttled by rate limit' };
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Assign Sprint',
-              from: 'N/A',
-              to: 'N/A',
-              rule: 'Sprint Assignment',
-              reason: 'Skipped: Throttled by rate limit'
-            });
-          }
+          sprintResult = await processSprintAssignment(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
           if (sprintResult.changed) {
             log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
             auditLog.logEvent({
@@ -355,28 +367,12 @@ async function main() {
           }
         } else if (inactiveColumns.includes(currentColumn)) {
           // Remove sprint for inactive columns
-          const removalProceed = await shouldProceed(RatePriority.STANDARD);
-          let sprintRemovalResult;
-          if (removalProceed.proceed) {
-            sprintRemovalResult = await processSprintRemoval(
-              item,
-              item.projectItemId,
-              context.projectId,
-              currentColumn
-            );
-          } else {
-            sprintRemovalResult = { changed: false, reason: 'Throttled by rate limit' };
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Remove Sprint',
-              from: 'N/A',
-              to: 'N/A',
-              rule: 'Sprint Cleanup',
-              reason: 'Skipped: Throttled by rate limit'
-            });
-          }
+          const sprintRemovalResult = await processSprintRemoval(
+            item,
+            item.projectItemId,
+            context.projectId,
+            currentColumn
+          );
           if (sprintRemovalResult.changed) {
             log.info(`Removed sprint for ${itemRef} from inactive column`);
             auditLog.logEvent({
@@ -393,23 +389,7 @@ async function main() {
         }
 
         // Handle assignees
-        const assigneeProceed = await shouldProceed(RatePriority.STANDARD);
-        let assigneeResult;
-        if (assigneeProceed.proceed) {
-          assigneeResult = await processAssignees(item, context.projectId, item.projectItemId);
-        } else {
-          assigneeResult = { changed: false };
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Update Assignees',
-            from: 'N/A',
-            to: 'N/A',
-            rule: 'Assignee Sync',
-            reason: 'Skipped: Throttled by rate limit'
-          });
-        }
+        const assigneeResult = await processAssignees(item, context.projectId, item.projectItemId);
         if (assigneeResult.changed) {
           log.info(`Updated assignees for ${itemRef}: ${assigneeResult.assignees.join(', ')}`);
           await StateVerifier.verifyAssignees(item, context.projectId, assigneeResult.assignees);
@@ -469,6 +449,11 @@ async function main() {
       log.error(`Project Board Sync completed with ${errors.length} errors`);
     } else {
       log.info('Project Board Sync completed successfully');
+      
+      // Save the new watermark only when the run completes without any errors.
+      // This ensures that any failed items (even non-critical) are re-processed in the next run.
+      // We use the start time of the run as the new watermark.
+      await saveWatermark(context.projectId, startTime.toISOString());
     }
 
     // Robust error classification
@@ -518,7 +503,11 @@ async function main() {
     // Push the audit summary to GitHub Actions Job Summary
     // Capture final rate limit to report health
     const finalRate = await shouldProceed(RatePriority.CRITICAL);
-    await auditLog.pushToGhaSummary({ health: finalRate.health });
+    await auditLog.pushToGhaSummary({ 
+      health: finalRate.health,
+      watermark,
+      windowHours: activeWindowHours
+    });
   }
 }
 
