@@ -395,15 +395,17 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   // Search for PRs authored by monitored user in allowed organizations only
   // Author/assignee searches always use the date filter (only repo search is unlimited in backfill)
   const sinceFilter = ` updated:>${new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()}`;
-  const authorOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
-  const authorSearchQuery = authorOrgsQuery
-    ? `${authorOrgsQuery} author:${monitoredUser}${sinceFilter}`
+  const orgsFilter = allowedOrgs.length > 0
+    ? `(${allowedOrgs.map(o => `org:${o}`).join(' OR ')})`
+    : '';
+
+  const authorSearchQuery = orgsFilter
+    ? `${orgsFilter} author:${monitoredUser}${sinceFilter}`
     : `author:${monitoredUser}${sinceFilter}`;
 
   // Search for issues/PRs assigned to monitored user in allowed organizations only
-  const assigneeOrgsQuery = allowedOrgs.map(o => `org:${o}`).join(' ');
-  const assigneeSearchQuery = assigneeOrgsQuery
-    ? `${assigneeOrgsQuery} assignee:${monitoredUser}${sinceFilter}`
+  const assigneeSearchQuery = orgsFilter
+    ? `${orgsFilter} assignee:${monitoredUser}${sinceFilter}`
     : `assignee:${monitoredUser}${sinceFilter}`;
 
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
