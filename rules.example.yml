@@ -1,0 +1,155 @@
+# rules.example.yml
+#
+# Copy this file to rules.yml (or any path you like) and customize it.
+# Point the action at your file using the config_file input:
+#
+#   - uses: DerekRoberts/gh-project-automator@v1
+#     with:
+#       github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+#       project_url: 'https://github.com/orgs/YOUR_ORG/projects/1'
+#       config_file: 'rules.yml'
+
+project:
+  # Your GitHub Projects v2 URL. The project ID is resolved automatically.
+  url: "https://github.com/orgs/YOUR_ORG/projects/1"
+
+  # Organizations to search when looking for items by author or assignee.
+  # Remove this section to search across all organizations.
+  allowedOrgs:
+    - YOUR_ORG
+
+automation:
+  # user_scope: rules that follow a specific user across ALL repositories.
+  # Useful for Scrum Masters tracking their own work or their team's work.
+  user_scope:
+    monitored_users:
+      - your-github-username   # Replace with the GitHub username(s) to track
+
+    rules:
+      board_items:
+        - name: "authored_pull_requests"
+          description: "Add pull requests authored by any monitored user"
+          trigger:
+            type: "PullRequest"
+            condition: "monitored.users.includes(item.author)"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+        - name: "assigned_pull_requests"
+          description: "Add pull requests assigned to any monitored user"
+          trigger:
+            type: "PullRequest"
+            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+        - name: "assigned_issues"
+          description: "Add issues assigned to any monitored user"
+          trigger:
+            type: "Issue"
+            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+      assignees:
+        - name: "assign_authored_prs"
+          description: "Add PR author as assignee on the project board"
+          trigger:
+            type: "PullRequest"
+            condition: "monitored.users.includes(item.author)"
+          action: "add_assignee"
+          value: "item.author"
+          skip_if: "item.assignees.includes(item.author)"
+
+  # repository_scope: rules that apply to specific repositories regardless of author.
+  # Useful for teams who want everything in a set of repos tracked automatically.
+  repository_scope:
+    repositories:
+      - YOUR_ORG/repo-one     # Replace with your repositories
+      - YOUR_ORG/repo-two
+
+    rules:
+      board_items:
+        - name: "repository_pull_requests"
+          description: "Add all pull requests from monitored repositories"
+          trigger:
+            type: "PullRequest"
+            condition: "monitored.repos.includes(item.repository)"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+        - name: "repository_issues"
+          description: "Add all issues from monitored repositories"
+          trigger:
+            type: "Issue"
+            condition: "monitored.repos.includes(item.repository)"
+          action: "add_to_board"
+          skip_if: "item.inProject"
+
+      # Column assignment rules. Customize to match your board's column names.
+      columns:
+        - name: "pull_requests_no_column"
+          description: "Place new pull requests into Active"
+          trigger:
+            type: "PullRequest"
+            condition: "!item.column"
+          action: "set_column"
+          value: "Active"
+          skip_if: "item.column"
+          validTransitions:
+            - from: "None"
+              to: "Active"
+              conditions: []
+
+        - name: "issues_no_column"
+          description: "Place new issues into New"
+          trigger:
+            type: "Issue"
+            condition: "!item.column"
+          action: "set_column"
+          value: "New"
+          skip_if: "item.column"
+          validTransitions:
+            - from: "None"
+              to: "New"
+              conditions: []
+
+      # Sprint rules. Remove this section if you don't use GitHub sprints/iterations.
+      sprints:
+        - name: "active_sprint_assignment"
+          description: "Assign the current sprint to items in Active"
+          trigger:
+            type: ["PullRequest", "Issue"]
+            condition: "item.column === 'Active'"
+          action: "set_sprint"
+          value: "current"
+          skip_if: "item.sprint === 'current'"
+
+        - name: "remove_sprint_inactive"
+          description: "Remove sprint from items in New or Backlog"
+          trigger:
+            type: ["PullRequest", "Issue"]
+            condition: "item.column === 'New' || item.column === 'Backlog'"
+          action: "remove_sprint"
+          skip_if: "item.sprint == null"
+
+      # Linked issue rules. Keeps issues in sync with their parent PR.
+      linked_issues:
+        - name: "linked_issue_inheritance"
+          description: "Sync linked issues with PR column and assignees"
+          trigger:
+            type: "LinkedIssue"
+            condition: "!item.pr.closed || item.pr.merged"
+          action: ["inherit_column", "inherit_assignees"]
+          skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
+
+technical:
+  batch_size: 10
+  batch_delay_seconds: 1
+  update_window_hours: 2
+  existing_items:
+    sweep_enabled: false
+    min_rate_limit_remaining: 250
+  optimization:
+    skip_unchanged: true
+    dedup_by_id: true

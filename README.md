@@ -129,7 +129,7 @@ jobs:
           # config_file: '.github/project-rules.yml'
 ```
 
-Pair this with a `rules.yml` at the root of your central repo that defines which repositories and organizations to monitor:
+Pair this with a `rules.yml` at the root of your central repo. Copy `rules.example.yml` from this repository as your starting point — it is fully annotated and covers all available options:
 
 ```yaml
 project:
