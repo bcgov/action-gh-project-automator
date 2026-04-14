@@ -73,5 +73,13 @@ npm test -- test/processors/unified-rule-processor.test.js
 npm test -- test/processors/ludicrous-coverage.test.js
 ```
 
+## 🔄 Migration
+
+If you are migrating from the internal `bcgov/action-gh-project-automator` repository, note the following changes:
+
+- **New Path**: The primary `action.yml` is now located in the root directory. 
+- **Legacy Support**: A shim remains at `.github/actions/sync-engine/action.yml` to prevent breaking existing workflows, but we recommend updating your `uses` references to the root path or the new Marketplace-ready repository.
+- **Smart Fallbacks**: You no longer need to explicitly set `github_author` if you are monitoring the user who triggers the action; it now defaults to the workflow actor automatically.
+
 ---
 *Built with ❤️ by the Advanced Project Automation Team.*
