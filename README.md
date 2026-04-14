@@ -86,7 +86,9 @@ jobs:
 
 > **Note**: `PROJECT_SYNC_TOKEN` must be a Personal Access Token (PAT) with `repo` and `project` scope. The built-in `GITHUB_TOKEN` does not have cross-repository project write permissions.
 
-No `rules.yml` is required for this pattern. The action uses the `project_url` input and the triggering user's identity to make all decisions. You can optionally add a `rules.yml` if you want custom column assignment rules or sprint logic.
+No `rules.yml` is required for this pattern. Without one, the action adds any item authored by, assigned to, or requesting a review from the monitored user and places it on the board with default column logic.
+
+Add a `rules.yml` when you want to go further — for example, to automatically move a PR from `New` to `Active` the moment it is opened, assign a sprint, or keep linked issues in sync with their parent PR. Copy `rules.example.yml` from this repository as a fully annotated starting point.
 
 ---
 
@@ -124,8 +126,8 @@ jobs:
           github_author: 'your-github-username'
           window_hours: '2'
           verbose: 'true'
-          # config_file defaults to 'rules.yml' in the repo root.
-          # Override if your rules file lives elsewhere:
+          # config_file: Path to your rules file (default: 'rules.yml' in the repo root).
+          # Use this if you want to keep your rules file out of the root, e.g.:
           # config_file: '.github/project-rules.yml'
 ```
 
