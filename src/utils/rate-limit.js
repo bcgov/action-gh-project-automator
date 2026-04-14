@@ -78,14 +78,16 @@ class TaskQueue {
         // Find the highest priority task we can run
         const taskIndex = this.tasks.findIndex(t => t.priority >= rateStatus.threshold);
         
-        if (taskIndex === -1) {
-          // No tasks meet current threshold
+        if (rateStatus.allStop || taskIndex === -1) {
+          // If allStop is true (BLACK), reject immediately
           if (rateStatus.allStop) {
-            log.warning(`TaskQueue: CRITICAL budget exhausted. Rejecting all tasks.`);
-            this.rejectAll(new Error('Rate limit budget exhausted (CRITICAL)'));
+            const reason = 'CRITICAL budget exhausted (BLACK)';
+            log.warning(`TaskQueue: ${reason}. Rejecting all tasks.`);
+            this.rejectAll(new Error(`Rate limit budget exhausted: ${reason}`));
             break;
           }
-          
+
+          // If no tasks meet current threshold, we throttle and wait unless it's persistent
           throttleCount++;
           if (throttleCount > 10) {
             log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
@@ -195,7 +197,7 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
     return { proceed: false, remaining: null, health: 'UNKNOWN' };
   }
 
-  const proceed = status.rl.remaining >= priority;
+  const proceed = !status.allStop && priority >= status.threshold && status.rl.remaining >= 1;
   if (!proceed) {
     const label = PriorityLabels[priority] || priority;
     log.info(`[THROTTLED/RESERVE] Skipping ${label} task (Priority: ${priority}): remaining=${status.rl.remaining}/${status.rl.limit}, health=${status.health}`);

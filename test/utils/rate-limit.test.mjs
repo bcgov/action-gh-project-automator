@@ -62,4 +62,43 @@ describe('RateLimit Utility', () => {
       assert.strictEqual(status2.allStop, true);
     });
   });
+
+  describe('shouldProceed Consistency', () => {
+    it('allows CRITICAL tasks in RED state (749)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 749, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.CRITICAL);
+        assert.strictEqual(result.proceed, true, 'CRITICAL should proceed in RED state');
+        assert.strictEqual(result.health, 'RED');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+
+    it('blocks STANDARD tasks in RED state (749)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 749, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.STANDARD);
+        assert.strictEqual(result.proceed, false, 'STANDARD should be blocked in RED state');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+
+    it('blocks all tasks in BLACK state (249)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 249, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.CRITICAL);
+        assert.strictEqual(result.proceed, false, 'Even CRITICAL should be blocked in BLACK state');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+  });
 });
