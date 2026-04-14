@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { graphql } from '@octokit/graphql';
+import { graphql as graphqlClient } from '@octokit/graphql';
 import { log } from '../utils/log.js';
 import { shouldProceed, withBackoff, formatRateLimitInfo, taskQueue } from '../utils/rate-limit.js';
 import { RatePriority } from '../utils/rate-priority.js';
@@ -7,44 +7,67 @@ import { memoizeGraphql } from '../utils/graphql-cache.js';
 
 /**
  * GitHub API client setup
+ * Lazy-initialized to ensure environment variables (like GITHUB_TOKEN) are populated
  */
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
-});
+let _octokit = null;
+let _memoizedGraphql = null;
 
-// Create authenticated GraphQL client with debug logging
-const graphqlWithAuthRaw = graphql.defaults({
-  headers: {
-    authorization: `bearer ${process.env.GITHUB_TOKEN}`,
-  },
-  request: {
-    fetch: (url, options) => {
-      log.debug('GraphQL Request:', JSON.stringify(options.body, null, 2));
-      return fetch(url, options).then(response => {
-        log.debug('GraphQL Response:', response.status);
-        return response;
-      });
+function getOctokit() {
+  if (!_octokit) {
+    let token = process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN;
+    if (!token && process.env.NODE_ENV === 'test') {
+      token = 'test-token';
     }
+    if (!token && !process.env.NODE_ENV === 'test') {
+      log.warning('GITHUB_TOKEN not found in environment or inputs');
+    }
+    _octokit = new Octokit({
+      auth: token
+    });
   }
-});
+  return _octokit;
+}
 
-// Create memoized version of the raw client
-const memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw);
+function getGraphql() {
+  if (!_memoizedGraphql) {
+    let token = process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN;
+    if (!token && process.env.NODE_ENV === 'test') {
+      token = 'test-token';
+    }
+    const graphqlWithAuthRaw = graphqlClient.defaults({
+      headers: {
+        authorization: `bearer ${token}`,
+      },
+      request: {
+        fetch: (url, options) => {
+          log.debug('GraphQL Request:', JSON.stringify(options.body, null, 2));
+          return fetch(url, options).then(response => {
+            log.debug('GraphQL Response:', response.status);
+            return response;
+          });
+        }
+      }
+    });
+    _memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw);
+  }
+  return _memoizedGraphql;
+}
 
 // Default execution wrapped in TaskQueue; priority can be overridden
 let graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) => 
-  taskQueue.enqueue(() => memoizedGraphql(query, variables), priority);
+  taskQueue.enqueue(() => getGraphql()(query, variables), priority);
 
 const graphqlWithAuth = async (query, variables, priority) => graphqlExecutor(query, variables, priority);
 
 // Create prioritized REST client wrapper
-const restWithAuth = new Proxy(octokit.rest, {
+const restWithAuth = new Proxy({}, {
   get(target, prop) {
-    if (typeof target[prop] === 'function') {
-      return (...args) => taskQueue.enqueue(() => target[prop](...args), RatePriority.STANDARD);
+    const octokit = getOctokit();
+    if (typeof octokit.rest[prop] === 'function') {
+      return (...args) => taskQueue.enqueue(() => octokit.rest[prop](...args), RatePriority.STANDARD);
     }
-    if (typeof target[prop] === 'object' && target[prop] !== null) {
-      return new Proxy(target[prop], {
+    if (typeof octokit.rest[prop] === 'object' && octokit.rest[prop] !== null) {
+      return new Proxy(octokit.rest[prop], {
         get(t, p) {
           if (typeof t[p] === 'function') {
             return (...args) => taskQueue.enqueue(() => t[p](...args), RatePriority.STANDARD);
@@ -53,7 +76,14 @@ const restWithAuth = new Proxy(octokit.rest, {
         }
       });
     }
-    return target[prop];
+    return octokit.rest[prop];
+  }
+});
+
+// Create a lazy proxy for the raw octokit client
+const octokitProxy = new Proxy({}, {
+  get(target, prop) {
+    return getOctokit()[prop];
   }
 });
 
@@ -811,10 +841,14 @@ function __resetProjectCaches() {
   columnOptionIdCache.clear();
 }
 
+// Export based on environment
+const isTest = process.env.NODE_ENV === 'test';
+
+export const octokit = isTest ? getOctokit() : octokitProxy;
+export const rest = isTest ? getOctokit().rest : restWithAuth;
+export const graphql = graphqlWithAuth;
+
 export {
-  octokit,
-  graphqlWithAuth as graphql,
-  restWithAuth as rest,
   isItemInProject,
   addItemToProject,
   getRecentItems,
