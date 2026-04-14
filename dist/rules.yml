@@ -114,6 +114,45 @@ automation:
               to: "Active"
               conditions: []
 
+        - name: "parked_pull_requests_to_active"
+          description: "Move pull requests from Parked to Active"
+          trigger:
+            type: "PullRequest"
+            condition: "item.column === 'Parked'"
+          action: "set_column"
+          value: "Active"
+          skip_if: "item.column !== 'Parked'"
+          validTransitions:
+            - from: "Parked"
+              to: "Active"
+              conditions: []
+
+        - name: "backlog_pull_requests_to_active"
+          description: "Move pull requests from Backlog to Active"
+          trigger:
+            type: "PullRequest"
+            condition: "item.column === 'Backlog'"
+          action: "set_column"
+          value: "Active"
+          skip_if: "item.column !== 'Backlog'"
+          validTransitions:
+            - from: "Backlog"
+              to: "Active"
+              conditions: []
+
+        - name: "next_pull_requests_to_active"
+          description: "Move pull requests from Next to Active"
+          trigger:
+            type: "PullRequest"
+            condition: "item.column === 'Next'"
+          action: "set_column"
+          value: "Active"
+          skip_if: "item.column !== 'Next'"
+          validTransitions:
+            - from: "Next"
+              to: "Active"
+              conditions: []
+
         - name: "issues_no_column"
           description: "Set new issues to New"
           trigger:
@@ -124,6 +163,19 @@ automation:
           skip_if: "item.column"
           validTransitions:
             - from: "None"
+              to: "New"
+              conditions: []
+
+        - name: "parked_issues_to_new"
+          description: "Move issues from Parked to New"
+          trigger:
+            type: "Issue"
+            condition: "item.column === 'Parked'"
+          action: "set_column"
+          value: "New"
+          skip_if: "item.column !== 'Parked'"
+          validTransitions:
+            - from: "Parked"
               to: "New"
               conditions: []
 

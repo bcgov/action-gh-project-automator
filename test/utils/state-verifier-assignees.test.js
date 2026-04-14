@@ -62,15 +62,20 @@ test('verifyAssignees with real data (dry run)', async (t) => {
     // Test the function signature and basic behavior without making API calls
     st.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve('test-user'));
     
-    // Mock GraphQL calls
-    st.mock.method(githubApi.octokit, 'graphql', () => Promise.reject(new Error('Could not resolve project')));
+    // Mock GraphQL calls using the provided internal hook to bypass ESM read-only exports
+    githubApi.__setGraphqlExecutor(() => Promise.reject(new Error('Could not resolve project')));
     
     // Mock REST calls
     st.mock.method(githubApi.octokit.rest.pulls, 'get', () => Promise.reject(new Error('Not found')));
     st.mock.method(githubApi.octokit.rest.issues, 'get', () => Promise.reject(new Error('Not found')));
 
-
-    assert.ok(typeof StateVerifier.verifyAssignees === 'function', 'verifyAssignees should be a function');
+    try {
+      assert.ok(typeof StateVerifier.verifyAssignees === 'function', 'verifyAssignees should be a function');
+      
+      // Test execution logic...
+    } finally {
+      githubApi.__resetGraphqlExecutor();
+    }
     
     // Test that it expects the right parameters
     const testItem = {

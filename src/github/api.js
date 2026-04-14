@@ -107,7 +107,8 @@ function __setGraphqlExecutor(executor) {
 }
 
 function __resetGraphqlExecutor() {
-  graphqlExecutor = async (query, variables) => withBackoff(() => memoizedGraphql(query, variables));
+  graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) => 
+    taskQueue.enqueue(() => getGraphql()(query, variables), priority);
 }
 
 // Cache field IDs per project to reduce API calls

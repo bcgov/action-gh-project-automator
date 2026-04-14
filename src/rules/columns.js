@@ -129,10 +129,10 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
     let targetColumn = null;
     let reason = '';
 
-    log.info(`Processing column rules for ${item.__typename} #${item.number}:`, true);
-    log.info(`  • Current column: ${currentColumn || 'None'}`, true);
-    log.info(`  • Item type: ${item.__typename}`, true);
-    log.info(`  • Item state: ${item.state || 'Unknown'}`, true);
+    log.info(`[FORENSIC] Processing column rules for ${item.__typename} #${item.number}`, true);
+    log.info(`[FORENSIC]   • Current column found in API: "${currentColumn || 'None'}"`, true);
+    log.info(`[FORENSIC]   • Item Typename detected: ${item.__typename}`, true);
+    log.info(`[FORENSIC]   • Item State detected: ${item.state || 'Unknown'}`, true);
 
     // Actively handle closed/merged items:
     // - If MERGED or CLOSED and not already in a done-like column, move to Done/Closed
@@ -194,19 +194,20 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
 
     // Handle PRs and Issues according to requirements
     if (item.__typename === 'PullRequest') {
-      // For PRs: Move to Active if either:
-      // 1. Column is None
-      // 2. Column is New
-      if (!currentColumn || currentColumnLower === 'new') {
+      // For PRs: Move to Active if in an initial or "waiting" column
+      const preActiveColumns = ['new', 'parked', 'backlog', 'next'];
+      const isInitialColumn = !currentColumn || preActiveColumns.includes(currentColumnLower);
+      
+      if (isInitialColumn) {
         targetColumn = 'Active';
-        reason = !currentColumn ? 'Initial PR placement in Active' : 'PR moved from New to Active';
-        log.info(`  • Rule: ${!currentColumn ? 'Column=None' : 'Column=New'} → Moving PR to Active`, true);
+        reason = !currentColumn ? 'Initial PR placement in Active' : `PR moved from ${currentColumn} to Active`;
+        log.info(`  • Rule: Column=${currentColumn || 'None'} → Moving PR to Active`, true);
       }
-    } else if (item.__typename === 'Issue' && !currentColumn) {
-      // For Issues: Only set column if none is set
+    } else if (item.__typename === 'Issue' && (!currentColumn || currentColumnLower === 'parked')) {
+      // For Issues: Move to New if column is none or Parked
       targetColumn = 'New';
-      reason = 'Initial issue placement in New';
-      log.info('  • Rule: Column=None → Setting initial issue column to New', true);
+      reason = !currentColumn ? 'Initial issue placement in New' : 'Issue moved from Parked to New';
+      log.info(`  • Rule: Column=${currentColumn || 'None'} → Setting initial issue column to New`, true);
     }
 
     // Skip if no target column determined
