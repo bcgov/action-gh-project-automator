@@ -15,8 +15,7 @@ class EnvironmentValidator {
    */
   static validateRequired() {
     const required = {
-      GITHUB_TOKEN: 'GitHub personal access token with repo and project permissions',
-      GITHUB_AUTHOR: 'GitHub username to monitor (e.g., DerekRoberts)'
+      GITHUB_TOKEN: 'GitHub personal access token with repo and project permissions'
     };
 
     const missing = [];
@@ -31,8 +30,7 @@ class EnvironmentValidator {
         `Missing required environment variables:\n` +
         `${missing.map(m => `  - ${m}`).join('\n')}\n\n` +
         `Please set them with:\n` +
-        `export GITHUB_TOKEN=your_personal_access_token\n` +
-        `export GITHUB_AUTHOR=your_github_username\n\n` +
+        `export GITHUB_TOKEN=your_personal_access_token\n\n` +
         `For GitHub token setup, visit: https://github.com/settings/tokens`
       );
     }
@@ -253,7 +251,7 @@ class EnvironmentValidator {
 
     // Verify GITHUB_AUTHOR matches token user (optional check)
     const expectedUser = process.env.GITHUB_AUTHOR;
-    if (githubUser !== expectedUser) {
+    if (expectedUser && githubUser !== expectedUser) {
       log.warning(
         `GitHub token is for user "${githubUser}" but GITHUB_AUTHOR is "${expectedUser}". ` +
         `This might be intentional if you're monitoring another user's activity.`
