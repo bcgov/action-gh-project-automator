@@ -157,21 +157,20 @@ class TaskQueue {
     let threshold = 0; // Allow everything
     let allStop = false;
 
-    // Budget assessment:
-
-    // Correct Logic:
-    if (remaining < 200) {
+    // Budget assessment (Intelligent Budgeting / Issue #157):
+    if (remaining < 250) {
       health = 'BLACK';
       allStop = true;
-    } else if (remaining < 500) {
-      health = 'RED';
-      threshold = RatePriority.CRITICAL; // Only 1000
-    } else if (remaining < 1000) {
-      health = 'YELLOW';
-      threshold = RatePriority.STANDARD; // Only 500 or 1000
+      threshold = RatePriority.CRITICAL;
+    } else if (remaining < 750) {
+      health = 'RED'; // Reserve mode: Only CRITICAL/DISCOVERY allowed
+      threshold = RatePriority.CRITICAL; 
+    } else if (remaining < 1500) {
+      health = 'YELLOW'; // Maintenance Pause: No background caching
+      threshold = RatePriority.STANDARD; 
     } else {
       health = 'GREEN';
-      threshold = 0; // Allow everything (200, 500, 1000)
+      threshold = 0; // Allow everything
     }
 
     return {
