@@ -31,5 +31,74 @@ describe('RateLimit Utility', () => {
     }
   });
 
-  // Future improvement: Add more robust mocking for success scenarios
+  describe('Intelligent Budgeting (evaluateBudget)', () => {
+    it('handles GREEN health (remaining >= 1500)', () => {
+      const status = taskQueue.evaluateBudget({ remaining: 1500, limit: 5000 });
+      assert.strictEqual(status.health, 'GREEN');
+      assert.strictEqual(status.threshold, 0);
+    });
+
+    it('transitions to YELLOW (Maintenance Pause) at < 1500', () => {
+      const status = taskQueue.evaluateBudget({ remaining: 1499, limit: 5000 });
+      assert.strictEqual(status.health, 'YELLOW');
+      assert.strictEqual(status.threshold, RatePriority.STANDARD);
+    });
+
+    it('transitions to RED (Reserve Mode) at < 750', () => {
+      const status1 = taskQueue.evaluateBudget({ remaining: 750, limit: 5000 });
+      assert.strictEqual(status1.health, 'YELLOW'); // 750 is still YELLOW
+
+      const status2 = taskQueue.evaluateBudget({ remaining: 749, limit: 5000 });
+      assert.strictEqual(status2.health, 'RED');
+      assert.strictEqual(status2.threshold, RatePriority.CRITICAL);
+    });
+
+    it('transitions to BLACK (Emergency Stop) at < 250', () => {
+      const status1 = taskQueue.evaluateBudget({ remaining: 250, limit: 5000 });
+      assert.strictEqual(status1.health, 'RED'); // 250 is still RED
+
+      const status2 = taskQueue.evaluateBudget({ remaining: 249, limit: 5000 });
+      assert.strictEqual(status2.health, 'BLACK');
+      assert.strictEqual(status2.allStop, true);
+    });
+  });
+
+  describe('shouldProceed Consistency', () => {
+    it('allows CRITICAL tasks in RED state (749)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 749, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.CRITICAL);
+        assert.strictEqual(result.proceed, true, 'CRITICAL should proceed in RED state');
+        assert.strictEqual(result.health, 'RED');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+
+    it('blocks STANDARD tasks in RED state (749)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 749, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.STANDARD);
+        assert.strictEqual(result.proceed, false, 'STANDARD should be blocked in RED state');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+
+    it('blocks all tasks in BLACK state (249)', async () => {
+      const originalGetRL = taskQueue.getRateLimit;
+      taskQueue.getRateLimit = async () => ({ remaining: 249, limit: 5000, cost: 1 });
+      
+      try {
+        const result = await shouldProceed(RatePriority.CRITICAL);
+        assert.strictEqual(result.proceed, false, 'Even CRITICAL should be blocked in BLACK state');
+      } finally {
+        taskQueue.getRateLimit = originalGetRL;
+      }
+    });
+  });
 });

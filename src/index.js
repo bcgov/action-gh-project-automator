@@ -333,7 +333,7 @@ async function main() {
             action: 'Move Column',
             from: columnResult.currentStatus || 'None',
             to: columnResult.newStatus,
-            rule: 'Column Rule',
+            rule: columnResult.rule || 'Column Rule',
             reason: columnResult.reason
           });
         }

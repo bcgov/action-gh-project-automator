@@ -115,7 +115,7 @@ function getColumnOptionId(columnName, options) {
  * @param {Object} item - The issue or PR
  * @param {string} projectItemId - The project item ID
  * @param {string} projectId - The project board ID
- * @returns {Promise<{changed: boolean, newStatus?: string}>}
+ * @returns {Promise<{changed: boolean, newStatus?: string, rule?: string, reason?: string, currentStatus?: string}>}
  */
 async function processColumnAssignment(item, projectItemId, projectId, batchQueue = null) {
   try {
@@ -180,6 +180,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
         return {
           changed: true,
           newStatus: targetName,
+          rule: 'State Sync',
           reason: `Item state=${item.state} → Set column to ${targetName}`
         };
       } catch (e) {
@@ -272,6 +273,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
     return {
       changed: true,
       newStatus: targetColumn,
+      rule: 'Gating Rules',
       reason: reason || `Set column to ${targetColumn} based on ${item.state ? `state (${item.state})` : 'initial rules'}`
     };
   } catch (error) {

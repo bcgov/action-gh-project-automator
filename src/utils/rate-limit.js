@@ -78,14 +78,16 @@ class TaskQueue {
         // Find the highest priority task we can run
         const taskIndex = this.tasks.findIndex(t => t.priority >= rateStatus.threshold);
         
-        if (taskIndex === -1) {
-          // No tasks meet current threshold
+        if (rateStatus.allStop || taskIndex === -1) {
+          // If allStop is true (BLACK), reject immediately
           if (rateStatus.allStop) {
-            log.warning(`TaskQueue: CRITICAL budget exhausted. Rejecting all tasks.`);
-            this.rejectAll(new Error('Rate limit budget exhausted (CRITICAL)'));
+            const reason = 'CRITICAL budget exhausted (BLACK)';
+            log.warning(`TaskQueue: ${reason}. Rejecting all tasks.`);
+            this.rejectAll(new Error(`Rate limit budget exhausted: ${reason}`));
             break;
           }
-          
+
+          // If no tasks meet current threshold, we throttle and wait unless it's persistent
           throttleCount++;
           if (throttleCount > 10) {
             log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
@@ -157,21 +159,20 @@ class TaskQueue {
     let threshold = 0; // Allow everything
     let allStop = false;
 
-    // Budget assessment:
-
-    // Correct Logic:
-    if (remaining < 200) {
+    // Budget assessment (Intelligent Budgeting / Issue #157):
+    if (remaining < 250) {
       health = 'BLACK';
       allStop = true;
-    } else if (remaining < 500) {
-      health = 'RED';
-      threshold = RatePriority.CRITICAL; // Only 1000
-    } else if (remaining < 1000) {
-      health = 'YELLOW';
-      threshold = RatePriority.STANDARD; // Only 500 or 1000
+      threshold = RatePriority.CRITICAL;
+    } else if (remaining < 750) {
+      health = 'RED'; // Reserve mode: Only CRITICAL/DISCOVERY allowed
+      threshold = RatePriority.CRITICAL; 
+    } else if (remaining < 1500) {
+      health = 'YELLOW'; // Maintenance Pause: No background caching
+      threshold = RatePriority.STANDARD; 
     } else {
       health = 'GREEN';
-      threshold = 0; // Allow everything (200, 500, 1000)
+      threshold = 0; // Allow everything
     }
 
     return {
@@ -196,7 +197,7 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
     return { proceed: false, remaining: null, health: 'UNKNOWN' };
   }
 
-  const proceed = status.rl.remaining >= priority;
+  const proceed = !status.allStop && priority >= status.threshold && status.rl.remaining >= 1;
   if (!proceed) {
     const label = PriorityLabels[priority] || priority;
     log.info(`[THROTTLED/RESERVE] Skipping ${label} task (Priority: ${priority}): remaining=${status.rl.remaining}/${status.rl.limit}, health=${status.health}`);

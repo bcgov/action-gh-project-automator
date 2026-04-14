@@ -4,7 +4,9 @@
  */
 export const RatePriority = {
   CRITICAL: 1000,   // Reserved for essential lookups
+  DISCOVERY: 1000,  // Alias for CRITICAL searching
   STANDARD: 500,    // Batch sync and regular updates
+  SYNC: 500,        // Alias for STANDARD processing
   MAINTENANCE: 200  // Background prep and caching
 };
 
@@ -12,7 +14,7 @@ export const RatePriority = {
  * Human-readable labels for priority levels.
  */
 export const PriorityLabels = {
-  200: 'MAINTENANCE',
+  1000: 'CRITICAL',
   500: 'STANDARD',
-  1000: 'CRITICAL'
+  200: 'MAINTENANCE'
 };
