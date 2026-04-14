@@ -82,7 +82,19 @@ jobs:
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
           project_url: 'https://github.com/orgs/YOUR_ORG/projects/1'
           # github_author is optional — defaults to the user who triggered the workflow
+          # config_file defaults to 'rules.yml' in the repo root.
+          # Override if your rules file lives elsewhere:
+          # config_file: '.github/project-rules.yml'
 ```
+
+The `rules.yml` file in this repository controls which items get added and how they are classified. A minimal example:
+
+```yaml
+project:
+  url: https://github.com/orgs/YOUR_ORG/projects/1
+```
+
+If no `rules.yml` exists, the action uses the `project_url` input alone and applies sensible defaults.
 
 > **Note**: `PROJECT_SYNC_TOKEN` must be a Personal Access Token (PAT) with `repo` and `project` scope. The built-in `GITHUB_TOKEN` does not have cross-repository project write permissions.
 
@@ -122,6 +134,9 @@ jobs:
           github_author: 'your-github-username'
           window_hours: '2'
           verbose: 'true'
+          # config_file defaults to 'rules.yml' in the repo root.
+          # Override if your rules file lives elsewhere:
+          # config_file: '.github/project-rules.yml'
 ```
 
 Pair this with a `rules.yml` at the root of your central repo that defines which repositories and organizations to monitor:
