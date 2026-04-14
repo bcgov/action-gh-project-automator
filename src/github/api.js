@@ -89,9 +89,12 @@ const octokitProxy = new Proxy({}, {
 
 // Register rate limit provider to avoid circular dynamic imports
 taskQueue.setRateLimitProvider(async () => {
+  if (process.env.NODE_ENV === 'test') {
+    return { remaining: 5000, limit: 5000, resetAt: new Date(Date.now() + 3600000).toISOString(), cost: 1 };
+  }
   try {
     // MUST use raw client to avoid deadlock (rate limit check can't be queued)
-    const res = await graphqlWithAuthRaw(`query { rateLimit { remaining limit resetAt cost } }`);
+    const res = await getGraphql()(`query { rateLimit { remaining limit resetAt cost } }`);
     return res.rateLimit;
   } catch (error) {
     log.warning(`Rate limit provider check failed: ${error.message}`);
