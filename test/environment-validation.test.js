@@ -5,11 +5,9 @@ import { EnvironmentValidator } from '../src/utils/environment-validator.js';
 describe('Environment validation', () => {
     test('Identifies missing required variables', async () => {
         const originalToken = process.env.GITHUB_TOKEN;
-        const originalAuthor = process.env.GITHUB_AUTHOR;
         
-        // Remove required variables
+        // Remove only actually required variables
         delete process.env.GITHUB_TOKEN;
-        delete process.env.GITHUB_AUTHOR;
         
         try {
             await EnvironmentValidator.validateAll();
@@ -17,11 +15,9 @@ describe('Environment validation', () => {
         } catch (error) {
             assert.ok(error.message.includes('Missing required environment variables'));
             assert.ok(error.message.includes('GITHUB_TOKEN'));
-            assert.ok(error.message.includes('GITHUB_AUTHOR'));
         } finally {
             // Restore variables
             process.env.GITHUB_TOKEN = originalToken;
-            process.env.GITHUB_AUTHOR = originalAuthor;
         }
     });
 

@@ -32,6 +32,7 @@ function fromPullRequest(payload) {
     repository: buildRepository(repository),
     author: pr.user ? { login: pr.user.login } : null,
     assignees: mapAssignees(pr.assignees),
+    requestedReviewers: mapAssignees(pr.requested_reviewers),
     state: pr.state,
     updatedAt: pr.updated_at,
     url: pr.html_url

@@ -291,14 +291,18 @@ function shouldAddItemToProject(item, monitoredUser, monitoredRepos) {
   // Check PR-specific conditions
   if (item.__typename === 'PullRequest') {
     const isAuthor = item.author?.login === monitoredUser;
+    
+    // Check if review was requested from monitored user
+    const isReviewer = item.requestedReviewers?.nodes?.some(r => r.login === monitoredUser) || false;
 
     log.debug(`PR #${item.number}:
       - Author: ${item.author?.login || 'unknown'}
       - Is author? ${isAuthor}
       - Is assignee? ${isAssignee}
+      - Is reviewer? ${isReviewer}
       - In monitored repo? ${isMonitoredRepo}`);
 
-    return isAuthor || isAssignee;
+    return isAuthor || isAssignee || isReviewer;
   }
 
   log.debug(`${item.__typename} #${item.number} does not meet any criteria for inclusion`);

@@ -474,6 +474,11 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     ? `${orgsFilter} assignee:${monitoredUser}${sinceFilter}`
     : `assignee:${monitoredUser}${sinceFilter}`;
 
+  // Search for PRs where review was requested from monitored user
+  const reviewerSearchQuery = orgsFilter
+    ? `${orgsFilter} review-requested:${monitoredUser}${sinceFilter}`
+    : `review-requested:${monitoredUser}${sinceFilter}`;
+
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
   // In backfill mode, paginate through all pages (up to 10 pages = 1000 items).
@@ -512,6 +517,14 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
+      reviewRequests(first: 5) {
+        nodes {
+          requestedReviewer {
+            ... on User { login }
+            ... on Team { name }
+          }
+        }
+      }
       state updatedAt
     }
   `;
@@ -568,15 +581,41 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   results.push(...assigneeNodes);
   logger.info(`Assignee search returned ${assigneeNodes.length} items`);
 
-  // Remove duplicates based on item ID
-  const seen = new Set();
-  return results.filter(item => {
-    if (seen.has(item.id)) {
-      return false;
+  // Get PRs where review is requested from monitored user
+  const reviewerNodes = await paginatedSearch(`
+    query($searchQuery: String!, $cursor: String) {
+      search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
+        nodes { ${ITEM_FRAGMENT} }
+        pageInfo { hasNextPage endCursor }
+      }
     }
-    seen.add(item.id);
-    return true;
-  });
+  `, reviewerSearchQuery, 1);
+  results.push(...reviewerNodes);
+  logger.info(`Reviewer search returned ${reviewerNodes.length} items`);
+
+  // Remove duplicates based on item ID and map GraphQL structure to internal expected structure
+  const seen = new Set();
+  return results
+    .filter(item => {
+      if (seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    })
+    .map(item => {
+      // Map GraphQL reviewRequests to requestedReviewers for rule engine consistency
+      if (item.__typename === 'PullRequest') {
+        const reviewers = (item.reviewRequests?.nodes || [])
+          .map(r => r.requestedReviewer?.login || r.requestedReviewer?.name)
+          .filter(Boolean);
+        
+        item.requestedReviewers = {
+          nodes: reviewers.map(login => ({ login }))
+        };
+      }
+      return item;
+    });
 }
 
 /**

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getRecentItems } from '../../src/github/api.js';
 import { Logger } from '../../src/utils/log.js';
 
-function createOverrides({ repoNodes = [], authorNodes = [], assigneeNodes = [], shouldProceedResult = { proceed: true } } = {}) {
+function createOverrides({ repoNodes = [], authorNodes = [], assigneeNodes = [], reviewerNodes = [], shouldProceedResult = { proceed: true } } = {}) {
   const calls = [];
   return {
     overrides: {
@@ -18,6 +18,8 @@ function createOverrides({ repoNodes = [], authorNodes = [], assigneeNodes = [],
           nodes = authorNodes;
         } else if (variables.searchQuery.includes('assignee:')) {
           nodes = assigneeNodes;
+        } else if (variables.searchQuery.includes('review-requested:')) {
+          nodes = reviewerNodes;
         }
         return {
           search: {
@@ -45,10 +47,11 @@ test('getRecentItems performs guarded searches when rate limit allows', async ()
   const items = await getRecentItems('org', ['repo1'], 'octocat', 1, { overrides });
 
   assert.equal(items.length, 3);
-  assert.equal(calls.length, 3, 'Expected repo, author, and assignee searches');
+  assert.equal(calls.length, 4, 'Expected repo, author, assignee, and reviewer searches');
   assert.ok(calls[0].includes('repo:org/repo1'), 'First call should be repo search');
   assert.ok(calls[1].includes('author:octocat'), 'Second call should be author search');
   assert.ok(calls[2].includes('assignee:octocat'), 'Third call should be assignee search');
+  assert.ok(calls[3].includes('review-requested:octocat'), 'Fourth call should be reviewer search');
 });
 
 test('getRecentItems skips searches when rate limit guard fails', async () => {
@@ -146,8 +149,8 @@ test('getRecentItems deduplicates items found in multiple searches', async () =>
   assert.equal(items.length, 1, 'Should deduplicate items found in multiple searches');
   assert.equal(items[0].id, 'duplicate-item-1', 'Should include the deduplicated item');
   
-  // Verify all three searches still executed
-  assert.equal(calls.length, 3, 'All three searches should still execute even with duplicates');
+  // Verify all four searches still executed
+  assert.equal(calls.length, 4, 'All four searches should still execute even with duplicates');
 });
 
 test('getRecentItems deduplicates items across all search types', async () => {
