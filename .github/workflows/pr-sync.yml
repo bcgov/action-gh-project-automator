@@ -4,7 +4,9 @@ on:
   push:
     branches: [main, feat/*, chore/*]
   pull_request:
-    types: [opened, reopened, synchronized]
+    types: [opened, reopened, synchronize, assigned, review_requested]
+  issues:
+    types: [opened, reopened, assigned]
 
 
 
