@@ -47,6 +47,109 @@ project:
 ```
 
 
+## 🚀 Usage
+
+There are two ways to deploy this action depending on your team structure.
+
+---
+
+### Pattern 1: Per-Repo Shadow Mode *(Recommended for Teams)*
+
+Install this action in each repository your team works in. Any PR or issue that is **created, assigned to you, or requests your review** is instantly added to your board.
+
+This is the right choice for Scrum Masters who want their board to automatically reflect everything their team is working on—without manually curating it.
+
+Create `.github/workflows/project-sync.yml` in each repository:
+
+```yaml
+name: Project Board Sync
+
+on:
+  pull_request:
+    types: [opened, reopened, assigned, review_requested, synchronize]
+  issues:
+    types: [opened, reopened, assigned]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DerekRoberts/gh-project-automator@v1
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          project_url: 'https://github.com/orgs/YOUR_ORG/projects/1'
+          # github_author is optional — defaults to the user who triggered the workflow
+```
+
+> **Note**: `PROJECT_SYNC_TOKEN` must be a Personal Access Token (PAT) with `repo` and `project` scope. The built-in `GITHUB_TOKEN` does not have cross-repository project write permissions.
+
+---
+
+### Pattern 2: Central Dispatcher *(For Org-Wide Governance)*
+
+Run the action on a schedule from a single, central repository. It sweeps all configured repositories and reconciles the board regardless of who triggered what.
+
+This is the right choice for platform teams or leads managing many repositories who want a single source of truth.
+
+Create `.github/workflows/project-sync.yml` in your **central admin repository**:
+
+```yaml
+name: Project Board Sync (Central)
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour
+  workflow_dispatch:       # Allow manual trigger
+
+concurrency:
+  group: project-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DerekRoberts/gh-project-automator@v1
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          project_url: 'https://github.com/orgs/YOUR_ORG/projects/1'
+          github_author: 'your-github-username'
+          window_hours: '2'
+          verbose: 'true'
+```
+
+Pair this with a `rules.yml` at the root of your central repo that defines which repositories and organizations to monitor:
+
+```yaml
+project:
+  url: https://github.com/orgs/YOUR_ORG/projects/1
+  allowedOrgs:
+    - your-main-org
+    - your-partner-org
+  repositories:
+    - your-main-org/repo-one
+    - your-main-org/repo-two
+    - your-partner-org/shared-repo
+```
+
+---
+
+## 📋 Visibility & Auditing
+
+Designed for transparency. Every run provides:
+
+- **GitHub Actions Job Summary**: A rich Markdown report generated in the Action's summary tab.
+- **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
+- **Precision Metrics**: Real-time counters for processed, added, and skipped items.
+
+---
+
 ## 🛠️ Development & Specs
 
 This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
