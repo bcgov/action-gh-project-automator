@@ -14,7 +14,7 @@ This action transforms your GitHub Project into a self-driving productivity engi
 - **Dynamic Workflows**: Moves items between columns based on real-time state changes and linked issue status.
 - **Sprint Orchestration**: Seamlessly manages sprint assignments, rollovers, and capacity planning.
 - **Smart Inheritance**: Propagates metadata (assignees, sprints, columns) between PRs and their linked issues.
-- **Cross-Boundary Mastery**: Monitor and manage activity across multiple organizations and repositories simultaneously.
+- **Cross-Boundary Mastery**: Monitors and manages activity across multiple organizations and repositories simultaneously.
 
 ## 🛡️ Stability & Predictability
 

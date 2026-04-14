@@ -10,7 +10,7 @@
   "scripts": {
     "validate": "node scripts/validate.js",
     "test": "node --test test/*.test.* test/*/*.test.*",
-    "build": "ncc build src/index.js -o dist --minify --source-map --no-cache",
+    "build": "npx ncc build src/index.js -o dist --minify --source-map --no-cache",
     "start": "node src/index.js",
     "test:state": "node --test test/state-verifier.test.js",
     "test:validator": "node --test test/state-transition-validator.test.js",

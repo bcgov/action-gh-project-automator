@@ -216,7 +216,8 @@ async function main() {
     const envConfig = await validateEnvironment();
 
     // Load board rules configuration
-    const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR || process.env.GITHUB_ACTOR });
+    const monitoredUser = EnvironmentValidator.getMonitoredUser();
+    const boardConfig = loadBoardRules({ monitoredUser });
 
 
 
@@ -236,7 +237,7 @@ async function main() {
       repos: process.env.OVERRIDE_REPOS
         ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
         : boardConfig.project?.repositories || [],
-      monitoredUser: process.env.GITHUB_AUTHOR || process.env.GITHUB_ACTOR,
+      monitoredUser: EnvironmentValidator.getMonitoredUser(),
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
       strictMode: envConfig.strictMode,

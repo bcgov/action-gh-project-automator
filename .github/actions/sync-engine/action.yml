@@ -1,0 +1,28 @@
+name: 'Project Board Rule Engine (Legacy Shim)'
+description: 'Backwards compatibility shim for the rule engine'
+inputs:
+  github_token:
+    description: 'GitHub Token'
+    required: true
+  project_url:
+    description: 'Project URL'
+    required: true
+  github_author:
+    description: 'Username to monitor'
+    required: false
+  config_file:
+    description: 'Path to rules.yml'
+    required: false
+    default: 'rules.yml'
+  window_hours:
+    description: 'Update window'
+    required: false
+    default: '2'
+  verbose:
+    description: 'Verbose logging'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'node20'
+  main: '../../../dist/index.js'

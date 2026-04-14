@@ -267,6 +267,14 @@ class EnvironmentValidator {
       strictMode: config.strictMode
     };
   }
+
+  /**
+   * Resolve the user to monitor, with fallback logic
+   * @returns {string} The username to monitor
+   */
+  static getMonitoredUser() {
+    return process.env.GITHUB_AUTHOR || process.env.GITHUB_ACTOR;
+  }
 }
 
 export { EnvironmentValidator };
