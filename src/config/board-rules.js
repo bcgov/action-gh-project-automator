@@ -34,12 +34,21 @@ function loadBoardRules(context = {}) {
         const monitoredUsers = getMonitoredUsers(config.automation);
         if (monitoredUsers && monitoredUsers.length > 0) {
             // For backward compatibility, use the first user as the primary monitored user
-            config.monitoredUser = monitoredUsers[0];
+            config.monitoredUser = config.monitoredUser || monitoredUsers[0];
             // Store the full array for new functionality
             config.monitoredUsers = monitoredUsers;
         }
         // Note: If no monitored users are configured, config.monitoredUser will be undefined
         // This is handled gracefully by the rule processors
+    }
+
+    // Ensure the runtime monitoredUser (from context or GITHUB_ACTOR fallback) is always
+    // included in the monitoredUsers array so rule condition validators see it correctly.
+    if (config.monitoredUser) {
+        const existing = config.monitoredUsers || [];
+        if (!existing.includes(config.monitoredUser)) {
+            config.monitoredUsers = [config.monitoredUser, ...existing];
+        }
     }
 
     return config;
