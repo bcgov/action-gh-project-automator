@@ -1,37 +1,28 @@
-# 🚀 Project Sync
+# 🚀 Project Board Rule Engine
 
-[![Node.js 24+](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen.svg)](https://nodejs.org/)
 [![ES Modules](https://img.shields.io/badge/module-ESM-blue.svg)](https://nodejs.org/api/esm.html)
 [![Checks](https://img.shields.io/badge/Stability-Ludicrous%20Coverage-orange.svg)](#stability--predictability)
 
-**Project Sync** is a high-performance GitHub Projects v2 automation engine designed to synchronize issues and pull requests across complex, multi-repository organizations with 100% predictability.
+**Project Board Rule Engine** is a high-performance GitHub Projects v2 automation tool designed to synchronize issues and pull requests across complex, multi-repository environments with 100% predictability.
 
 ## ✨ Overview
 
-This tool transforms your GitHub Project into a self-driving productivity engine. It eliminates manual board maintenance by implementing a rule-based state machine for:
+This action transforms your GitHub Project into a self-driving productivity engine. It eliminates manual board maintenance by implementing a rule-based state machine for:
 
 - **Intelligent Intake**: Automatically adds PRs and issues to the project board based on authorship, assignment, or repository source.
-- **Dynamic Workflows**: Moves items between columns (e.g., `New` → `Active`) based on real-time state changes.
-- **Sprint Orchestration**: Seamlessly manages sprint assignments and rollovers.
-- **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
-- **Multi-Org Mastery**: Monitors activity across `bcgov`, `bcgov-c`, and `bcgov-nr` simultaneously.
+- **Dynamic Workflows**: Moves items between columns based on real-time state changes and linked issue status.
+- **Sprint Orchestration**: Seamlessly manages sprint assignments, rollovers, and capacity planning.
+- **Smart Inheritance**: Propagates metadata (assignees, sprints, columns) between PRs and their linked issues.
+- **Cross-Boundary Mastery**: Monitor and manage activity across multiple organizations and repositories simultaneously.
 
 ## 🛡️ Stability & Predictability
 
 We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.
 
-- **Hardcoded Validation**: We use a strict whitelist-based validator to ensure rule evaluation is 100% predictable and secure against code injection.
+- **Hardcoded Validation**: We use a strict whitelist-based validator to ensure rule evaluation is 100% predictable.
 - **Native Efficiency**: Built on **Node.js 24** and native **ES Modules** for lightning-fast, future-proof execution.
-- **Zero-Network Tests**: Our 240+ count test suite runs in pure isolation, guaranteeing that the core logic is bulletproof without ever making a real API call.
-- **Strict Environments**: We enforce Node versions via `.npmrc` to ensure that every developer and CI runner is perfectly aligned.
-
-## 📋 Visibility & Auditing
-
-Designed for transparency. Every run provides:
-
-- **GitHub Actions Job Summary**: A premium Markdown report generated in the Action's summary tab.
-- **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
-- **Precision Metrics**: Real-time counters for processed, added, and skipped items.
+- **Zero-Network Tests**: Our 300+ count test suite runs in pure isolation, guaranteeing core logic is bulletproof.
 
 ## ⚙️ Configuration
 
@@ -42,8 +33,7 @@ The tool resolves your project identity with minimal friction:
 
 ```yaml
 project:
-  url: https://github.com/orgs/bcgov/projects/16
-  # Organization and ID are automatically resolved from the URL
+  url: https://github.com/orgs/YOUR_ORG/projects/1
 ```
 
 ### Resource Monitoring
@@ -52,10 +42,10 @@ Define which realms the engine should govern:
 ```yaml
 project:
   allowedOrgs:
-    - bcgov
-    - bcgov-c
-    - bcgov-nr
+    - your-main-org
+    - your-community-org
 ```
+
 
 ## 🛠️ Development & Specs
 

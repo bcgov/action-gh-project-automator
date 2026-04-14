@@ -1,0 +1,36 @@
+name: 'Project Board Rule Engine'
+description: 'Automate GitHub Project v2 boards with complex, rule-based workflows'
+author: 'Derek Roberts'
+inputs:
+  github_token:
+    description: 'GitHub Personal Access Token (PAT) with repo and project permissions'
+    required: true
+  project_url:
+    description: 'URL of the GitHub Project (v2) to manage'
+    required: true
+  github_author:
+    description: 'GitHub username to monitor for activity (defaults to the user who triggered the action)'
+    required: false
+  config_file:
+    description: 'Path to your rules.yml configuration file'
+    required: false
+    default: 'rules.yml'
+  window_hours:
+    description: 'How many hours back to look for recent activity'
+    required: false
+    default: '2'
+  backfill:
+    description: 'Force scanning of a specific repository (org/repo format)'
+    required: false
+  verbose:
+    description: 'Enable detailed logging of rule evaluations'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'activity'
+  color: 'blue'
