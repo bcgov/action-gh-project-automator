@@ -70,9 +70,27 @@ class TaskQueue {
         const rateStatus = this.evaluateBudget(rl);
         
         if (!rl) {
-          const error = new Error('Unable to verify rate limit budget');
-          this.rejectAll(error);
-          break;
+          // Rate limit unverifiable - allow CRITICAL tasks through, throttle the rest
+          const criticalIndex = this.tasks.findIndex(t => t.priority >= RatePriority.CRITICAL);
+          if (criticalIndex !== -1) {
+            const task = this.tasks.splice(criticalIndex, 1)[0];
+            try {
+              const result = await task.fn();
+              task.resolve(result);
+            } catch (error) {
+              task.reject(error);
+            }
+            continue;
+          }
+          log.warning(`[THROTTLED] Unable to verify rate limit budget; skipping task for safety.`);
+          throttleCount++;
+          if (throttleCount > 10) {
+            log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
+            this.rejectAll(new Error('Unable to verify rate limit budget after repeated attempts'));
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
         }
 
         // Find the highest priority task we can run

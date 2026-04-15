@@ -31,6 +31,38 @@ describe('RateLimit Utility', () => {
     }
   });
 
+  it('allows CRITICAL tasks through when rate limit is unverifiable', async () => {
+    const originalGetRL = taskQueue.getRateLimit;
+    taskQueue.getRateLimit = async () => null;
+
+    try {
+      let executed = false;
+      const result = await taskQueue.enqueue(() => {
+        executed = true;
+        return 'ok';
+      }, RatePriority.CRITICAL);
+
+      assert.strictEqual(result, 'ok');
+      assert.strictEqual(executed, true);
+    } finally {
+      taskQueue.getRateLimit = originalGetRL;
+    }
+  });
+
+  it('throttles non-CRITICAL tasks when rate limit is unverifiable', async () => {
+    const originalGetRL = taskQueue.getRateLimit;
+    taskQueue.getRateLimit = async () => null;
+
+    try {
+      await assert.rejects(
+        () => taskQueue.enqueue(() => 'ok', RatePriority.STANDARD),
+        /Unable to verify rate limit budget/
+      );
+    } finally {
+      taskQueue.getRateLimit = originalGetRL;
+    }
+  });
+
   describe('Intelligent Budgeting (evaluateBudget)', () => {
     it('handles GREEN health (remaining >= 1500)', () => {
       const status = taskQueue.evaluateBudget({ remaining: 1500, limit: 5000 });
