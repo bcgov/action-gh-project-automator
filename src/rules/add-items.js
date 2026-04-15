@@ -109,7 +109,15 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Check if in project and get project item ID
       logger.info('  Checking project board status...', true);
-      const { isInProject, projectItemId: existingItemId } = await isItemInProjectFn(item.id, projectId);
+      let isInProjectResult;
+      try {
+        isInProjectResult = await isItemInProjectFn(item.id, projectId);
+      } catch (projectCheckError) {
+        logger.error(`  isItemInProject threw: ${projectCheckError.message}`);
+        throw projectCheckError;
+      }
+      const { isInProject, projectItemId: existingItemId } = isInProjectResult;
+      logger.info(`  isInProject: ${isInProject}, projectItemId: ${existingItemId || 'none'}`, true);
       let projectItemId = existingItemId;
 
       // Process all board actions

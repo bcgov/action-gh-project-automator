@@ -1,14 +1,14 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
+import { TaskQueue, taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
 import { RatePriority, PriorityLabels } from '../../src/utils/rate-priority.js';
 
 // Warm up dynamic imports to avoid dangling promises in tests
 await import('../../src/github/api.js');
 
 describe('RateLimit Utility', () => {
-  afterEach(async () => {
-    await taskQueue.idle();
+  afterEach(() => {
+    taskQueue.reset();
   });
   it('correctly exports priority levels', () => {
     assert.strictEqual(RatePriority.CRITICAL, 1000);
@@ -29,6 +29,32 @@ describe('RateLimit Utility', () => {
     } finally {
       taskQueue.getRateLimit = originalGetRL;
     }
+  });
+
+  it('allows CRITICAL tasks through when rate limit is unverifiable', async () => {
+    // Use an isolated TaskQueue instance to avoid polluting the singleton
+    const isolatedQueue = new TaskQueue();
+    isolatedQueue.getRateLimit = async () => null;
+
+    let executed = false;
+    const result = await isolatedQueue.enqueue(() => {
+      executed = true;
+      return 'ok';
+    }, RatePriority.CRITICAL);
+
+    assert.strictEqual(result, 'ok');
+    assert.strictEqual(executed, true);
+  });
+
+  it('throttles non-CRITICAL tasks when rate limit is unverifiable', async () => {
+    // Use an isolated TaskQueue instance to avoid polluting the singleton
+    const isolatedQueue = new TaskQueue();
+    isolatedQueue.getRateLimit = async () => null;
+
+    await assert.rejects(
+      () => isolatedQueue.enqueue(() => 'ok', RatePriority.STANDARD),
+      /Unable to verify rate limit budget/
+    );
   });
 
   describe('Intelligent Budgeting (evaluateBudget)', () => {
