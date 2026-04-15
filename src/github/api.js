@@ -254,9 +254,10 @@ async function getProjectItems(projectId, options = {}) {
       }
     `, variables);
 
+    const priority = skipRateGuard ? RatePriority.CRITICAL : RatePriority.MAINTENANCE;
     const result = (overrides.graphqlClient || overrides.withBackoffFn)
       ? await withBackoffFn(operation)
-      : await taskQueue.enqueue(operation, RatePriority.MAINTENANCE);
+      : await taskQueue.enqueue(operation, priority);
 
     const projectItems = result.node?.items?.nodes || [];
     totalItems += projectItems.length;
