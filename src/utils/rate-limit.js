@@ -272,4 +272,4 @@ async function withBackoff(fn, { retries = 3 } = {}) {
   throw lastErr;
 }
 
-export { taskQueue, shouldProceed, withBackoff, formatRateLimitInfo };
+export { TaskQueue, taskQueue, shouldProceed, withBackoff, formatRateLimitInfo };

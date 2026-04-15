@@ -1,6 +1,6 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
+import { TaskQueue, taskQueue, shouldProceed } from '../../src/utils/rate-limit.js';
 import { RatePriority, PriorityLabels } from '../../src/utils/rate-priority.js';
 
 // Warm up dynamic imports to avoid dangling promises in tests
@@ -32,35 +32,29 @@ describe('RateLimit Utility', () => {
   });
 
   it('allows CRITICAL tasks through when rate limit is unverifiable', async () => {
-    const originalGetRL = taskQueue.getRateLimit;
-    taskQueue.getRateLimit = async () => null;
+    // Use an isolated TaskQueue instance to avoid polluting the singleton
+    const isolatedQueue = new TaskQueue();
+    isolatedQueue.getRateLimit = async () => null;
 
-    try {
-      let executed = false;
-      const result = await taskQueue.enqueue(() => {
-        executed = true;
-        return 'ok';
-      }, RatePriority.CRITICAL);
+    let executed = false;
+    const result = await isolatedQueue.enqueue(() => {
+      executed = true;
+      return 'ok';
+    }, RatePriority.CRITICAL);
 
-      assert.strictEqual(result, 'ok');
-      assert.strictEqual(executed, true);
-    } finally {
-      taskQueue.getRateLimit = originalGetRL;
-    }
+    assert.strictEqual(result, 'ok');
+    assert.strictEqual(executed, true);
   });
 
   it('throttles non-CRITICAL tasks when rate limit is unverifiable', async () => {
-    const originalGetRL = taskQueue.getRateLimit;
-    taskQueue.getRateLimit = async () => null;
+    // Use an isolated TaskQueue instance to avoid polluting the singleton
+    const isolatedQueue = new TaskQueue();
+    isolatedQueue.getRateLimit = async () => null;
 
-    try {
-      await assert.rejects(
-        () => taskQueue.enqueue(() => 'ok', RatePriority.STANDARD),
-        /Unable to verify rate limit budget/
-      );
-    } finally {
-      taskQueue.getRateLimit = originalGetRL;
-    }
+    await assert.rejects(
+      () => isolatedQueue.enqueue(() => 'ok', RatePriority.STANDARD),
+      /Unable to verify rate limit budget/
+    );
   });
 
   describe('Intelligent Budgeting (evaluateBudget)', () => {
