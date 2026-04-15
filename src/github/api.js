@@ -235,7 +235,9 @@ async function getProjectItems(projectId, options = {}) {
 
   while (hasNextPage && totalItems < 300) { // Safety limit
     const variables = { id: projectId, cursor: endCursor };
-    const operation = () => graphqlClient(`
+    const priority = skipRateGuard ? RatePriority.CRITICAL : RatePriority.MAINTENANCE;
+    
+    const result = await withBackoffFn(() => graphqlClient(`
       query($id: ID!, $cursor: String) {
         node(id: $id) {
           ... on ProjectV2 {
@@ -252,12 +254,7 @@ async function getProjectItems(projectId, options = {}) {
           }
         }
       }
-    `, variables);
-
-    const priority = skipRateGuard ? RatePriority.CRITICAL : RatePriority.MAINTENANCE;
-    const result = (overrides.graphqlClient || overrides.withBackoffFn)
-      ? await withBackoffFn(operation)
-      : await taskQueue.enqueue(operation, priority);
+    `, variables, priority));
 
     const projectItems = result.node?.items?.nodes || [];
     totalItems += projectItems.length;
