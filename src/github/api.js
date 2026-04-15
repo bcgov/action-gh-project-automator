@@ -284,8 +284,10 @@ async function getProjectItems(projectId, options = {}) {
  */
 async function isItemInProject(nodeId, projectId) {
   try {
+    log.info(`[isItemInProject] Starting lookup for ${nodeId} in project ${projectId}`);
     // First check the cache. skipRateGuard avoids rate checks because this is a cache-only lookup.
     const projectItems = await getProjectItems(projectId, { skipRateGuard: true, forceRefresh: false });
+    log.info(`[isItemInProject] getProjectItems returned ${projectItems.size} items`);
     const cachedProjectItemId = projectItems.get(nodeId);
 
     // If found in cache, return immediately

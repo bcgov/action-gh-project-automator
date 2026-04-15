@@ -7,8 +7,8 @@ import { RatePriority, PriorityLabels } from '../../src/utils/rate-priority.js';
 await import('../../src/github/api.js');
 
 describe('RateLimit Utility', () => {
-  afterEach(async () => {
-    await taskQueue.idle();
+  afterEach(() => {
+    taskQueue.reset();
   });
   it('correctly exports priority levels', () => {
     assert.strictEqual(RatePriority.CRITICAL, 1000);
