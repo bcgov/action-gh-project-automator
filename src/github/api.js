@@ -293,12 +293,12 @@ async function isItemInProject(nodeId, projectId) {
       };
     }
 
-    // If not in cache, query the project items directly (with pagination)
-    const allItems = new Map();
+    // If not in cache, query the project items directly (with pagination and early exit)
     let hasNextPage = true;
     let endCursor = null;
+    let totalScanned = 0;
 
-    while (hasNextPage) {
+    while (hasNextPage && totalScanned < 300) { // Safety guard
       const result = await graphqlWithAuth(`
         query($projectId: ID!, $cursor: String) {
           node(id: $projectId) {
@@ -307,18 +307,11 @@ async function isItemInProject(nodeId, projectId) {
                 nodes {
                   id
                   content {
-                    ... on PullRequest {
-                      id
-                    }
-                    ... on Issue {
-                      id
-                    }
+                    ... on PullRequest { id }
+                    ... on Issue { id }
                   }
                 }
-                pageInfo {
-                  hasNextPage
-                  endCursor
-                }
+                pageInfo { hasNextPage endCursor }
               }
             }
           }
@@ -328,10 +321,19 @@ async function isItemInProject(nodeId, projectId) {
         cursor: endCursor
       }, RatePriority.CRITICAL);
 
-      const projectItems = result.node?.items?.nodes || [];
-      for (const item of projectItems) {
-        if (item.content?.id) {
-          allItems.set(item.content.id, item.id);
+      const projectItemNodes = result.node?.items?.nodes || [];
+      totalScanned += projectItemNodes.length;
+
+      // Early exit if found!
+      for (const item of projectItemNodes) {
+        if (item.content?.id === nodeId) {
+          log.info(`[isItemInProject] Item ${nodeId} found during live query (project item ID: ${item.id})`);
+          // OPTIONAL: Update cache so subsequent checks don't need live query
+          projectItems.set(nodeId, item.id);
+          return {
+            isInProject: true,
+            projectItemId: item.id
+          };
         }
       }
 
@@ -339,16 +341,7 @@ async function isItemInProject(nodeId, projectId) {
       endCursor = result.node?.items?.pageInfo?.endCursor;
     }
 
-    if (allItems.has(nodeId)) {
-      const liveProjectItemId = allItems.get(nodeId);
-      log.info(`[isItemInProject] Item ${nodeId} found during live query (project item ID: ${liveProjectItemId})`);
-      return {
-        isInProject: true,
-        projectItemId: liveProjectItemId
-      };
-    }
-
-    log.info(`[isItemInProject] Item ${nodeId} not found in project ${projectId}`);
+    log.info(`[isItemInProject] Item ${nodeId} not found in project ${projectId} after scanning ${totalScanned} items`);
     return {
       isInProject: false,
       projectItemId: undefined
