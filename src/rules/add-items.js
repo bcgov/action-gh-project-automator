@@ -176,7 +176,8 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       // Critical errors that should stop processing
       // Check both error codes and messages for reliability
       const isAuthError = errorMessage.includes('Bad credentials') ||
-        errorMessage.includes('Not authenticated');
+        errorMessage.includes('Not authenticated') ||
+        errorMessage.includes('required scopes');
       const isRateLimitError = errorMessage.includes('rate limit') ||
         errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
 

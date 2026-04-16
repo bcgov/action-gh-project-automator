@@ -285,13 +285,11 @@ async function isItemInProject(nodeId, projectId) {
     // First check the cache. skipRateGuard avoids rate checks because this is a cache-only lookup.
     const projectItems = await getProjectItems(projectId, { skipRateGuard: true, forceRefresh: false });
     log.info(`[isItemInProject] getProjectItems returned ${projectItems.size} items`);
-    const cachedProjectItemId = projectItems.get(nodeId);
 
-    // If found in cache, return immediately
-    if (cachedProjectItemId) {
+    if (projectItems.has(nodeId)) {
       return {
         isInProject: true,
-        projectItemId: cachedProjectItemId
+        projectItemId: projectItems.get(nodeId)
       };
     }
 
@@ -341,20 +339,20 @@ async function isItemInProject(nodeId, projectId) {
       endCursor = result.node?.items?.pageInfo?.endCursor;
     }
 
-    // Find the item in the full result
-    const foundProjectItemId = allItems.get(nodeId);
-
-    if (foundProjectItemId) {
-      // Update cache with the found item
-      projectItems.set(nodeId, foundProjectItemId);
+    if (allItems.has(nodeId)) {
+      const liveProjectItemId = allItems.get(nodeId);
+      log.info(`[isItemInProject] Item ${nodeId} found during live query (project item ID: ${liveProjectItemId})`);
       return {
         isInProject: true,
-        projectItemId: foundProjectItemId
+        projectItemId: liveProjectItemId
       };
     }
 
-    return { isInProject: false };
-
+    log.info(`[isItemInProject] Item ${nodeId} not found in project ${projectId}`);
+    return {
+      isInProject: false,
+      projectItemId: undefined
+    };
   } catch (error) {
     log.error(`Failed to check if item ${nodeId} is in project: ${error.message}`);
     throw error;
