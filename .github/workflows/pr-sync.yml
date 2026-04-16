@@ -2,9 +2,9 @@ name: GH Project Board Sync
 
 on:
   push:
-    branches: [main, feat/*, chore/*]
+    branches: [main]
   pull_request:
-    types: [opened, reopened, synchronized]
+    types: [opened, reopened, synchronize]
 
 
 

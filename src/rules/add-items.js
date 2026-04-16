@@ -109,7 +109,15 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Check if in project and get project item ID
       logger.info('  Checking project board status...', true);
-      const { isInProject, projectItemId: existingItemId } = await isItemInProjectFn(item.id, projectId);
+      let isInProjectResult;
+      try {
+        isInProjectResult = await isItemInProjectFn(item.id, projectId);
+      } catch (projectCheckError) {
+        logger.error(`  isItemInProject threw: ${projectCheckError.message}`);
+        throw projectCheckError;
+      }
+      const { isInProject, projectItemId: existingItemId } = isInProjectResult;
+      logger.info(`  isInProject: ${isInProject}, projectItemId: ${existingItemId || 'none'}`, true);
       let projectItemId = existingItemId;
 
       // Process all board actions
@@ -168,7 +176,8 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       // Critical errors that should stop processing
       // Check both error codes and messages for reliability
       const isAuthError = errorMessage.includes('Bad credentials') ||
-        errorMessage.includes('Not authenticated');
+        errorMessage.includes('Not authenticated') ||
+        errorMessage.includes('required scopes');
       const isRateLimitError = errorMessage.includes('rate limit') ||
         errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
 

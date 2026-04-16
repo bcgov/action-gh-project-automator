@@ -235,7 +235,9 @@ async function getProjectItems(projectId, options = {}) {
 
   while (hasNextPage && totalItems < 300) { // Safety limit
     const variables = { id: projectId, cursor: endCursor };
-    const operation = () => graphqlClient(`
+    const priority = skipRateGuard ? RatePriority.CRITICAL : RatePriority.MAINTENANCE;
+    
+    const result = await withBackoffFn(() => graphqlClient(`
       query($id: ID!, $cursor: String) {
         node(id: $id) {
           ... on ProjectV2 {
@@ -252,11 +254,7 @@ async function getProjectItems(projectId, options = {}) {
           }
         }
       }
-    `, variables);
-
-    const result = (overrides.graphqlClient || overrides.withBackoffFn)
-      ? await withBackoffFn(operation)
-      : await taskQueue.enqueue(operation, RatePriority.MAINTENANCE);
+    `, variables, priority));
 
     const projectItems = result.node?.items?.nodes || [];
     totalItems += projectItems.length;
@@ -283,59 +281,71 @@ async function getProjectItems(projectId, options = {}) {
  */
 async function isItemInProject(nodeId, projectId) {
   try {
+    log.info(`[isItemInProject] Starting lookup for ${nodeId} in project ${projectId}`);
     // First check the cache. skipRateGuard avoids rate checks because this is a cache-only lookup.
     const projectItems = await getProjectItems(projectId, { skipRateGuard: true, forceRefresh: false });
-    const projectItemId = projectItems.get(nodeId);
+    log.info(`[isItemInProject] getProjectItems returned ${projectItems.size} items`);
 
-    // If found in cache, return immediately
-    if (projectItemId) {
+    if (projectItems.has(nodeId)) {
       return {
         isInProject: true,
-        projectItemId
+        projectItemId: projectItems.get(nodeId)
       };
     }
 
-    // If not in cache, query the project items directly
-    const result = await graphqlWithAuth(`
-      query($projectId: ID!) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            items(first: 100) {
-              nodes {
-                id
-                content {
-                  ... on PullRequest {
-                    id
-                  }
-                  ... on Issue {
-                    id
+    // If not in cache, query the project items directly (with pagination and early exit)
+    let hasNextPage = true;
+    let endCursor = null;
+    let totalScanned = 0;
+
+    while (hasNextPage && totalScanned < 300) { // Safety guard
+      const result = await graphqlWithAuth(`
+        query($projectId: ID!, $cursor: String) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
+              items(first: 100, after: $cursor) {
+                nodes {
+                  id
+                  content {
+                    ... on PullRequest { id }
+                    ... on Issue { id }
                   }
                 }
+                pageInfo { hasNextPage endCursor }
               }
             }
           }
         }
+      `, {
+        projectId,
+        cursor: endCursor
+      }, RatePriority.CRITICAL);
+
+      const projectItemNodes = result.node?.items?.nodes || [];
+      totalScanned += projectItemNodes.length;
+
+      // Early exit if found!
+      for (const item of projectItemNodes) {
+        if (item.content?.id === nodeId) {
+          log.info(`[isItemInProject] Item ${nodeId} found during live query (project item ID: ${item.id})`);
+          // OPTIONAL: Update cache so subsequent checks don't need live query
+          projectItems.set(nodeId, item.id);
+          return {
+            isInProject: true,
+            projectItemId: item.id
+          };
+        }
       }
-    `, {
-      projectId
-    }, RatePriority.CRITICAL);
 
-    // Find the item that matches our nodeId
-    const matchingItem = result.node?.items?.nodes?.find(item =>
-      item.content?.id === nodeId
-    );
-
-    if (matchingItem) {
-      // Update cache with the found item
-      projectItems.set(nodeId, matchingItem.id);
-      return {
-        isInProject: true,
-        projectItemId: matchingItem.id
-      };
+      hasNextPage = result.node?.items?.pageInfo?.hasNextPage || false;
+      endCursor = result.node?.items?.pageInfo?.endCursor;
     }
 
-    return { isInProject: false };
-
+    log.info(`[isItemInProject] Item ${nodeId} not found in project ${projectId} after scanning ${totalScanned} items`);
+    return {
+      isInProject: false,
+      projectItemId: undefined
+    };
   } catch (error) {
     log.error(`Failed to check if item ${nodeId} is in project: ${error.message}`);
     throw error;

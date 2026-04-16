@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RatePriority } from '../../src/utils/rate-priority.js';
+import { taskQueue } from '../../src/utils/rate-limit.js';
 
 test('TaskQueue - Priority-based Execution', async (t) => {
   // We need to mock some things or use a fresh instance if possible.
@@ -71,5 +72,6 @@ test('TaskQueue - Priority-based Execution', async (t) => {
     await assert.rejects(p2, { message: /Throttled/ });
     
     taskQueue.getRateLimit = originalGetRL;
+    taskQueue.reset();
   });
 });
