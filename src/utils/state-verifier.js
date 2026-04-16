@@ -302,6 +302,11 @@ Current: "${currentColumn}"`);
       item,
       'Assignee Verification',
       async (attempt) => {
+        // Add robust delay to allow eventual consistency to propagate
+        const delayMs = attempt === 1 ? 2000 : Math.min(2000 * attempt, 8000);
+        verifierLog.info(`Waiting ${delayMs}ms for assignee state to settle before verification (attempt ${attempt}).`);
+        await sleep(delayMs);
+
         // Get assignees from both project board and Issue/PR
         const projectAssignees = await getItemAssignees(projectId, item.projectItemId);
         const itemDetails = await getItemDetails(item.projectItemId);
@@ -340,8 +345,10 @@ Current: "${currentColumn}"`);
 
         if (missingInProject.length > 0 || extraInProject.length > 0 ||
           missingInRepo.length > 0 || extraInRepo.length > 0) {
-          throw new Error(`Assignee mismatch for ${item.type} #${item.number}:
+          const mismatchError = new Error(`Assignee mismatch for ${item.type} #${item.number}:
 ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.join(', ')}\n` : ''}${extraInProject.length > 0 ? `Extra in project board: ${extraInProject.join(', ')}\n` : ''}${missingInRepo.length > 0 ? `Missing in Issue/PR: ${missingInRepo.join(', ')}\n` : ''}${extraInRepo.length > 0 ? `Extra in Issue/PR: ${extraInRepo.join(', ')}` : ''}`);
+          mismatchError.isRetryable = true;
+          throw mismatchError;
         }
 
         verifierLog.info(`✓ Assignees verified for ${item.type} #${item.number} (attempt ${attempt}/3)`);
