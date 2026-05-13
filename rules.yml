@@ -65,6 +65,8 @@ automation:
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
       - bcgov/quickstart-openshift-helpers
+      - bcgov/copilot-instructions
+      - bcgov/actions
       - bcgov-c/nr-mof-db
 
     rules:
