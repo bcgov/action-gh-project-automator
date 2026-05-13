@@ -465,7 +465,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   const reposToSearch = backfillRepo ? [backfillRepo] : repos;
   const repoSearchQueries = reposToSearch.map(repo => {
     const qualifiedName = repo.includes('/') ? repo : `${org}/${repo}`;
-    return `repo:${qualifiedName}${sinceClause}`;
+    return `repo:${qualifiedName}${sinceClause} sort:updated-desc`;
   });
 
   // Search for PRs authored by monitored user in allowed organizations only
@@ -476,13 +476,13 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     : '';
 
   const authorSearchQuery = orgsFilter
-    ? `${orgsFilter} author:${monitoredUser}${sinceFilter}`
-    : `author:${monitoredUser}${sinceFilter}`;
+    ? `${orgsFilter} author:${monitoredUser}${sinceFilter} sort:updated-desc`
+    : `author:${monitoredUser}${sinceFilter} sort:updated-desc`;
 
   // Search for issues/PRs assigned to monitored user in allowed organizations only
   const assigneeSearchQuery = orgsFilter
-    ? `${orgsFilter} assignee:${monitoredUser}${sinceFilter}`
-    : `assignee:${monitoredUser}${sinceFilter}`;
+    ? `${orgsFilter} assignee:${monitoredUser}${sinceFilter} sort:updated-desc`
+    : `assignee:${monitoredUser}${sinceFilter} sort:updated-desc`;
 
   logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
@@ -544,29 +544,20 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   logger.info(`Repo search returned ${results.length} items`);
 
   // Get PRs authored by monitored user in any repository
-  // Always 1 page — these searches use the date filter
+  // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
   const authorNodes = await paginatedSearch(`
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
-        nodes {
-          __typename
-          ... on PullRequest {
-            id number
-            repository { nameWithOwner }
-            author { login }
-            assignees(first: 5) { nodes { login } }
-            state updatedAt
-          }
-        }
+        nodes { ${ITEM_FRAGMENT} }
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, authorSearchQuery, 1);
+  `, authorSearchQuery, 5);
   results.push(...authorNodes);
   logger.info(`Author search returned ${authorNodes.length} items`);
 
   // Get issues and PRs assigned to monitored user in any repository
-  // Always 1 page — these searches use the date filter
+  // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
   const assigneeNodes = await paginatedSearch(`
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
@@ -574,7 +565,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, assigneeSearchQuery, 1);
+  `, assigneeSearchQuery, 5);
   results.push(...assigneeNodes);
   logger.info(`Assignee search returned ${assigneeNodes.length} items`);
 
