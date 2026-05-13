@@ -67,6 +67,7 @@ automation:
       - bcgov/quickstart-openshift-helpers
       - bcgov/copilot-instructions
       - bcgov/actions
+      - bcgov/nr-hydrometric-rating-curve
       - bcgov-c/nr-mof-db
 
     rules:
