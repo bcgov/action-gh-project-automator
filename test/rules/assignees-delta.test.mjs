@@ -16,6 +16,7 @@ test('setItemAssignees applies minimal add/remove deltas', async (t) => {
       }
     }),
     fetchRepoAssigneesFn: async () => ['alice', 'bob'],
+    getItemAssigneesFn: async () => ['alice', 'bob'],
     getUserIdsFn: async (logins) => ({
       ids: logins.map(login => `user-${login}`),
       missing: []

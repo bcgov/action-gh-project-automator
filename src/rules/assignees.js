@@ -129,6 +129,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
   const {
     getItemDetailsFn = getItemDetails,
     fetchRepoAssigneesFn = fetchRepoAssignees,
+    getItemAssigneesFn = getItemAssignees,
     graphqlClient = graphql,
     getUserIdsFn = getUserIdsBatched
   } = overrides;
@@ -143,15 +144,18 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
     const { repository, number, id: assignableId } = itemDetails.content;
     const [owner, repo] = repository.nameWithOwner.split('/');
     const isPullRequest = itemDetails.type === 'PullRequest';
-    const current = await fetchRepoAssigneesFn({ owner, repo, number, isPullRequest });
+    const repoAssignees = await fetchRepoAssigneesFn({ owner, repo, number, isPullRequest });
+    const projectAssignees = await getItemAssigneesFn(projectId, itemId);
 
-    // No-op guard
-    if (arraysEqual(current, assigneeLogins)) {
-      log.info('Assignees already up to date; skipping');
+    // No-op guard: Only skip if BOTH repo and project board are already in sync
+    if (arraysEqual(repoAssignees, assigneeLogins) && arraysEqual(projectAssignees, assigneeLogins)) {
+      log.info('Assignees already up to date in both repo and project; skipping');
       return;
     }
 
     // Compute delta to minimize calls (add and remove to exactly match target)
+    // We sync the REPO first, as Project V2 built-in Assignees field should follow it.
+    const current = repoAssignees;
     const toAdd = assigneeLogins.filter(a => !current.includes(a));
     const toRemove = current.filter(a => !assigneeLogins.includes(a));
 

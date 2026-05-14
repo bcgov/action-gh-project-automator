@@ -2,6 +2,7 @@ import { isItemInProject, addItemToProject, getRecentItems } from '../github/api
 import { log } from '../utils/log.js';
 import { processBoardItemRules } from './processors/unified-rule-processor.js';
 import { analyzeBoardItem } from './helpers/board-items-evaluator.js';
+import { auditLog } from '../utils/audit-logger.js';
 
 /**
  * Implementation of Rule Set 1: Which Items are Added to the Project Board?
@@ -201,6 +202,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       }
 
       // Other errors - log but continue processing
+      auditLog.logError(error, item);
       logger.warning(`Error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
     }
   }
