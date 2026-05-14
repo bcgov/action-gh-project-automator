@@ -440,7 +440,7 @@ async function main() {
 
       } catch (error) {
         errors.push(error);
-        log.error(`Failed to process ${item.type} #${item.number}: ${error.message}`);
+        auditLog.logError(error, item);
       }
     }
 
@@ -471,26 +471,23 @@ async function main() {
       .map(({ error }) => error);
 
     if (criticalErrors.length > 0) {
-      log.error(`Critical errors occurred: ${criticalErrors.length}`);
+      const errorMsg = `Project Board Sync failed with ${criticalErrors.length} critical error(s).`;
+      core.setFailed(errorMsg);
       criticalErrors.forEach(error => {
-        log.error(`Critical error: ${error.message || error}`);
+        log.error(`Critical error detail: ${error.message || error}`);
       });
-      process.exit(1);
     } else if (nonCriticalErrors.length > 0) {
       log.info(`Completed with ${nonCriticalErrors.length} non-critical errors (items not added to project)`);
     }
 
   } catch (error) {
     // Handle rate limits as temporary failures
-    if (error.message && error.message.includes('rate limit')) {
-      log.error('GitHub rate limit exceeded. This is a temporary failure - please retry in a few minutes.');
-      log.error(`Rate limit error: ${error.message}`);
-      process.exit(1);
-    }
-
-    log.error('Global execution error:');
-    log.error(error);
-    process.exit(1);
+    const msg = error.message && error.message.includes('rate limit')
+      ? 'GitHub rate limit exceeded. This is a temporary failure.'
+      : `Global execution error: ${error.message}`;
+    
+    auditLog.logError(error);
+    core.setFailed(msg);
   } finally {
     // Ensure summary and reports are printed even on failure
     log.printSummary();

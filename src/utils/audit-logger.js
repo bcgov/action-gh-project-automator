@@ -4,6 +4,7 @@ import { log } from './log.js';
 class AuditLogger {
   constructor() {
     this.events = [];
+    this.errors = [];
     this.startTime = new Date();
   }
 
@@ -29,6 +30,25 @@ class AuditLogger {
     const itemRef = `${event.type} #${event.number} [${event.repo}]`;
     const reasonText = event.reason ? ` | Reason: ${event.reason}` : '';
     log.info(`[AUDIT] ${itemRef}: ${event.action} | ${event.from} -> ${event.to} (Rule: ${event.rule})${reasonText}`);
+  }
+
+  /**
+   * Log an error event
+   * @param {Error} error
+   * @param {Object} [item] - Optional item context
+   */
+  logError(error, item = null) {
+    this.errors.push({
+      message: error.message,
+      type: item?.type || 'Unknown',
+      number: item?.number || 'Unknown',
+      repo: item?.repo || item?.repository?.nameWithOwner || 'Unknown',
+      stack: error.stack,
+      timestamp: new Date()
+    });
+    
+    const itemRef = item ? `${item.type} #${item.number} [${item.repo || item.repository?.nameWithOwner}]` : 'System';
+    log.error(`[AUDIT] FAILURE for ${itemRef}: ${error.message}`);
   }
 
   /**
@@ -62,13 +82,35 @@ class AuditLogger {
       healthIndicator = `\n**API Health: ${emoji} ${stats.health}**\n`;
     }
     
-    if (this.events.length === 0) {
+    if (this.events.length === 0 && this.errors.length === 0) {
       return `### ✅ Run Complete: No changes needed.\n${healthIndicator}\nAll items are currently perfectly aligned with board rules.\n\n*Completed at ${timeStr} (Duration: ${durationSec}s)*`;
     }
 
     let summary = `### 🤖 Automator Run Summary (${timeStr})\n\n`;
     summary += healthIndicator;
     summary += metaInfo;
+
+    if (this.errors.length > 0) {
+      summary += `\n### ❌ Critical Failures\n\n`;
+      summary += '| Item | Error |\n';
+      summary += '| :--- | :--- |\n';
+      for (const err of this.errors) {
+        const segment = err.type === 'PullRequest' ? 'pull' : 'issues';
+        const itemLink = err.repo !== 'Unknown' 
+          ? `[${err.type} #${err.number}](https://github.com/${err.repo}/${segment}/${err.number})`
+          : `System`;
+        summary += `| ${itemLink} | \`${err.message}\` |\n`;
+      }
+      summary += `\n> [!CAUTION]\n> **Critical errors occurred.** The sync watermark was NOT saved. These items will be retried in the next run.\n\n`;
+    }
+
+    if (this.events.length === 0) {
+      summary += `\n**No successful changes were made.**\n`;
+      summary += `\n*Completed at ${timeStr} (Duration: ${durationSec}s)*\n`;
+      return summary;
+    }
+
+    summary += `\n### ⚙️ Successful Actions\n\n`;
     summary += `\n*Run Duration: ${durationSec}s*\n\n`;
     summary += '| Item | Action | Transition | Rule | Reason |\n';
     summary += '| :--- | :--- | :--- | :--- | :--- |\n';
