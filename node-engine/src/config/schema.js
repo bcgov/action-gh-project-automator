@@ -10,7 +10,7 @@
 
 const schema = {
   type: 'object',
-  required: [ 'project', 'automation', 'technical' ],
+  required: ['project', 'automation', 'technical'],
   properties: {
     project: {
       type: 'object',
@@ -21,47 +21,44 @@ const schema = {
         allowedOrgs: {
           type: 'array',
           items: { type: 'string' },
-          default: [ 'bcgov', 'bcgov-c', 'bcgov-nr' ]
-        }
+          default: ['bcgov', 'bcgov-c', 'bcgov-nr'],
+        },
       },
-      oneOf: [
-        { required: [ 'id' ] },
-        { required: [ 'url' ] }
-      ]
+      oneOf: [{ required: ['id'] }, { required: ['url'] }],
     },
     automation: {
       type: 'object',
-      required: [ 'user_scope', 'repository_scope' ],
+      required: ['user_scope', 'repository_scope'],
       properties: {
         user_scope: {
           type: 'object',
-          required: [ 'monitored_users', 'rules' ],
+          required: ['monitored_users', 'rules'],
           properties: {
             monitored_users: {
               type: 'array',
               items: { type: 'string' },
-              minItems: 1
+              minItems: 1,
             },
-            rules: { $ref: '#/definitions/ruleGroups' }
-          }
+            rules: { $ref: '#/definitions/ruleGroups' },
+          },
         },
         repository_scope: {
           type: 'object',
-          required: [ 'repositories', 'rules' ],
+          required: ['repositories', 'rules'],
           properties: {
             organization: { type: 'string' },
             repositories: {
               type: 'array',
-              items: { type: 'string' }
+              items: { type: 'string' },
             },
-            rules: { $ref: '#/definitions/ruleGroups' }
-          }
-        }
-      }
+            rules: { $ref: '#/definitions/ruleGroups' },
+          },
+        },
+      },
     },
     technical: {
       type: 'object',
-      required: [ 'batch_size', 'batch_delay_seconds', 'update_window_hours', 'optimization' ],
+      required: ['batch_size', 'batch_delay_seconds', 'update_window_hours', 'optimization'],
       properties: {
         batch_size: { type: 'integer', minimum: 1 },
         batch_delay_seconds: { type: 'integer', minimum: 0 },
@@ -70,19 +67,19 @@ const schema = {
           type: 'object',
           properties: {
             sweep_enabled: { type: 'boolean' },
-            min_rate_limit_remaining: { type: 'integer', minimum: 0 }
-          }
+            min_rate_limit_remaining: { type: 'integer', minimum: 0 },
+          },
         },
         optimization: {
           type: 'object',
-          required: [ 'skip_unchanged', 'dedup_by_id' ],
+          required: ['skip_unchanged', 'dedup_by_id'],
           properties: {
             skip_unchanged: { type: 'boolean' },
-            dedup_by_id: { type: 'boolean' }
-          }
-        }
-      }
-    }
+            dedup_by_id: { type: 'boolean' },
+          },
+        },
+      },
+    },
   },
   definitions: {
     ruleGroups: {
@@ -90,7 +87,7 @@ const schema = {
       properties: {
         board_items: {
           type: 'array',
-          items: { $ref: '#/definitions/rule' }
+          items: { $ref: '#/definitions/rule' },
         },
         columns: {
           type: 'array',
@@ -104,56 +101,53 @@ const schema = {
                     type: 'array',
                     items: {
                       type: 'object',
-                      required: [ 'from', 'to', 'conditions' ],
+                      required: ['from', 'to', 'conditions'],
                       properties: {
                         from: {
-                          oneOf: [
-                            { type: 'string' },
-                            { type: 'array', items: { type: 'string' } }
-                          ]
+                          oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
                         },
                         to: { type: 'string' },
-                        conditions: { type: 'array', items: { type: 'string' } }
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
+                        conditions: { type: 'array', items: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
         },
         sprints: {
           type: 'array',
-          items: { $ref: '#/definitions/rule' }
+          items: { $ref: '#/definitions/rule' },
         },
         linked_issues: {
           type: 'array',
-          items: { $ref: '#/definitions/rule' }
+          items: { $ref: '#/definitions/rule' },
         },
         assignees: {
           type: 'array',
-          items: { $ref: '#/definitions/rule' }
-        }
-      }
+          items: { $ref: '#/definitions/rule' },
+        },
+      },
     },
     rule: {
       type: 'object',
-      required: [ 'name', 'trigger', 'action' ],
+      required: ['name', 'trigger', 'action'],
       properties: {
         name: { type: 'string' },
         description: { type: 'string' },
         trigger: {
           type: 'object',
-          required: [ 'type', 'condition' ],
+          required: ['type', 'condition'],
           properties: {
             type: {
               oneOf: [
-                { type: 'string', enum: [ 'PullRequest', 'Issue', 'LinkedIssue' ] },
+                { type: 'string', enum: ['PullRequest', 'Issue', 'LinkedIssue'] },
                 {
                   type: 'array',
-                  items: { type: 'string', enum: [ 'PullRequest', 'Issue', 'LinkedIssue' ] }
-                }
-              ]
+                  items: { type: 'string', enum: ['PullRequest', 'Issue', 'LinkedIssue'] },
+                },
+              ],
             },
             condition: { type: 'string' },
             stateRequirements: {
@@ -163,30 +157,30 @@ const schema = {
                 sprint: { type: 'string' },
                 assignees: {
                   type: 'array',
-                  items: { type: 'string' }
+                  items: { type: 'string' },
                 },
                 labels: {
                   type: 'array',
-                  items: { type: 'string' }
-                }
-              }
-            }
-          }
+                  items: { type: 'string' },
+                },
+              },
+            },
+          },
         },
         action: {
           oneOf: [
             { type: 'string' },
             {
               type: 'array',
-              items: { type: 'string' }
-            }
-          ]
+              items: { type: 'string' },
+            },
+          ],
         },
         value: { type: 'string' },
-        skip_if: { type: 'string' }
-      }
-    }
-  }
+        skip_if: { type: 'string' },
+      },
+    },
+  },
 };
 
 export default schema;

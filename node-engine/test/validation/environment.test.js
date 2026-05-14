@@ -22,13 +22,16 @@ test('environment validation', async (t) => {
     process.env.GITHUB_TOKEN = 'test-token';
     process.env.GITHUB_AUTHOR = config.monitoredUser;
     process.env.PROJECT_ID = 'test-project';
-    
+
     try {
       await validateEnvironment();
       assert(true, 'Should not throw with valid environment');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to missing variables
-      assert(!error.message.includes('Missing required environment variables'), 'Should not fail due to missing variables');
+      assert(
+        !error.message.includes('Missing required environment variables'),
+        'Should not fail due to missing variables',
+      );
     }
   });
 
@@ -36,7 +39,7 @@ test('environment validation', async (t) => {
     process.env.GITHUB_TOKEN = 'test-token';
     process.env.GITHUB_AUTHOR = config.monitoredUser;
     delete process.env.PROJECT_ID;
-    
+
     try {
       await validateEnvironment();
       assert(true, 'Should not throw with default project ID');
@@ -50,7 +53,7 @@ test('environment validation', async (t) => {
     delete process.env.GITHUB_TOKEN;
     process.env.GITHUB_AUTHOR = 'DerekRoberts';
     process.env.PROJECT_ID = 'test-project';
-    
+
     try {
       await validateEnvironment();
       assert.fail('Should have thrown an error for missing GITHUB_TOKEN');
@@ -64,13 +67,16 @@ test('environment validation', async (t) => {
     process.env.GITHUB_TOKEN = 'test-token';
     process.env.GITHUB_AUTHOR = 'DerekRoberts';
     process.env.PROJECT_ID = 'test-project';
-    
+
     try {
       await validateEnvironment();
       assert(StateVerifier.steps.areAllStepsCompleted(), 'All steps should be completed');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to setup
-      assert(!error.message.includes('Missing required environment variables'), 'Should not fail due to missing variables');
+      assert(
+        !error.message.includes('Missing required environment variables'),
+        'Should not fail due to missing variables',
+      );
     }
   });
 
@@ -78,7 +84,7 @@ test('environment validation', async (t) => {
     process.env.GITHUB_TOKEN = 'test-token';
     process.env.GITHUB_AUTHOR = 'DerekRoberts';
     delete process.env.PROJECT_ID;
-    
+
     try {
       await validateEnvironment();
       const steps = StateVerifier.steps;
@@ -87,7 +93,10 @@ test('environment validation', async (t) => {
       assert(tokenIndex < projectIndex, 'TOKEN_CONFIGURED should come before PROJECT_CONFIGURED');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to setup
-      assert(!error.message.includes('Missing required environment variables'), 'Should not fail due to missing variables');
+      assert(
+        !error.message.includes('Missing required environment variables'),
+        'Should not fail due to missing variables',
+      );
     }
   });
 });

@@ -23,13 +23,12 @@ test('Mock board data', async (t) => {
   await t.test('field values structure', async () => {
     const item = mockBoard.items[0];
     const fields = item.fieldValues.nodes;
-    
-    const statusField = fields.find(f => f.field && f.field.name === 'Status');
-    assert.ok(statusField, 'Should have Status field');
-    assert.ok(['Backlog', 'Active', 'Review', 'Done', 'Next'].includes(statusField.name), 
-      'Should have valid status');
 
-    const sprintField = fields.find(f => f.field && f.field.name === 'Sprint');
+    const statusField = fields.find((f) => f.field && f.field.name === 'Status');
+    assert.ok(statusField, 'Should have Status field');
+    assert.ok(['Backlog', 'Active', 'Review', 'Done', 'Next'].includes(statusField.name), 'Should have valid status');
+
+    const sprintField = fields.find((f) => f.field && f.field.name === 'Sprint');
     if (sprintField) {
       assert.ok(sprintField.name.startsWith('Sprint '), 'Should have valid sprint name');
     }

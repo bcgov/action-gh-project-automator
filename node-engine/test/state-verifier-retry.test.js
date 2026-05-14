@@ -18,7 +18,7 @@ test('retryWithTracking retries column mismatch errors', async () => {
       }
       return { column: 'Active' };
     },
-    'column verification for PullRequest #200'
+    'column verification for PullRequest #200',
   );
 
   assert.equal(attemptCount, 2);
@@ -37,7 +37,7 @@ test('retryWithTracking does not retry non-retryable errors', async () => {
         attemptCount += 1;
         throw new Error('Permanent failure');
       },
-      'column verification for Issue #201'
+      'column verification for Issue #201',
     );
   }, /Permanent failure/);
 

@@ -19,11 +19,11 @@ test('loadEventItems maps pull_request payload to GraphQL-like node', async () =
       assignees: [{ login: 'hubot' }],
       state: 'open',
       updated_at: '2024-01-01T00:00:00Z',
-      html_url: 'https://github.com/org/repo/pull/42'
+      html_url: 'https://github.com/org/repo/pull/42',
     },
     repository: {
-      full_name: 'org/repo'
-    }
+      full_name: 'org/repo',
+    },
   };
 
   const tempFile = path.join(process.cwd(), '.tmp-event-pr.json');
@@ -36,7 +36,10 @@ test('loadEventItems maps pull_request payload to GraphQL-like node', async () =
     assert.equal(item.id, 'PR_node');
     assert.equal(item.repository.nameWithOwner, 'org/repo');
     assert.equal(item.author.login, 'octocat');
-    assert.deepEqual(item.assignees.nodes.map(a => a.login), ['hubot']);
+    assert.deepEqual(
+      item.assignees.nodes.map((a) => a.login),
+      ['hubot'],
+    );
   } finally {
     await fs.unlink(tempFile);
   }
@@ -52,11 +55,11 @@ test('loadEventItems maps issues payload to GraphQL-like node', async () => {
       assignees: [{ login: 'hubot' }],
       state: 'open',
       updated_at: '2024-01-02T00:00:00Z',
-      html_url: 'https://github.com/org/repo/issues/17'
+      html_url: 'https://github.com/org/repo/issues/17',
     },
     repository: {
-      full_name: 'org/repo'
-    }
+      full_name: 'org/repo',
+    },
   };
 
   const tempFile = path.join(process.cwd(), '.tmp-event-issue.json');
@@ -69,9 +72,11 @@ test('loadEventItems maps issues payload to GraphQL-like node', async () => {
     assert.equal(item.id, 'ISSUE_node');
     assert.equal(item.repository.nameWithOwner, 'org/repo');
     assert.equal(item.author.login, 'octocat');
-    assert.deepEqual(item.assignees.nodes.map(a => a.login), ['hubot']);
+    assert.deepEqual(
+      item.assignees.nodes.map((a) => a.login),
+      ['hubot'],
+    );
   } finally {
     await fs.unlink(tempFile);
   }
 });
-

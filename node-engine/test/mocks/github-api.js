@@ -20,10 +20,10 @@ const mockState = {
       nodes: [],
       pageInfo: {
         hasNextPage: false,
-        endCursor: null
-      }
-    }
-  }
+        endCursor: null,
+      },
+    },
+  },
 };
 
 /**
@@ -49,14 +49,14 @@ async function isItemInProject(nodeId, projectId) {
   if (mockState.responses.isItemInProject !== undefined) {
     return {
       isInProject: mockState.responses.isItemInProject,
-      projectItemId: mockState.responses.projectItemId
+      projectItemId: mockState.responses.projectItemId,
     };
   }
 
   // Default behavior
   return {
     isInProject: true,
-    projectItemId: 'mock-project-item-id'
+    projectItemId: 'mock-project-item-id',
   };
 }
 
@@ -80,8 +80,8 @@ async function getItemDetails(item) {
     assignees: [],
     repository: {
       name: 'test-repo',
-      owner: 'test-owner'
-    }
+      owner: 'test-owner',
+    },
   };
 }
 
@@ -110,7 +110,7 @@ function setMockResponse(key, value) {
 function addMockProjectItem(projectItemId, { column, assignees } = {}) {
   mockState.projectItems.set(projectItemId, {
     column: column || 'Active',
-    assignees: assignees || []
+    assignees: assignees || [],
   });
 }
 
@@ -129,9 +129,9 @@ function resetMockResponses() {
       nodes: [],
       pageInfo: {
         hasNextPage: false,
-        endCursor: null
-      }
-    }
+        endCursor: null,
+      },
+    },
   };
 }
 
@@ -145,6 +145,5 @@ export {
   getItemAssignees,
   setMockResponse,
   addMockProjectItem,
-  resetMockResponses
+  resetMockResponses,
 };
-

@@ -41,6 +41,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run Lint
+        run: npm run lint
+        if: success() || failure()
+
       - name: Run Tests
         run: npm test
 

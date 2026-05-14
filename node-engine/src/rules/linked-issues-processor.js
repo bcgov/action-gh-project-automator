@@ -13,7 +13,7 @@ import {
   setItemColumn,
   getColumnOptionId,
   isItemInProject,
-  fetchLinkedIssuesForPullRequest
+  fetchLinkedIssuesForPullRequest,
 } from '../github/api.js';
 import { log } from '../utils/log.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
@@ -66,227 +66,239 @@ export function arraysEqual(a, b) {
  * @returns {Object} Processing result
  */
 async function processLinkedIssues(pullRequest, projectId, currentColumn, currentSprint, overrides = {}) {
-    const {
-        getItemColumnFn = getItemColumn,
-        setItemColumnFn = setItemColumn,
-        getColumnOptionIdFn = getColumnOptionId,
-        getItemAssigneesFn = getItemAssignees,
-        setItemAssigneesFn = setItemAssignees,
-        isItemInProjectFn = isItemInProject,
-        fetchLinkedIssuesFn = fetchLinkedIssuesForPullRequest,
-        ruleActionsOverride = null,
-        logger = log,
-        validateColumnTransitionFn = defaultValidateColumnTransition
-    } = overrides;
+  const {
+    getItemColumnFn = getItemColumn,
+    setItemColumnFn = setItemColumn,
+    getColumnOptionIdFn = getColumnOptionId,
+    getItemAssigneesFn = getItemAssignees,
+    setItemAssigneesFn = setItemAssignees,
+    isItemInProjectFn = isItemInProject,
+    fetchLinkedIssuesFn = fetchLinkedIssuesForPullRequest,
+    ruleActionsOverride = null,
+    logger = log,
+    validateColumnTransitionFn = defaultValidateColumnTransition,
+  } = overrides;
 
-    const { number: pullRequestNumber, repository: { nameWithOwner: repositoryName } } = pullRequest;
-    let { projectItemId } = pullRequest;
+  const {
+    number: pullRequestNumber,
+    repository: { nameWithOwner: repositoryName },
+  } = pullRequest;
+  let { projectItemId } = pullRequest;
 
-    const linkedIssueNodesFromPayload = pullRequest.linkedIssues?.nodes || [];
+  const linkedIssueNodesFromPayload = pullRequest.linkedIssues?.nodes || [];
 
-    let changed = false;
-    let reason = '';
-    const linkedIssueResults = [];
+  let changed = false;
+  let reason = '';
+  const linkedIssueResults = [];
 
-    logger.info(`Processing linked issues for PR #${pullRequestNumber} in ${repositoryName}`);
+  logger.info(`Processing linked issues for PR #${pullRequestNumber} in ${repositoryName}`);
 
-    // Get PR's actual state from project board (not from parameter or API response)
-    let prActualColumn = null;
-    let prActualAssignees = [];
-    
-    if (!projectItemId && pullRequest.id) {
-        try {
-            const inProject = await isItemInProjectFn(pullRequest.id, projectId);
-            if (inProject.isInProject) {
-                projectItemId = inProject.projectItemId;
-            }
-        } catch (error) {
-                logger.warning(`Unable to resolve project item ID for PR #${pullRequestNumber}: ${error.message}`);
+  // Get PR's actual state from project board (not from parameter or API response)
+  let prActualColumn = null;
+  let prActualAssignees = [];
+
+  if (!projectItemId && pullRequest.id) {
+    try {
+      const inProject = await isItemInProjectFn(pullRequest.id, projectId);
+      if (inProject.isInProject) {
+        projectItemId = inProject.projectItemId;
+      }
+    } catch (error) {
+      logger.warning(`Unable to resolve project item ID for PR #${pullRequestNumber}: ${error.message}`);
+    }
+  }
+
+  if (projectItemId) {
+    try {
+      prActualColumn = await getItemColumnFn(projectId, projectItemId);
+      prActualAssignees = await getItemAssigneesFn(projectId, projectItemId);
+      logger.info(
+        `PR #${pullRequestNumber} actual state - Column: ${prActualColumn || 'None'}, Assignees: ${prActualAssignees.join(', ') || 'None'}`,
+      );
+    } catch (error) {
+      logger.warning(`Could not get PR actual state from project board: ${error.message}, using fallback`);
+      // Fallback to parameter if project board lookup fails
+      prActualColumn = currentColumn;
+      prActualAssignees = pullRequest.assignees?.nodes?.map((a) => a.login) || [];
+    }
+  } else {
+    logger.warning(`PR #${pullRequestNumber} has no projectItemId, using fallback values`);
+    prActualColumn = currentColumn;
+    prActualAssignees = pullRequest.assignees?.nodes?.map((a) => a.login) || [];
+  }
+
+  // Determine linked issues for this PR
+  let linkedIssueNodes = linkedIssueNodesFromPayload;
+  if (linkedIssueNodes.length === 0 && pullRequest.id) {
+    linkedIssueNodes = await fetchLinkedIssuesFn(pullRequest.id, projectId);
+  }
+
+  if (linkedIssueNodes.length === 0) {
+    reason = 'No linked issues';
+    logger.info(`No linked issues found for PR #${pullRequestNumber}`);
+    return { changed, reason, linkedIssues: linkedIssueResults };
+  }
+
+  // Process rules for this PR
+  const ruleActionsRaw = Array.isArray(ruleActionsOverride)
+    ? ruleActionsOverride
+    : await processLinkedIssueRules(pullRequest);
+  const ruleActions = Array.isArray(ruleActionsRaw) ? ruleActionsRaw : [];
+
+  if (ruleActions.length === 0) {
+    logger.incrementCounter('linked.items.no_rules');
+    reason = 'No linked issue rules triggered';
+    logger.info(`No linked issue rules triggered for PR #${pullRequestNumber}`);
+    return { changed, reason, linkedIssues: linkedIssueResults };
+  }
+
+  // Process each linked issue
+  for (const linkedIssue of linkedIssueNodes) {
+    const { id: linkedIssueContentId, number: linkedIssueNumber, repository } = linkedIssue;
+    const linkedIssueRepositoryName = repository?.nameWithOwner || 'unknown/unknown';
+
+    let linkedIssueProjectItemId = linkedIssue.projectItemId || null;
+
+    logger.incrementCounter('linked.items.total');
+
+    if (!linkedIssueProjectItemId && linkedIssueContentId) {
+      try {
+        const { isInProject: issueInProject, projectItemId: issueProjectItemId } = await isItemInProjectFn(
+          linkedIssueContentId,
+          projectId,
+        );
+        if (issueInProject) {
+          linkedIssueProjectItemId = issueProjectItemId;
         }
+      } catch (error) {
+        logger.warning(`Unable to resolve project item for linked issue ${linkedIssueNumber}: ${error.message}`);
+      }
     }
 
-    if (projectItemId) {
-        try {
-            prActualColumn = await getItemColumnFn(projectId, projectItemId);
-            prActualAssignees = await getItemAssigneesFn(projectId, projectItemId);
-            logger.info(`PR #${pullRequestNumber} actual state - Column: ${prActualColumn || 'None'}, Assignees: ${prActualAssignees.join(', ') || 'None'}`);
-        } catch (error) {
-                logger.warning(`Could not get PR actual state from project board: ${error.message}, using fallback`);
-            // Fallback to parameter if project board lookup fails
-            prActualColumn = currentColumn;
-            prActualAssignees = pullRequest.assignees?.nodes?.map(a => a.login) || [];
-        }
-    } else {
-        logger.warning(`PR #${pullRequestNumber} has no projectItemId, using fallback values`);
-        prActualColumn = currentColumn;
-        prActualAssignees = pullRequest.assignees?.nodes?.map(a => a.login) || [];
+    if (!linkedIssueProjectItemId) {
+      logger.info(`Skipping linked issue ${linkedIssueNumber} - not present on project board`);
+      logger.incrementCounter('linked.actions.skipped');
+      linkedIssueResults.push({
+        id: linkedIssueContentId,
+        number: linkedIssueNumber,
+        column: null,
+        assignees: [],
+        skipped: true,
+        reason: 'not_in_project',
+      });
+      continue;
     }
 
-    // Determine linked issues for this PR
-    let linkedIssueNodes = linkedIssueNodesFromPayload;
-    if (linkedIssueNodes.length === 0 && pullRequest.id) {
-        linkedIssueNodes = await fetchLinkedIssuesFn(pullRequest.id, projectId);
-    }
+    try {
+      // Get linked issue's actual state from project board
+      const linkedIssueColumn = await getItemColumnFn(projectId, linkedIssueProjectItemId);
+      const linkedIssueAssignees = await getItemAssigneesFn(projectId, linkedIssueProjectItemId);
 
-    if (linkedIssueNodes.length === 0) {
-        reason = 'No linked issues';
-        logger.info(`No linked issues found for PR #${pullRequestNumber}`);
-        return { changed, reason, linkedIssues: linkedIssueResults };
-    }
+      logger.info(
+        `Linked issue #${linkedIssueNumber} state - Column: ${linkedIssueColumn || 'None'}, Assignees: ${linkedIssueAssignees.join(', ') || 'None'}`,
+      );
 
-    // Process rules for this PR
-    const ruleActionsRaw = Array.isArray(ruleActionsOverride)
-        ? ruleActionsOverride
-        : await processLinkedIssueRules(pullRequest);
-    const ruleActions = Array.isArray(ruleActionsRaw) ? ruleActionsRaw : [];
+      // Evaluate skip condition from rules.yml
+      // skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
+      const columnsMatch = linkedIssueColumn === prActualColumn;
+      const assigneesMatch = arraysEqual(linkedIssueAssignees, prActualAssignees);
 
-    if (ruleActions.length === 0) {
-        logger.incrementCounter('linked.items.no_rules');
-        reason = 'No linked issue rules triggered';
-        logger.info(`No linked issue rules triggered for PR #${pullRequestNumber}`);
-        return { changed, reason, linkedIssues: linkedIssueResults };
-    }
+      if (columnsMatch && assigneesMatch) {
+        logger.info(`Skipping linked issue #${linkedIssueNumber} - column and assignees already match PR`);
+        logger.incrementCounter('linked.actions.skipped');
+        linkedIssueResults.push({
+          id: linkedIssueContentId,
+          number: linkedIssueNumber,
+          column: linkedIssueColumn,
+          assignees: linkedIssueAssignees,
+          skipped: true,
+          reason: 'state_matches_pr',
+        });
+        continue;
+      }
 
-    // Process each linked issue
-    for (const linkedIssue of linkedIssueNodes) {
-        const { id: linkedIssueContentId, number: linkedIssueNumber, repository } = linkedIssue;
-        const linkedIssueRepositoryName = repository?.nameWithOwner || 'unknown/unknown';
+      // Apply rule actions
+      for (const ruleAction of ruleActions) {
+        const { action, params } = ruleAction;
 
-        let linkedIssueProjectItemId = linkedIssue.projectItemId || null;
-
-        logger.incrementCounter('linked.items.total');
-
-        if (!linkedIssueProjectItemId && linkedIssueContentId) {
-            try {
-                const { isInProject: issueInProject, projectItemId: issueProjectItemId } =
-                    await isItemInProjectFn(linkedIssueContentId, projectId);
-                if (issueInProject) {
-                    linkedIssueProjectItemId = issueProjectItemId;
-                }
-            } catch (error) {
-                logger.warning(`Unable to resolve project item for linked issue ${linkedIssueNumber}: ${error.message}`);
-            }
-        }
-
-        if (!linkedIssueProjectItemId) {
-            logger.info(`Skipping linked issue ${linkedIssueNumber} - not present on project board`);
-            logger.incrementCounter('linked.actions.skipped');
-            linkedIssueResults.push({
-                id: linkedIssueContentId,
-                number: linkedIssueNumber,
-                column: null,
-                assignees: [],
-                skipped: true,
-                reason: 'not_in_project'
-            });
-            continue;
-        }
-
-        try {
-            // Get linked issue's actual state from project board
-            const linkedIssueColumn = await getItemColumnFn(projectId, linkedIssueProjectItemId);
-            const linkedIssueAssignees = await getItemAssigneesFn(projectId, linkedIssueProjectItemId);
-
-            logger.info(`Linked issue #${linkedIssueNumber} state - Column: ${linkedIssueColumn || 'None'}, Assignees: ${linkedIssueAssignees.join(', ') || 'None'}`);
-
-            // Evaluate skip condition from rules.yml
-            // skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
-            const columnsMatch = linkedIssueColumn === prActualColumn;
-            const assigneesMatch = arraysEqual(linkedIssueAssignees, prActualAssignees);
-            
-            if (columnsMatch && assigneesMatch) {
-                logger.info(`Skipping linked issue #${linkedIssueNumber} - column and assignees already match PR`);
-                logger.incrementCounter('linked.actions.skipped');
-                linkedIssueResults.push({
-                    id: linkedIssueContentId,
-                    number: linkedIssueNumber,
-                    column: linkedIssueColumn,
-                    assignees: linkedIssueAssignees,
-                    skipped: true,
-                    reason: 'state_matches_pr'
+        switch (action) {
+          case 'inherit_column':
+            // Inherit PR's actual column if different
+            if (prActualColumn && prActualColumn !== linkedIssueColumn) {
+              const optionId = await getColumnOptionIdFn(projectId, prActualColumn);
+              if (optionId) {
+                const transition = await validateColumnTransitionFn(linkedIssueColumn || 'None', prActualColumn, {
+                  item: linkedIssue,
                 });
-                continue;
-            }
-
-            // Apply rule actions
-            for (const ruleAction of ruleActions) {
-                const { action, params } = ruleAction;
-
-                switch (action) {
-                    case 'inherit_column':
-                        // Inherit PR's actual column if different
-                        if (prActualColumn && prActualColumn !== linkedIssueColumn) {
-                            const optionId = await getColumnOptionIdFn(projectId, prActualColumn);
-                            if (optionId) {
-                                const transition = await validateColumnTransitionFn(
-                                    linkedIssueColumn || 'None',
-                                    prActualColumn,
-                                    { item: linkedIssue }
-                                );
-                                if (!transition.valid) {
-                                    logger.warning(`Skipping column inheritance for linked issue #${linkedIssueNumber}: ${transition.reason || 'transition not allowed'}`);
-                                    logger.incrementCounter('linked.actions.column.blocked');
-                                    break;
-                                }
-                                await setItemColumnFn(projectId, linkedIssueProjectItemId, optionId);
-                                logger.info(`Set linked issue #${linkedIssueNumber} column to ${prActualColumn} (inherited from PR)`);
-                                logger.incrementCounter('linked.actions.column.assigned');
-                                changed = true;
-                            } else {
-                                logger.warning(`Unable to resolve column option for '${prActualColumn}' in project ${projectId}`);
-                            }
-                        }
-                        break;
-
-                    case 'inherit_assignees':
-                        // Inherit PR's actual assignees if different
-                        if (prActualAssignees.length > 0) {
-                            if (!arraysEqual(prActualAssignees, linkedIssueAssignees)) {
-                                await setItemAssigneesFn(projectId, linkedIssueProjectItemId, prActualAssignees);
-                                logger.info(`Set linked issue #${linkedIssueNumber} assignees to: ${prActualAssignees.join(', ')} (inherited from PR)`);
-                                logger.incrementCounter('linked.actions.assignees.assigned');
-                                changed = true;
-                            }
-                        }
-                        break;
-
-                    default:
-                        logger.warning(`Unknown linked issue action: ${action}`);
+                if (!transition.valid) {
+                  logger.warning(
+                    `Skipping column inheritance for linked issue #${linkedIssueNumber}: ${transition.reason || 'transition not allowed'}`,
+                  );
+                  logger.incrementCounter('linked.actions.column.blocked');
+                  break;
                 }
+                await setItemColumnFn(projectId, linkedIssueProjectItemId, optionId);
+                logger.info(`Set linked issue #${linkedIssueNumber} column to ${prActualColumn} (inherited from PR)`);
+                logger.incrementCounter('linked.actions.column.assigned');
+                changed = true;
+              } else {
+                logger.warning(`Unable to resolve column option for '${prActualColumn}' in project ${projectId}`);
+              }
             }
+            break;
 
-            // Get final state after updates
-            const finalColumn = await getItemColumnFn(projectId, linkedIssueProjectItemId);
-            const finalAssignees = await getItemAssigneesFn(projectId, linkedIssueProjectItemId);
+          case 'inherit_assignees':
+            // Inherit PR's actual assignees if different
+            if (prActualAssignees.length > 0) {
+              if (!arraysEqual(prActualAssignees, linkedIssueAssignees)) {
+                await setItemAssigneesFn(projectId, linkedIssueProjectItemId, prActualAssignees);
+                logger.info(
+                  `Set linked issue #${linkedIssueNumber} assignees to: ${prActualAssignees.join(', ')} (inherited from PR)`,
+                );
+                logger.incrementCounter('linked.actions.assignees.assigned');
+                changed = true;
+              }
+            }
+            break;
 
-            logger.info(`Linked issue #${linkedIssueNumber} final state - Column: ${finalColumn || 'None'}, Assignees: ${finalAssignees.join(', ') || 'None'}`);
-
-            linkedIssueResults.push({
-                id: linkedIssueContentId,
-                projectItemId: linkedIssueProjectItemId,
-                number: linkedIssueNumber,
-                column: finalColumn,
-                assignees: finalAssignees,
-                skipped: false,
-                reason: 'updated'
-            });
-
-        } catch (error) {
-            const itemIdentifier = `Linked Issue #${linkedIssueNumber} in ${linkedIssueRepositoryName}`;
-            logger.incrementCounter('linked.actions.failed');
-            handleClassifiedError(error, itemIdentifier, logger);
+          default:
+            logger.warning(`Unknown linked issue action: ${action}`);
         }
+      }
+
+      // Get final state after updates
+      const finalColumn = await getItemColumnFn(projectId, linkedIssueProjectItemId);
+      const finalAssignees = await getItemAssigneesFn(projectId, linkedIssueProjectItemId);
+
+      logger.info(
+        `Linked issue #${linkedIssueNumber} final state - Column: ${finalColumn || 'None'}, Assignees: ${finalAssignees.join(', ') || 'None'}`,
+      );
+
+      linkedIssueResults.push({
+        id: linkedIssueContentId,
+        projectItemId: linkedIssueProjectItemId,
+        number: linkedIssueNumber,
+        column: finalColumn,
+        assignees: finalAssignees,
+        skipped: false,
+        reason: 'updated',
+      });
+    } catch (error) {
+      const itemIdentifier = `Linked Issue #${linkedIssueNumber} in ${linkedIssueRepositoryName}`;
+      logger.incrementCounter('linked.actions.failed');
+      handleClassifiedError(error, itemIdentifier, logger);
     }
+  }
 
-    // Print state change summary
-    logger.printStateSummary();
+  // Print state change summary
+  logger.printStateSummary();
 
-    return {
-        changed,
-        reason: changed ? 'Linked issues updated' : 'No changes needed',
-        linkedIssues: linkedIssueResults,
-        processed: linkedIssueResults.length
-    };
+  return {
+    changed,
+    reason: changed ? 'Linked issues updated' : 'No changes needed',
+    linkedIssues: linkedIssueResults,
+    processed: linkedIssueResults.length,
+  };
 }
 
 export { processLinkedIssues };
@@ -301,7 +313,5 @@ export { processLinkedIssues };
  * @returns {{valid: boolean, reason?: string}} Validation result
  */
 async function defaultValidateColumnTransition(fromColumn, toColumn, context) {
-    return StateVerifier
-        .getTransitionValidator()
-        .validateColumnTransition(fromColumn, toColumn, context);
+  return StateVerifier.getTransitionValidator().validateColumnTransition(fromColumn, toColumn, context);
 }

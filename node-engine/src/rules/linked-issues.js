@@ -5,7 +5,13 @@ import { processSprintAssignment } from './sprints.js';
 import { getItemAssignees, setItemAssignees } from './assignees.js';
 
 export async function processLinkedIssues(pullRequest, projectItemId, projectId, currentColumn) {
-  const { id: pullRequestId, number: pullRequestNumber, repository: { nameWithOwner: repositoryName }, state, merged } = pullRequest;
+  const {
+    id: pullRequestId,
+    number: pullRequestNumber,
+    repository: { nameWithOwner: repositoryName },
+    state,
+    merged,
+  } = pullRequest;
   // Handle optional properties safely
   const assigneeNodes = pullRequest.assignees?.nodes || [];
   const linkedIssueNodes = pullRequest.linkedIssues?.nodes || [];
@@ -19,9 +25,9 @@ export async function processLinkedIssues(pullRequest, projectItemId, projectId,
   // Log PR initial state
   const prState = {
     column: currentColumn || 'None',
-    assignees: assigneeNodes?.map(a => a.login) || [],
+    assignees: assigneeNodes?.map((a) => a.login) || [],
     status: state || 'UNKNOWN',
-    merged: merged === true ? 'Yes' : merged === false ? 'No' : 'Unknown'
+    merged: merged === true ? 'Yes' : merged === false ? 'No' : 'Unknown',
   };
   log.logState(pullRequestId, 'PR Initial', prState);
 
@@ -43,7 +49,11 @@ export async function processLinkedIssues(pullRequest, projectItemId, projectId,
 
   const pendingColumnUpdates = [];
   for (const linkedIssue of linkedIssueNodes) {
-    const { id: linkedIssueId, number: linkedIssueNumber, repository: { nameWithOwner: linkedIssueRepositoryName } } = linkedIssue;
+    const {
+      id: linkedIssueId,
+      number: linkedIssueNumber,
+      repository: { nameWithOwner: linkedIssueRepositoryName },
+    } = linkedIssue;
 
     try {
       // Log initial state
@@ -51,7 +61,7 @@ export async function processLinkedIssues(pullRequest, projectItemId, projectId,
       const initialAssignees = await getItemAssignees(projectId, linkedIssueId);
       log.logState(linkedIssueId, 'Issue Initial', {
         column: initialColumn,
-        assignees: initialAssignees
+        assignees: initialAssignees,
       });
 
       // Queue column update for batch
@@ -60,7 +70,7 @@ export async function processLinkedIssues(pullRequest, projectItemId, projectId,
       }
 
       // Sync assignees with no-op guard (avoid REST update if unchanged)
-      const prAssignees = assigneeNodes.map(a => a.login);
+      const prAssignees = assigneeNodes.map((a) => a.login);
       if (prAssignees.length > 0) {
         await setItemAssignees(projectId, linkedIssueId, prAssignees);
         log.info(`Set linked issue #${linkedIssueNumber} assignees to: ${prAssignees.join(', ')}`);
@@ -69,21 +79,23 @@ export async function processLinkedIssues(pullRequest, projectItemId, projectId,
       // Log final state
       log.logState(linkedIssueId, 'Issue Final', {
         column: currentColumn,
-        assignees: prAssignees
+        assignees: prAssignees,
       });
 
       linkedIssueResults.push({
         id: linkedIssueId,
         number: linkedIssueNumber,
         column: currentColumn,
-        assignees: prAssignees
+        assignees: prAssignees,
       });
 
       changed = true;
-      } catch (error) {
-        log.error(`Error updating linked issue ${linkedIssueNumber} in repository ${linkedIssueRepositoryName}: ${error.message}`);
-        throw error;
-      }
+    } catch (error) {
+      log.error(
+        `Error updating linked issue ${linkedIssueNumber} in repository ${linkedIssueRepositoryName}: ${error.message}`,
+      );
+      throw error;
+    }
   }
 
   // Perform batched column updates (if any)

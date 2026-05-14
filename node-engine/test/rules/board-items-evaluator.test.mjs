@@ -8,8 +8,8 @@ test('describeBoardItemReason prioritizes issue assigned to user over monitored 
     number: 522,
     repository: { nameWithOwner: 'bcgov/nr-results-exam' },
     assignees: {
-      nodes: [{ login: 'DerekRoberts' }]
-    }
+      nodes: [{ login: 'DerekRoberts' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -28,8 +28,8 @@ test('describeBoardItemReason prioritizes issue assigned to user even when in mo
     number: 100,
     repository: { nameWithOwner: 'bcgov/nr-nerds' },
     assignees: {
-      nodes: [{ login: 'DerekRoberts' }]
-    }
+      nodes: [{ login: 'DerekRoberts' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -48,8 +48,8 @@ test('describeBoardItemReason falls back to monitored repo when issue not assign
     number: 100,
     repository: { nameWithOwner: 'bcgov/nr-nerds' },
     assignees: {
-      nodes: [{ login: 'other-user' }]
-    }
+      nodes: [{ login: 'other-user' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -68,8 +68,8 @@ test('describeBoardItemReason returns no match when issue has no criteria', () =
     number: 100,
     repository: { nameWithOwner: 'bcgov/other-repo' },
     assignees: {
-      nodes: [{ login: 'other-user' }]
-    }
+      nodes: [{ login: 'other-user' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -88,12 +88,8 @@ test('describeBoardItemReason handles issue with multiple assignees', () => {
     number: 200,
     repository: { nameWithOwner: 'bcgov/other-repo' },
     assignees: {
-      nodes: [
-        { login: 'user1' },
-        { login: 'DerekRoberts' },
-        { login: 'user2' }
-      ]
-    }
+      nodes: [{ login: 'user1' }, { login: 'DerekRoberts' }, { login: 'user2' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -111,8 +107,8 @@ test('describeBoardItemReason handles issue with no assignees', () => {
     number: 300,
     repository: { nameWithOwner: 'bcgov/nr-nerds' },
     assignees: {
-      nodes: []
-    }
+      nodes: [],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -132,8 +128,8 @@ test('describeBoardItemReason handles PR priority correctly (author > assignee >
     author: { login: 'DerekRoberts' },
     repository: { nameWithOwner: 'bcgov/other-repo' },
     assignees: {
-      nodes: [{ login: 'DerekRoberts' }]
-    }
+      nodes: [{ login: 'DerekRoberts' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -155,8 +151,8 @@ test('describeBoardItemReason handles PR assigned but not authored', () => {
     author: { login: 'other-user' },
     repository: { nameWithOwner: 'bcgov/other-repo' },
     assignees: {
-      nodes: [{ login: 'DerekRoberts' }]
-    }
+      nodes: [{ login: 'DerekRoberts' }],
+    },
   };
 
   const monitoredUser = 'DerekRoberts';
@@ -168,5 +164,3 @@ test('describeBoardItemReason handles PR assigned but not authored', () => {
   assert.strictEqual(result.isAuthoredByUser, false);
   assert.strictEqual(result.isAssignedToUser, true);
 });
-
-

@@ -7,7 +7,7 @@ export const DEFAULT_OPTIONS = {
   batchSize: 10,
   delayBetweenBatches: 1000,
   maxRetries: 3,
-  retryDelay: 5000
+  retryDelay: 5000,
 };
 
 /**
@@ -24,7 +24,7 @@ export async function processBatch(items, processItem, options = {}) {
 
   for (let i = 0; i < items.length; i += opts.batchSize) {
     const batch = items.slice(i, i + opts.batchSize);
-    
+
     for (const item of batch) {
       let retries = 0;
       let success = false;
@@ -37,7 +37,7 @@ export async function processBatch(items, processItem, options = {}) {
         } catch (error) {
           retries++;
           log.warning(`Failed to process item (attempt ${retries}/${opts.maxRetries}): ${error.message}`);
-          
+
           if (retries < opts.maxRetries) {
             await delay(opts.retryDelay);
           } else {
@@ -63,5 +63,5 @@ export async function processBatch(items, processItem, options = {}) {
  * @returns {Promise<void>}
  */
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

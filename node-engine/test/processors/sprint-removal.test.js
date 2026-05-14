@@ -1,7 +1,7 @@
 /**
  * @fileoverview Tests for sprint removal functionality (Issue #66)
  * Tests that sprints are properly removed from items in inactive columns
- * 
+ *
  * These tests verify:
  * 1. Sprint removal from New column
  * 2. Sprint removal from Parked column
@@ -23,14 +23,14 @@ describe('Sprint Removal Logic Tests', () => {
   test('should identify inactive columns correctly', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
-    
+
     // All inactive columns should be identified
-    inactiveColumns.forEach(column => {
+    inactiveColumns.forEach((column) => {
       assert.ok(inactiveColumns.includes(column), `${column} should be inactive`);
     });
-    
+
     // Eligible columns should not be inactive
-    eligibleColumns.forEach(column => {
+    eligibleColumns.forEach((column) => {
       assert.ok(!inactiveColumns.includes(column), `${column} should not be inactive`);
     });
   });
@@ -40,11 +40,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'New';
     const currentSprintId = 'sprint-123';
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from New column');
   });
 
@@ -52,11 +52,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'Parked';
     const currentSprintId = 'sprint-123';
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from Parked column');
   });
 
@@ -64,11 +64,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'Backlog';
     const currentSprintId = 'sprint-123';
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, true, 'Should remove sprint from Backlog column');
   });
 
@@ -76,11 +76,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'New';
     const currentSprintId = null;
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, false, 'Should skip when no sprint is set');
   });
 
@@ -88,11 +88,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'Active';
     const currentSprintId = 'sprint-123';
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, false, 'Should skip when in eligible column');
   });
 
@@ -100,11 +100,11 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'Done';
     const currentSprintId = 'sprint-123';
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, false, 'Should skip when in Done column');
   });
 
@@ -112,23 +112,23 @@ describe('Sprint Removal Logic Tests', () => {
     const currentColumn = 'New';
     const currentSprintId = undefined;
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
-    
+
     const isInactive = inactiveColumns.includes(currentColumn);
     const hasSprint = currentSprintId != null && currentSprintId !== undefined;
     const shouldRemove = isInactive && hasSprint;
-    
+
     assert.strictEqual(shouldRemove, false, 'Should skip when sprint is undefined');
   });
 
   test('should handle all inactive columns with sprint', () => {
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     const currentSprintId = 'sprint-123';
-    
-    inactiveColumns.forEach(column => {
+
+    inactiveColumns.forEach((column) => {
       const isInactive = inactiveColumns.includes(column);
       const hasSprint = currentSprintId != null && currentSprintId !== undefined;
       const shouldRemove = isInactive && hasSprint;
-      
+
       assert.strictEqual(shouldRemove, true, `Should remove sprint from ${column} column`);
     });
   });
@@ -137,14 +137,13 @@ describe('Sprint Removal Logic Tests', () => {
     const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
     const inactiveColumns = ['New', 'Parked', 'Backlog'];
     const currentSprintId = 'sprint-123';
-    
-    eligibleColumns.forEach(column => {
+
+    eligibleColumns.forEach((column) => {
       const isInactive = inactiveColumns.includes(column);
       const hasSprint = currentSprintId != null && currentSprintId !== undefined;
       const shouldRemove = isInactive && hasSprint;
-      
+
       assert.strictEqual(shouldRemove, false, `Should not remove sprint from ${column} column`);
     });
   });
 });
-

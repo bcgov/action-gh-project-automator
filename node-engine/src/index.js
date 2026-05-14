@@ -56,7 +56,7 @@ import {
   processSprintRemoval,
   determineSprintAction,
   setItemSprintsBatch,
-  clearItemSprintsBatch
+  clearItemSprintsBatch,
 } from './rules/sprints.js';
 import { processAssignees, getItemDetails } from './rules/assignees.js';
 import { processLinkedIssues } from './rules/linked-issues-processor.js';
@@ -66,7 +66,6 @@ import { loadBoardRules } from './config/board-rules.js';
 import { loadEventItems } from './utils/event-items.js';
 import { auditLog } from './utils/audit-logger.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
-
 
 // Custom error classes for robust error handling
 class ItemNotAddedError extends Error {
@@ -123,7 +122,7 @@ function initializeEnvironment() {
     config_file: 'CONFIG_FILE',
     window_hours: 'UPDATE_WINDOW_HOURS',
     verbose: 'VERBOSE',
-    backfill: 'BACKFILL'
+    backfill: 'BACKFILL',
   };
 
   for (const [input, env] of Object.entries(mappings)) {
@@ -135,14 +134,10 @@ function initializeEnvironment() {
 }
 
 // Initialize environment validation steps
-const envValidator = new StepVerification([
-  'TOKEN_CONFIGURED',
-  'PROJECT_CONFIGURED',
-  'LABELS_CONFIGURED'
-]);
+const envValidator = new StepVerification(['TOKEN_CONFIGURED', 'PROJECT_CONFIGURED', 'LABELS_CONFIGURED']);
 
-envValidator.addStepDependencies('PROJECT_CONFIGURED', [ 'TOKEN_CONFIGURED' ]);
-envValidator.addStepDependencies('LABELS_CONFIGURED', [ 'PROJECT_CONFIGURED' ]);
+envValidator.addStepDependencies('PROJECT_CONFIGURED', ['TOKEN_CONFIGURED']);
+envValidator.addStepDependencies('LABELS_CONFIGURED', ['PROJECT_CONFIGURED']);
 
 // Static reference to allow access from other modules
 StepVerification.envValidator = envValidator;
@@ -188,8 +183,7 @@ async function validateEnvironment() {
   } catch (error) {
     // Re-throw with enhanced context
     throw new Error(
-      `Environment validation failed:\n${error.message}\n\n` +
-      `Please check your environment variables and try again.`
+      `Environment validation failed:\n${error.message}\n\n` + `Please check your environment variables and try again.`,
     );
   }
 }
@@ -218,8 +212,6 @@ async function main() {
     // Load board rules configuration
     const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
 
-
-
     // Initialize transition rules for state validation
     // StateVerifier is already imported at the top
     StateVerifier.initializeTransitionRules(boardConfig);
@@ -230,18 +222,18 @@ async function main() {
     if (boardConfig.project?.organization) {
       org = boardConfig.project.organization;
     }
-    const allowedOrgs = boardConfig.project?.allowedOrgs || [ 'bcgov', 'bcgov-c', 'bcgov-nr' ];
+    const allowedOrgs = boardConfig.project?.allowedOrgs || ['bcgov', 'bcgov-c', 'bcgov-nr'];
     const context = {
       org,
       repos: process.env.OVERRIDE_REPOS
-        ? process.env.OVERRIDE_REPOS.split(',').map(r => r.trim())
+        ? process.env.OVERRIDE_REPOS.split(',').map((r) => r.trim())
         : boardConfig.project?.repositories || [],
       monitoredUser: process.env.GITHUB_AUTHOR,
       projectId: envConfig.projectId,
       verbose: envConfig.verbose,
       strictMode: envConfig.strictMode,
       dryRun: process.env.DRY_RUN === 'true',
-      allowedOrgs
+      allowedOrgs,
     };
 
     log.info('Starting Project Board Sync...');
@@ -262,12 +254,10 @@ async function main() {
     if (context.verbose) {
       log.info('State tracking enabled');
     }
-    log.info('Monitored Repos: ' + context.repos.map(r => r.includes('/') ? r : `${context.org}/${r}`).join(', '));
+    log.info('Monitored Repos: ' + context.repos.map((r) => (r.includes('/') ? r : `${context.org}/${r}`)).join(', '));
 
     // Determine tighter search window (1h) in PR context unless overridden via env
-    activeWindowHours = process.env.GITHUB_EVENT_NAME === 'pull_request'
-      ? 1
-      : undefined;
+    activeWindowHours = process.env.GITHUB_EVENT_NAME === 'pull_request' ? 1 : undefined;
 
     // Load gapless sync watermark from cache
     watermark = await getWatermark(context.projectId);
@@ -298,7 +288,7 @@ async function main() {
       windowHours: activeWindowHours,
       seedItems: eventItems,
       allowedOrgs: context.allowedOrgs,
-      since: watermark
+      since: watermark,
     });
 
     // Process additional rules for added items
@@ -317,7 +307,7 @@ async function main() {
           from: 'None',
           to: 'Project',
           rule: 'Board Addition',
-          reason: 'Item matched auto-add criteria'
+          reason: 'Item matched auto-add criteria',
         });
 
         // Set initial column
@@ -325,7 +315,7 @@ async function main() {
         if (columnResult.changed) {
           log.info(`Set column for ${itemRef} to ${columnResult.newStatus}`);
           await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
-          
+
           auditLog.logEvent({
             type: item.type,
             number: item.number,
@@ -334,24 +324,19 @@ async function main() {
             from: columnResult.currentStatus || 'None',
             to: columnResult.newStatus,
             rule: columnResult.rule || 'Column Rule',
-            reason: columnResult.reason
+            reason: columnResult.reason,
           });
         }
 
         // Process sprint assignment or removal based on column
         const currentColumn = columnResult.newStatus || columnResult.currentStatus;
-        const eligibleColumns = [ 'Next', 'Active', 'Done', 'Waiting' ];
-        const inactiveColumns = [ 'New', 'Parked', 'Backlog' ];
+        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        const inactiveColumns = ['New', 'Parked', 'Backlog'];
 
         let sprintResult = null;
         if (eligibleColumns.includes(currentColumn)) {
           // Assign sprint for eligible columns
-          sprintResult = await processSprintAssignment(
-            item,
-            item.projectItemId,
-            context.projectId,
-            currentColumn
-          );
+          sprintResult = await processSprintAssignment(item, item.projectItemId, context.projectId, currentColumn);
           if (sprintResult.changed) {
             log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
             auditLog.logEvent({
@@ -362,7 +347,7 @@ async function main() {
               from: sprintResult.previousSprint || 'None',
               to: sprintResult.newSprint,
               rule: 'Sprint Assignment',
-              reason: sprintResult.reason
+              reason: sprintResult.reason,
             });
           }
         } else if (inactiveColumns.includes(currentColumn)) {
@@ -371,7 +356,7 @@ async function main() {
             item,
             item.projectItemId,
             context.projectId,
-            currentColumn
+            currentColumn,
           );
           if (sprintRemovalResult.changed) {
             log.info(`Removed sprint for ${itemRef} from inactive column`);
@@ -383,7 +368,7 @@ async function main() {
               from: sprintRemovalResult.previousSprint || 'Unknown',
               to: 'None',
               rule: 'Sprint Cleanup',
-              reason: sprintRemovalResult.reason
+              reason: sprintRemovalResult.reason,
             });
           }
         }
@@ -393,7 +378,7 @@ async function main() {
         if (assigneeResult.changed) {
           log.info(`Updated assignees for ${itemRef}: ${assigneeResult.assignees.join(', ')}`);
           await StateVerifier.verifyAssignees(item, context.projectId, assigneeResult.assignees);
-          
+
           auditLog.logEvent({
             type: item.type,
             number: item.number,
@@ -402,13 +387,15 @@ async function main() {
             from: assigneeResult.previousAssignees?.join(', ') || 'none',
             to: assigneeResult.assignees.join(', '),
             rule: 'Assignee Sync',
-            reason: assigneeResult.reason || 'Synchronizing project assignees'
+            reason: assigneeResult.reason || 'Synchronizing project assignees',
           });
         }
 
         // Process linked issues if it's a PR and has required properties
         if (item.type === 'PullRequest' && item.repository && item.repository.nameWithOwner) {
-          log.info(`[Main] Processing linked issues for ${item.type} #${item.number} [${item.repository.nameWithOwner}]`);
+          log.info(
+            `[Main] Processing linked issues for ${item.type} #${item.number} [${item.repository.nameWithOwner}]`,
+          );
           const targetColumn = columnResult.newStatus || columnResult.currentStatus;
           const targetSprint = sprintResult?.newSprint || null;
 
@@ -417,13 +404,13 @@ async function main() {
               ...item,
               __typename: 'PullRequest',
               repository: {
-                nameWithOwner: item.repo || item.repository.nameWithOwner
+                nameWithOwner: item.repo || item.repository.nameWithOwner,
               },
-              projectItemId: item.projectItemId
+              projectItemId: item.projectItemId,
             },
             context.projectId,
             targetColumn,
-            targetSprint
+            targetSprint,
           );
 
           if (linkedResult.processed > 0) {
@@ -435,9 +422,8 @@ async function main() {
         await StateVerifier.verifyCompleteState(item, context.projectId, {
           column: columnResult.newStatus || columnResult.currentStatus,
           sprint: sprintResult?.changed ? undefined : sprintResult?.newSprint, // Skip sprint verification if assignment was successful
-          assignees: assigneeResult.changed ? assigneeResult.assignees : undefined
+          assignees: assigneeResult.changed ? assigneeResult.assignees : undefined,
         });
-
       } catch (error) {
         errors.push(error);
         auditLog.logError(error, item);
@@ -449,7 +435,7 @@ async function main() {
       log.error(`Project Board Sync completed with ${errors.length} errors`);
     } else {
       log.info('Project Board Sync completed successfully');
-      
+
       // Save the new watermark only when the run completes without any errors.
       // This ensures that any failed items (even non-critical) are re-processed in the next run.
       // We use the start time of the run as the new watermark.
@@ -457,9 +443,9 @@ async function main() {
     }
 
     // Robust error classification
-    const errorClassifications = errors.map(error => ({
+    const errorClassifications = errors.map((error) => ({
       error,
-      classification: classifyError(error)
+      classification: classifyError(error),
     }));
 
     const criticalErrors = errorClassifications
@@ -473,19 +459,19 @@ async function main() {
     if (criticalErrors.length > 0) {
       const errorMsg = `Project Board Sync failed with ${criticalErrors.length} critical error(s).`;
       core.setFailed(errorMsg);
-      criticalErrors.forEach(error => {
+      criticalErrors.forEach((error) => {
         log.error(`Critical error detail: ${error.message || error}`);
       });
     } else if (nonCriticalErrors.length > 0) {
       log.info(`Completed with ${nonCriticalErrors.length} non-critical errors (items not added to project)`);
     }
-
   } catch (error) {
     // Handle rate limits as temporary failures
-    const msg = error.message && error.message.includes('rate limit')
-      ? 'GitHub rate limit exceeded. This is a temporary failure.'
-      : `Global execution error: ${error.message}`;
-    
+    const msg =
+      error.message && error.message.includes('rate limit')
+        ? 'GitHub rate limit exceeded. This is a temporary failure.'
+        : `Global execution error: ${error.message}`;
+
     auditLog.logError(error);
     core.setFailed(msg);
   } finally {
@@ -500,17 +486,17 @@ async function main() {
     // Push the audit summary to GitHub Actions Job Summary
     // Capture final rate limit to report health
     const finalRate = await shouldProceed(RatePriority.CRITICAL);
-    await auditLog.pushToGhaSummary({ 
+    await auditLog.pushToGhaSummary({
       health: finalRate.health,
       watermark,
-      windowHours: activeWindowHours
+      windowHours: activeWindowHours,
     });
   }
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[ 1 ]}`) {
-  main().catch(err => {
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
     log.error('Unhandled error:', err);
     process.exit(1);
   });

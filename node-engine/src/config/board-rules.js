@@ -10,39 +10,39 @@ import ConfigLoader from './loader.js';
  */
 
 function loadBoardRules(context = {}) {
-    const loader = new ConfigLoader();
+  const loader = new ConfigLoader();
 
-    // Resolve config path with flattening preference for repo-level config
-    const resolvedPath = resolveConfigPath();
-    const config = loader.load(resolvedPath);
+  // Resolve config path with flattening preference for repo-level config
+  const resolvedPath = resolveConfigPath();
+  const config = loader.load(resolvedPath);
 
-    // Pass through monitored user from context
-    if (context.monitoredUser) {
-        config.monitoredUser = context.monitoredUser;
+  // Pass through monitored user from context
+  if (context.monitoredUser) {
+    config.monitoredUser = context.monitoredUser;
+  }
+
+  // Normalize the new scope-based structure to the old flat structure for backward compatibility
+  if (config.automation) {
+    config.rules = mergeRuleScopes(config.automation);
+    config.project = {
+      ...config.project,
+      organization: config.automation.repository_scope.organization,
+      repositories: config.automation.repository_scope.repositories,
+    };
+
+    // Extract monitored users from structured format for backward compatibility
+    const monitoredUsers = getMonitoredUsers(config.automation);
+    if (monitoredUsers && monitoredUsers.length > 0) {
+      // For backward compatibility, use the first user as the primary monitored user
+      config.monitoredUser = monitoredUsers[0];
+      // Store the full array for new functionality
+      config.monitoredUsers = monitoredUsers;
     }
+    // Note: If no monitored users are configured, config.monitoredUser will be undefined
+    // This is handled gracefully by the rule processors
+  }
 
-    // Normalize the new scope-based structure to the old flat structure for backward compatibility
-    if (config.automation) {
-        config.rules = mergeRuleScopes(config.automation);
-        config.project = {
-            ...config.project,
-            organization: config.automation.repository_scope.organization,
-            repositories: config.automation.repository_scope.repositories
-        };
-
-        // Extract monitored users from structured format for backward compatibility
-        const monitoredUsers = getMonitoredUsers(config.automation);
-        if (monitoredUsers && monitoredUsers.length > 0) {
-            // For backward compatibility, use the first user as the primary monitored user
-            config.monitoredUser = monitoredUsers[0];
-            // Store the full array for new functionality
-            config.monitoredUsers = monitoredUsers;
-        }
-        // Note: If no monitored users are configured, config.monitoredUser will be undefined
-        // This is handled gracefully by the rule processors
-    }
-
-    return config;
+  return config;
 }
 
 /**
@@ -51,46 +51,48 @@ function loadBoardRules(context = {}) {
  * @returns {object} Merged rules object
  */
 function mergeRuleScopes(automation) {
-    const merged = {};
+  const merged = {};
 
-    // Initialize merged object with all rule types from both scopes
-    const allRuleTypes = new Set();
+  // Initialize merged object with all rule types from both scopes
+  const allRuleTypes = new Set();
 
-    // Collect rule types from user scope
+  // Collect rule types from user scope
+  if (automation.user_scope?.rules) {
+    Object.keys(automation.user_scope.rules).forEach((ruleType) => allRuleTypes.add(ruleType));
+  }
+
+  // Collect rule types from repository scope
+  if (automation.repository_scope?.rules) {
+    Object.keys(automation.repository_scope.rules).forEach((ruleType) => allRuleTypes.add(ruleType));
+  }
+
+  // Initialize all rule types with empty arrays
+  allRuleTypes.forEach((ruleType) => {
+    merged[ruleType] = [];
+  });
+
+  // Check if monitored users are properly configured
+  const monitoredUsers = getMonitoredUsers(automation);
+
+  if (monitoredUsers && monitoredUsers.length > 0) {
+    // Merge user scope rules only if monitored users are configured
     if (automation.user_scope?.rules) {
-        Object.keys(automation.user_scope.rules).forEach(ruleType => allRuleTypes.add(ruleType));
+      mergeRuleGroup(merged, automation.user_scope.rules);
     }
+  } else {
+    // Log warning and skip user-scope rules
+    console.warn(
+      '⚠️  No monitored users configured. Skipping user-scope rules (board_items, assignees that depend on users).',
+    );
+    console.warn('   To enable user-based rules, configure monitored_users in automation.user_scope');
+  }
 
-    // Collect rule types from repository scope
-    if (automation.repository_scope?.rules) {
-        Object.keys(automation.repository_scope.rules).forEach(ruleType => allRuleTypes.add(ruleType));
-    }
+  // Merge repository scope rules (always included)
+  if (automation.repository_scope?.rules) {
+    mergeRuleGroup(merged, automation.repository_scope.rules);
+  }
 
-    // Initialize all rule types with empty arrays
-    allRuleTypes.forEach(ruleType => {
-        merged[ruleType] = [];
-    });
-
-    // Check if monitored users are properly configured
-    const monitoredUsers = getMonitoredUsers(automation);
-
-    if (monitoredUsers && monitoredUsers.length > 0) {
-        // Merge user scope rules only if monitored users are configured
-        if (automation.user_scope?.rules) {
-            mergeRuleGroup(merged, automation.user_scope.rules);
-        }
-    } else {
-        // Log warning and skip user-scope rules
-        console.warn('⚠️  No monitored users configured. Skipping user-scope rules (board_items, assignees that depend on users).');
-        console.warn('   To enable user-based rules, configure monitored_users in automation.user_scope');
-    }
-
-    // Merge repository scope rules (always included)
-    if (automation.repository_scope?.rules) {
-        mergeRuleGroup(merged, automation.repository_scope.rules);
-    }
-
-    return merged;
+  return merged;
 }
 
 /**
@@ -99,24 +101,24 @@ function mergeRuleScopes(automation) {
  * @returns {Array<string>|null} The monitored users array or null if not configured
  */
 function getMonitoredUsers(automation) {
-    if (!automation.user_scope?.monitored_users) {
-        return null;
-    }
-
-    const monitoredUsers = automation.user_scope.monitored_users;
-
-    // If it's an array of strings, use it directly
-    if (Array.isArray(monitoredUsers) && monitoredUsers.every(user => typeof user === 'string')) {
-        return monitoredUsers;
-    }
-
-    // Legacy support for single user object format (with warning)
-    if (typeof monitoredUsers === 'object' && monitoredUsers.type === 'static') {
-        console.warn('⚠️  Legacy monitored_user object format detected. Consider using monitored_users array format.');
-        return [monitoredUsers.name];
-    }
-
+  if (!automation.user_scope?.monitored_users) {
     return null;
+  }
+
+  const monitoredUsers = automation.user_scope.monitored_users;
+
+  // If it's an array of strings, use it directly
+  if (Array.isArray(monitoredUsers) && monitoredUsers.every((user) => typeof user === 'string')) {
+    return monitoredUsers;
+  }
+
+  // Legacy support for single user object format (with warning)
+  if (typeof monitoredUsers === 'object' && monitoredUsers.type === 'static') {
+    console.warn('⚠️  Legacy monitored_user object format detected. Consider using monitored_users array format.');
+    return [monitoredUsers.name];
+  }
+
+  return null;
 }
 
 /**
@@ -125,11 +127,11 @@ function getMonitoredUsers(automation) {
  * @param {object} ruleGroup The rule group to merge
  */
 function mergeRuleGroup(merged, ruleGroup) {
-    Object.keys(ruleGroup).forEach(ruleType => {
-        if (Array.isArray(ruleGroup[ ruleType ])) {
-            merged[ ruleType ].push(...ruleGroup[ ruleType ]);
-        }
-    });
+  Object.keys(ruleGroup).forEach((ruleType) => {
+    if (Array.isArray(ruleGroup[ruleType])) {
+      merged[ruleType].push(...ruleGroup[ruleType]);
+    }
+  });
 }
 
 export { loadBoardRules };
@@ -144,34 +146,34 @@ export { loadBoardRules };
  * @returns {string}
  */
 function resolveConfigPath() {
-    // 1) Explicit env override
-    const fromEnv = process.env.CONFIG_FILE;
-    if (fromEnv) {
-        const absoluteEnvPath = path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
-        if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
-    }
+  // 1) Explicit env override
+  const fromEnv = process.env.CONFIG_FILE;
+  if (fromEnv) {
+    const absoluteEnvPath = path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
+    if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
+  }
 
-    // 2) CWD/rules.yml or shared/rules.yml
-    const rootConfig = path.join(process.cwd(), 'rules.yml');
-    if (fs.existsSync(rootConfig)) return rootConfig;
-    const sharedConfig = path.join(process.cwd(), 'shared/rules.yml');
-    if (fs.existsSync(sharedConfig)) return sharedConfig;
+  // 2) CWD/rules.yml or shared/rules.yml
+  const rootConfig = path.join(process.cwd(), 'rules.yml');
+  if (fs.existsSync(rootConfig)) return rootConfig;
+  const sharedConfig = path.join(process.cwd(), 'shared/rules.yml');
+  if (fs.existsSync(sharedConfig)) return sharedConfig;
 
-    // 3) Walk up to find repo-level rules.yml or shared/rules.yml
-    const DIRECTORY_TRAVERSAL_LIMIT = 8;
-    let current = process.cwd();
-    for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
-        const candidate = path.join(current, 'rules.yml');
-        if (fs.existsSync(candidate)) return candidate;
-        const sharedCandidate = path.join(current, 'shared/rules.yml');
-        if (fs.existsSync(sharedCandidate)) return sharedCandidate;
+  // 3) Walk up to find repo-level rules.yml or shared/rules.yml
+  const DIRECTORY_TRAVERSAL_LIMIT = 8;
+  let current = process.cwd();
+  for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
+    const candidate = path.join(current, 'rules.yml');
+    if (fs.existsSync(candidate)) return candidate;
+    const sharedCandidate = path.join(current, 'shared/rules.yml');
+    if (fs.existsSync(sharedCandidate)) return sharedCandidate;
 
-        const parent = path.dirname(current);
-        if (parent === current) break;
-        current = parent;
-    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
 
-    // 4) Legacy package-local config (last resort during migration)
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    return path.join(__dirname, '../../rules.yml');
+  // 4) Legacy package-local config (last resort during migration)
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  return path.join(__dirname, '../../rules.yml');
 }

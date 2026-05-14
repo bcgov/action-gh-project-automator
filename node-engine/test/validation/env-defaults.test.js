@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
 import { loadBoardRules } from '../../src/config/board-rules.js';
 
-
 // Store original env
 const originalEnv = { ...process.env };
 
@@ -76,7 +75,10 @@ test('environment validation with defaults', async (t) => {
       assert(true, 'Should not throw with old environment setup');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to setup
-      assert(!error.message.includes('Missing required environment variables'), 'Should not fail due to missing variables');
+      assert(
+        !error.message.includes('Missing required environment variables'),
+        'Should not fail due to missing variables',
+      );
     }
   });
 });

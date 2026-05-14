@@ -17,7 +17,10 @@ import { auditLog } from '../utils/audit-logger.js';
  */
 const VERIFY_DELAY_MS = 5000; // 5 second delay for eventual consistency
 
-async function processAddItems({ org, repos, monitoredUser, projectId, windowHours, seedItems = [], allowedOrgs = [], since = undefined }, overrides = {}) {
+async function processAddItems(
+  { org, repos, monitoredUser, projectId, windowHours, seedItems = [], allowedOrgs = [], since = undefined },
+  overrides = {},
+) {
   const {
     getRecentItemsFn = getRecentItems,
     processBoardItemRulesFn = processBoardItemRules,
@@ -25,40 +28,49 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
     addItemToProjectFn = addItemToProject,
     analyzeBoardItemFn = analyzeBoardItem,
     logger = log,
-    delayFn = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+    delayFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   } = overrides;
 
   logger.info(`Starting item processing for user ${monitoredUser}`);
 
   // Get recent items from API
-  const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, { 
+  const apiItems = await getRecentItemsFn(org, repos, monitoredUser, windowHours, {
     allowedOrgs,
-    since 
+    since,
   });
 
   // Combine seed items from event with API results
   const items = [...seedItems, ...apiItems];
   // Deduplicate by item ID
   const seen = new Set();
-  const uniqueItems = items.filter(item => {
+  const uniqueItems = items.filter((item) => {
     if (!item?.id || seen.has(item.id)) return false;
     seen.add(item.id);
     return true;
   });
 
-  logger.info(`Processing ${uniqueItems.length} total items (${seedItems.length} from event + ${apiItems.length} from API)\n`, true);
+  logger.info(
+    `Processing ${uniqueItems.length} total items (${seedItems.length} from event + ${apiItems.length} from API)\n`,
+    true,
+  );
 
   const addedItems = [];
   const skippedItems = [];
-  const monitoredRepos = new Set(repos.map(repo => repo.includes('/') ? repo : `${org}/${repo}`));
-  logger.info(`📋 Monitoring repositories:\n${[ ...monitoredRepos ].map(r => `  • ${r}`).join('\n')}\n`, true);
+  const monitoredRepos = new Set(repos.map((repo) => (repo.includes('/') ? repo : `${org}/${repo}`)));
+  logger.info(`📋 Monitoring repositories:\n${[...monitoredRepos].map((r) => `  • ${r}`).join('\n')}\n`, true);
 
   for (const item of uniqueItems) {
     try {
       logger.incrementCounter('board.items.total');
       // Guard against incomplete items returned from search
       // Ensure all required fields from rules.yml conditions are present
-      if (!item || !item.__typename || !item.repository || !item.repository.nameWithOwner || typeof item.number !== 'number') {
+      if (
+        !item ||
+        !item.__typename ||
+        !item.repository ||
+        !item.repository.nameWithOwner ||
+        typeof item.number !== 'number'
+      ) {
         const missingFields = [];
         if (!item) {
           missingFields.push('item');
@@ -77,13 +89,13 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       logger.info(`\n🔍 Processing: ${itemIdentifier}`, true);
       logger.info(`  ├─ Author: ${item.author?.login || 'unknown'}`, true);
       logger.info(`  ├─ Repository: ${item.repository.nameWithOwner}`, true);
-      logger.info(`  └─ Assignees: ${item.assignees?.nodes?.map(a => a.login).join(', ') || 'none'}\n`, true);
+      logger.info(`  └─ Assignees: ${item.assignees?.nodes?.map((a) => a.login).join(', ') || 'none'}\n`, true);
 
       const analysis = await analyzeBoardItemFn(item, {
         monitoredUser,
         monitoredRepos,
         processBoardItemRulesFn,
-        logger
+        logger,
       });
 
       logger.info('  Checking conditions:', true);
@@ -102,7 +114,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
           repo: item.repository.nameWithOwner,
           reason: analysis.reason,
           isAssignedToUser: analysis.isAssignedToUser,
-          isMonitoredRepo: analysis.isMonitoredRepo
+          isMonitoredRepo: analysis.isMonitoredRepo,
         });
         logger.info(`  ⨯ Action Required: Skip - ${analysis.reason}\n`, true);
         continue;
@@ -147,20 +159,19 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       addedItems.push({
         type: item.__typename,
-        __typename: item.__typename,  // Preserve the typename for columns.js
+        __typename: item.__typename, // Preserve the typename for columns.js
         number: item.number,
         repo: item.repository.nameWithOwner,
         repository: item.repository,
         reason: analysis.reason,
         id: item.id,
         projectItemId: projectItemId,
-        author: item.author,  // Pass author info for assignee rules
+        author: item.author, // Pass author info for assignee rules
         isAssignedToUser: analysis.isAssignedToUser,
-        isMonitoredRepo: analysis.isMonitoredRepo
+        isMonitoredRepo: analysis.isMonitoredRepo,
       });
 
       logger.info('  ✓ Successfully processed board actions\n', true);
-
     } catch (error) {
       const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
       logger.error(`Failed to process ${itemIdentifier}: ${error.message}`);
@@ -176,11 +187,13 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Critical errors that should stop processing
       // Check both error codes and messages for reliability
-      const isAuthError = errorMessage.includes('Bad credentials') ||
+      const isAuthError =
+        errorMessage.includes('Bad credentials') ||
         errorMessage.includes('Not authenticated') ||
         errorMessage.includes('required scopes');
-      const isRateLimitError = errorMessage.includes('rate limit') ||
-        errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate');
+      const isRateLimitError =
+        errorMessage.includes('rate limit') ||
+        (errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate'));
 
       if (isAuthError || isRateLimitError) {
         const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
@@ -190,14 +203,17 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
       // Network/timeout errors - log but continue
       // Prefer error codes for network errors, fallback to message matching
-      const networkErrorCodes = [ 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED' ];
-      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
+      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
+      const isNetworkError =
+        (errorCode && networkErrorCodes.includes(errorCode)) ||
         errorMessage.includes('timeout') ||
         errorMessage.includes('ECONNRESET') ||
         errorMessage.includes('ENOTFOUND');
 
       if (isNetworkError) {
-        logger.warning(`Network error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
+        logger.warning(
+          `Network error processing ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`,
+        );
         continue;
       }
 
@@ -214,7 +230,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   if (addedItems.length > 0) {
     logger.info('\n✓ Items Added/Updated:', true);
-    addedItems.forEach(item => {
+    addedItems.forEach((item) => {
       logger.info(`  • ${item.type} #${item.number} [${item.repo}]`, true);
       logger.info(`    └─ ${item.reason}`, true);
     });
@@ -222,7 +238,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   if (skippedItems.length > 0) {
     logger.info('\nℹ Items Skipped:', true);
-    skippedItems.forEach(item => {
+    skippedItems.forEach((item) => {
       logger.info(`  • ${item.type} #${item.number} [${item.repo}]`, true);
       logger.info(`    └─ ${item.reason}`, true);
     });
@@ -270,7 +286,7 @@ async function processItemForProject(item, projectId, context) {
   return {
     added: true,
     projectItemId: newProjectItemId,
-    reason: `Added as ${item.__typename} from ${item.repository.nameWithOwner}`
+    reason: `Added as ${item.__typename} from ${item.repository.nameWithOwner}`,
   };
 }
 
@@ -293,7 +309,7 @@ function shouldAddItemToProject(item, monitoredUser, monitoredRepos) {
   }
 
   // Check if assigned to monitored user (applies to both Issues and PRs)
-  const isAssignee = item.assignees.nodes.some(a => a.login === monitoredUser);
+  const isAssignee = item.assignees.nodes.some((a) => a.login === monitoredUser);
   if (isAssignee) {
     log.debug(`${item.__typename} #${item.number} is assigned to ${monitoredUser}`);
     return true;

@@ -4,7 +4,6 @@ import { ValidationRunner } from '../../src/utils/validation-runner.js';
 import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
 
 describe('ValidationRunner', () => {
-
   const originalEnv = { ...process.env };
 
   beforeEach((t) => {
@@ -12,9 +11,9 @@ describe('ValidationRunner', () => {
       ...originalEnv,
       GITHUB_TOKEN: 'test-token',
       PROJECT_ID: 'test-project-id',
-      GITHUB_AUTHOR: 'test-user'
+      GITHUB_AUTHOR: 'test-user',
     };
-    
+
     // Mock environment validation to prevent real network calls
     t.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve('test-user'));
     t.mock.method(EnvironmentValidator, 'resolveProjectFromUrl', () => Promise.resolve('test-project-id'));
@@ -52,4 +51,3 @@ describe('ValidationRunner', () => {
     assert.equal(result.success, true, `Should pass with consistent project ID. Error: ${result.error}`);
   });
 });
-

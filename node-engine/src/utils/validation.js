@@ -23,7 +23,7 @@ class ValidationError extends Error {
       msg += `\nValidation Path: ${this.validationPath.join('.')}`;
     }
     if (this.recoverySteps.length > 0) {
-      msg += '\nRecovery Steps:\n' + this.recoverySteps.map(step => `- ${step}`).join('\n');
+      msg += '\nRecovery Steps:\n' + this.recoverySteps.map((step) => `- ${step}`).join('\n');
     }
     return msg;
   }
@@ -40,10 +40,12 @@ function validateType(value, type, name, context = {}) {
 
   const actualType = Array.isArray(value) ? 'array' : typeof value;
   if (actualType !== type) {
-    throw new ValidationError(
-      `Invalid type for ${name}: expected ${type}, got ${actualType}`,
-      { ...context, field: name, expectedType: type, actualType }
-    );
+    throw new ValidationError(`Invalid type for ${name}: expected ${type}, got ${actualType}`, {
+      ...context,
+      field: name,
+      expectedType: type,
+      actualType,
+    });
   }
 }
 
@@ -51,20 +53,17 @@ function validateEnum(value, allowedValues, name, context = {}) {
   if (value === undefined || value === null) return;
 
   if (!allowedValues.includes(value)) {
-    throw new ValidationError(
-      `Invalid value for ${name}: "${value}". Must be one of: ${allowedValues.join(', ')}`,
-      {
-        ...context,
-        field: name,
-        allowedValues,
-        actualValue: value,
-        recoverySteps: [
-          `Check if "${value}" is a typo`,
-          `Verify that ${name} is using an up-to-date value from the allowed list`,
-          `Update configurations if the value should be added to allowed values`
-        ]
-      }
-    );
+    throw new ValidationError(`Invalid value for ${name}: "${value}". Must be one of: ${allowedValues.join(', ')}`, {
+      ...context,
+      field: name,
+      allowedValues,
+      actualValue: value,
+      recoverySteps: [
+        `Check if "${value}" is a typo`,
+        `Verify that ${name} is using an up-to-date value from the allowed list`,
+        `Update configurations if the value should be added to allowed values`,
+      ],
+    });
   }
 }
 
@@ -74,20 +73,15 @@ function validateState(state, rules, context = {}) {
     if (state.column) {
       validateEnum(
         state.column,
-        rules.columns.map(r => r.name),
+        rules.columns.map((r) => r.name),
         'column',
-        context
+        context,
       );
     }
 
     // Validate sprint values
     if (state.sprint) {
-      validateEnum(
-        state.sprint,
-        ['None', 'current', ...rules.sprints.map(r => r.name)],
-        'sprint',
-        context
-      );
+      validateEnum(state.sprint, ['None', 'current', ...rules.sprints.map((r) => r.name)], 'sprint', context);
     }
 
     // Validate assignees with enhanced error context
@@ -96,17 +90,14 @@ function validateState(state, rules, context = {}) {
         ...context,
         recoverySteps: [
           'Ensure assignees is provided as an array of usernames',
-          'Convert single assignee string to array if needed'
-        ]
+          'Convert single assignee string to array if needed',
+        ],
       });
 
       state.assignees.forEach((assignee, index) => {
         validateType(assignee, 'string', `assignees[${index}]`, {
           ...context,
-          recoverySteps: [
-            'Verify assignee username is a string',
-            'Check if username exists in the organization'
-          ]
+          recoverySteps: ['Verify assignee username is a string', 'Check if username exists in the organization'],
         });
       });
     }
@@ -124,7 +115,7 @@ function validateRules(rules) {
 
   // Validate required rule sections
   const requiredSections = ['board_items', 'columns', 'sprints', 'linked_issues', 'assignees'];
-  requiredSections.forEach(section => {
+  requiredSections.forEach((section) => {
     validateRequired(rules[section], `rules.${section}`);
     validateType(rules[section], 'array', `rules.${section}`);
   });

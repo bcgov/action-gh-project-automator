@@ -16,7 +16,7 @@ class EnvironmentValidator {
   static validateRequired() {
     const required = {
       GITHUB_TOKEN: 'GitHub personal access token with repo and project permissions',
-      GITHUB_AUTHOR: 'GitHub username to monitor (e.g., DerekRoberts)'
+      GITHUB_AUTHOR: 'GitHub username to monitor (e.g., DerekRoberts)',
     };
 
     const missing = [];
@@ -29,11 +29,11 @@ class EnvironmentValidator {
     if (missing.length > 0) {
       throw new Error(
         `Missing required environment variables:\n` +
-        `${missing.map(m => `  - ${m}`).join('\n')}\n\n` +
-        `Please set them with:\n` +
-        `export GITHUB_TOKEN=your_personal_access_token\n` +
-        `export GITHUB_AUTHOR=your_github_username\n\n` +
-        `For GitHub token setup, visit: https://github.com/settings/tokens`
+          `${missing.map((m) => `  - ${m}`).join('\n')}\n\n` +
+          `Please set them with:\n` +
+          `export GITHUB_TOKEN=your_personal_access_token\n` +
+          `export GITHUB_AUTHOR=your_github_username\n\n` +
+          `For GitHub token setup, visit: https://github.com/settings/tokens`,
       );
     }
   }
@@ -50,18 +50,22 @@ class EnvironmentValidator {
 
       log.info('Testing GitHub token with viewer query...');
 
-      const result = await graphql(`
-        query {
-          viewer {
-            login
-            repositories(first: 1) {
-              nodes {
-                name
+      const result = await graphql(
+        `
+          query {
+            viewer {
+              login
+              repositories(first: 1) {
+                nodes {
+                  name
+                }
               }
             }
           }
-        }
-      `, {}, RatePriority.CRITICAL);
+        `,
+        {},
+        RatePriority.CRITICAL,
+      );
 
       if (!result.viewer?.login) {
         throw new Error('Token validation failed: Could not retrieve user information');
@@ -69,7 +73,6 @@ class EnvironmentValidator {
 
       log.info(`✓ GitHub token validated for user: ${result.viewer.login}`);
       return result.viewer.login;
-
     } catch (error) {
       log.error(`GitHub token validation error: ${error.message}`);
       log.error(`Error stack: ${error.stack}`);
@@ -77,21 +80,20 @@ class EnvironmentValidator {
       if (error.message.includes('Bad credentials')) {
         throw new Error(
           `GitHub token validation failed: Invalid or expired token\n` +
-          `Please check your GITHUB_TOKEN is valid and not expired.\n` +
-          `Generate a new token at: https://github.com/settings/tokens`
+            `Please check your GITHUB_TOKEN is valid and not expired.\n` +
+            `Generate a new token at: https://github.com/settings/tokens`,
         );
       } else if (error.message.includes('rate limit')) {
         throw new Error(
-          `GitHub rate limit exceeded during token validation.\n` +
-          `Please wait a few minutes and try again.`
+          `GitHub rate limit exceeded during token validation.\n` + `Please wait a few minutes and try again.`,
         );
       } else {
         throw new Error(
           `GitHub token validation failed: ${error.message}\n` +
-          `Please ensure your token has the following permissions:\n` +
-          `  - repo (for repository access)\n` +
-          `  - project (for project board access)\n` +
-          `  - read:org (for organization access)`
+            `Please ensure your token has the following permissions:\n` +
+            `  - repo (for repository access)\n` +
+            `  - project (for project board access)\n` +
+            `  - read:org (for organization access)`,
         );
       }
     }
@@ -117,19 +119,25 @@ class EnvironmentValidator {
 
       log.info(`Resolving project ID from URL: ${org}/projects/${projectNumber}`);
 
-      const result = await graphql(`
-        query($org: String!, $number: Int!) {
-          organization(login: $org) {
-            projectV2(number: $number) {
-              id
-              title
+      const result = await graphql(
+        `
+          query ($org: String!, $number: Int!) {
+            organization(login: $org) {
+              projectV2(number: $number) {
+                id
+                title
+              }
             }
           }
-        }
-      `, { org, number: parseInt(projectNumber) }, RatePriority.CRITICAL);
+        `,
+        { org, number: parseInt(projectNumber) },
+        RatePriority.CRITICAL,
+      );
 
       if (!result.organization?.projectV2?.id) {
-        throw new Error(`Project not found: ${org}/projects/${projectNumber}. Check the URL and ensure you have access to this project.`);
+        throw new Error(
+          `Project not found: ${org}/projects/${projectNumber}. Check the URL and ensure you have access to this project.`,
+        );
       }
 
       const projectId = result.organization.projectV2.id;
@@ -137,7 +145,6 @@ class EnvironmentValidator {
 
       log.info(`✓ Resolved project: "${projectTitle}" (${projectId})`);
       return projectId;
-
     } catch (error) {
       log.error(`Project resolution error: ${error.message}`);
       log.error(`Error stack: ${error.stack}`);
@@ -149,7 +156,7 @@ class EnvironmentValidator {
       } else {
         throw new Error(
           `Failed to resolve project from URL: ${error.message}\n` +
-          `Please check the URL is correct and you have access to the project.`
+            `Please check the URL is correct and you have access to the project.`,
         );
       }
     }
@@ -165,9 +172,11 @@ class EnvironmentValidator {
       rules = loadBoardRules();
     } catch (err) {
       throw new Error(
-        'Failed to load board rules: ' + err.message + '\n' +
-        'PROJECT_ID not provided and no project.id found in configuration. ' +
-        'Set PROJECT_ID or add project.id/project.url to config.'
+        'Failed to load board rules: ' +
+          err.message +
+          '\n' +
+          'PROJECT_ID not provided and no project.id found in configuration. ' +
+          'Set PROJECT_ID or add project.id/project.url to config.',
       );
     }
 
@@ -194,11 +203,11 @@ class EnvironmentValidator {
     if (!projectId) {
       throw new Error(
         'No project specified. Please provide one of:\n' +
-        '  - PROJECT_URL environment variable (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
-        '  - PROJECT_ID environment variable (e.g., PVT_kwDOAA37OM4AFuzg)\n' +
-        '  - project.url in rules.yml (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
-        '  - project.id in rules.yml (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
-        'For GitHub project URLs, the system will automatically resolve the project ID.'
+          '  - PROJECT_URL environment variable (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
+          '  - PROJECT_ID environment variable (e.g., PVT_kwDOAA37OM4AFuzg)\n' +
+          '  - project.url in rules.yml (e.g., https://github.com/orgs/bcgov/projects/16)\n' +
+          '  - project.id in rules.yml (e.g., PVT_kwDOAA37OM4AFuzg)\n\n' +
+          'For GitHub project URLs, the system will automatically resolve the project ID.',
       );
     }
 
@@ -209,7 +218,7 @@ class EnvironmentValidator {
     return {
       projectId,
       verbose: process.env.VERBOSE === 'true',
-      strictMode: process.env.STRICT_MODE === 'true'
+      strictMode: process.env.STRICT_MODE === 'true',
     };
   }
 
@@ -256,7 +265,7 @@ class EnvironmentValidator {
     if (githubUser !== expectedUser) {
       log.warning(
         `GitHub token is for user "${githubUser}" but GITHUB_AUTHOR is "${expectedUser}". ` +
-        `This might be intentional if you're monitoring another user's activity.`
+          `This might be intentional if you're monitoring another user's activity.`,
       );
     }
 
@@ -264,7 +273,7 @@ class EnvironmentValidator {
       githubUser,
       projectId: config.projectId,
       verbose: config.verbose,
-      strictMode: config.strictMode
+      strictMode: config.strictMode,
     };
   }
 }

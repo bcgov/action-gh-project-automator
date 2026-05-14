@@ -20,11 +20,22 @@ function computeSprintWindow(startDateIso, durationDays) {
 
 async function getSprintFieldId(projectId) {
   if (sprintFieldIdCache.has(projectId)) return sprintFieldIdCache.get(projectId);
-  const res = await graphql(`
-    query($projectId: ID!) {
-      node(id: $projectId) { ... on ProjectV2 { field(name: "Sprint") { ... on ProjectV2IterationField { id } } } }
-    }
-  `, { projectId });
+  const res = await graphql(
+    `
+      query ($projectId: ID!) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            field(name: "Sprint") {
+              ... on ProjectV2IterationField {
+                id
+              }
+            }
+          }
+        }
+      }
+    `,
+    { projectId },
+  );
   const id = res?.node?.field?.id;
   if (id) sprintFieldIdCache.set(projectId, id);
   return id;
@@ -41,47 +52,49 @@ async function getSprintIterations(projectId) {
   }
 
   // Query both active and completed iterations
-  const result = await graphql(`
-    query($projectId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          field(name: "Sprint") {
-            ... on ProjectV2IterationField {
-              id
-              configuration {
-                iterations {
-                  id
-                  title
-                  duration
-                  startDate
-                }
-                completedIterations {
-                  id
-                  title
-                  duration
-                  startDate
+  const result = await graphql(
+    `
+      query ($projectId: ID!) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            field(name: "Sprint") {
+              ... on ProjectV2IterationField {
+                id
+                configuration {
+                  iterations {
+                    id
+                    title
+                    duration
+                    startDate
+                  }
+                  completedIterations {
+                    id
+                    title
+                    duration
+                    startDate
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-  `, { projectId });
+    `,
+    { projectId },
+  );
 
   // Combine active and completed iterations
   const activeIterations = result?.node?.field?.configuration?.iterations || [];
   const completedIterations = result?.node?.field?.configuration?.completedIterations || [];
-  const allIterations = [ ...activeIterations, ...completedIterations ];
+  const allIterations = [...activeIterations, ...completedIterations];
 
   sprintIterationsCache.set(projectId, allIterations);
   return allIterations;
 }
 
-
 // Columns eligible for sprint assignment
-const ELIGIBLE_COLUMNS = [ 'Next', 'Active', 'Done', 'Waiting' ];
-const INACTIVE_COLUMNS = [ 'New', 'Parked', 'Backlog' ];
+const ELIGIBLE_COLUMNS = ['Next', 'Active', 'Done', 'Waiting'];
+const INACTIVE_COLUMNS = ['New', 'Parked', 'Backlog'];
 
 /**
  * Get current sprint information for a project item
@@ -95,31 +108,41 @@ async function getItemSprint(projectId, itemId) {
 
   let cursor = null;
   while (true) {
-    const result = await graphql(`
-      query($itemId: ID!, $cursor: String) {
-        item: node(id: $itemId) {
-          ... on ProjectV2Item {
-            fieldValues(first: 50, after: $cursor) {
-              nodes {
-                ... on ProjectV2ItemFieldIterationValue {
-                  iterationId
-                  title
-                  field { ... on ProjectV2IterationField { id } }
+    const result = await graphql(
+      `
+        query ($itemId: ID!, $cursor: String) {
+          item: node(id: $itemId) {
+            ... on ProjectV2Item {
+              fieldValues(first: 50, after: $cursor) {
+                nodes {
+                  ... on ProjectV2ItemFieldIterationValue {
+                    iterationId
+                    title
+                    field {
+                      ... on ProjectV2IterationField {
+                        id
+                      }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
                 }
               }
-              pageInfo { hasNextPage endCursor }
             }
           }
         }
-      }
-    `, { itemId, cursor });
+      `,
+      { itemId, cursor },
+    );
 
     const fieldValues = result.item?.fieldValues?.nodes || [];
-    const sprintValue = fieldValues.find(v => v?.field?.id === sprintFieldId);
+    const sprintValue = fieldValues.find((v) => v?.field?.id === sprintFieldId);
     if (sprintValue) {
       return {
         sprintId: sprintValue.iterationId || null,
-        sprintTitle: sprintValue.title || null
+        sprintTitle: sprintValue.title || null,
       };
     }
 
@@ -154,11 +177,13 @@ async function getCurrentSprint(projectId) {
   const iterations = await getSprintIterations(projectId);
   log.info(`  • Found ${iterations.length} sprints`);
 
-  const currentSprint = iterations.find(sprint => {
+  const currentSprint = iterations.find((sprint) => {
     const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
     const now = new Date();
     const isCurrentSprint = now >= start && now < end;
-    log.debug(`  • Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isCurrentSprint ? 'CURRENT' : 'not current'}`);
+    log.debug(
+      `  • Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isCurrentSprint ? 'CURRENT' : 'not current'}`,
+    );
     return isCurrentSprint;
   });
 
@@ -174,7 +199,7 @@ async function getCurrentSprint(projectId) {
   currentSprintCache.set(projectId, {
     sprintId: result.sprintId,
     title: result.title,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return result;
@@ -196,7 +221,9 @@ async function findSprintForDate(projectId, isoDate) {
   for (const sprint of iterations) {
     const { start, end } = computeSprintWindow(sprint.startDate, sprint.duration);
     const isInRange = when >= start && when < end;
-    log.debug(`  Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isInRange ? 'MATCH' : 'no match'}`);
+    log.debug(
+      `  Sprint "${sprint.title}": ${start.toISOString()} to ${end.toISOString()} - ${isInRange ? 'MATCH' : 'no match'}`,
+    );
     if (isInRange) {
       log.debug(`  ✅ Found matching sprint: ${sprint.title} (${sprint.id})`);
       return { id: sprint.id, title: sprint.title };
@@ -230,19 +257,27 @@ function getCompletionDateFromContent(content) {
  * @returns {Promise<string|null>} ISO timestamp or null
  */
 async function getItemCompletionDate(projectItemId) {
-  const result = await graphql(`
-    query($itemId: ID!) {
-      node(id: $itemId) {
-        ... on ProjectV2Item {
-          content {
-            __typename
-            ... on Issue { closedAt }
-            ... on PullRequest { closedAt mergedAt }
+  const result = await graphql(
+    `
+      query ($itemId: ID!) {
+        node(id: $itemId) {
+          ... on ProjectV2Item {
+            content {
+              __typename
+              ... on Issue {
+                closedAt
+              }
+              ... on PullRequest {
+                closedAt
+                mergedAt
+              }
+            }
           }
         }
       }
-    }
-  `, { itemId: projectItemId });
+    `,
+    { itemId: projectItemId },
+  );
   const content = result?.node?.content;
   return getCompletionDateFromContent(content);
 }
@@ -259,13 +294,15 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
     graphqlClient = graphql,
     dryRun = false,
-    logger = log
+    logger = log,
   } = options;
 
   if (!Array.isArray(updates) || updates.length === 0) return 0;
   const fieldId = await getSprintFieldIdFn(projectId);
   if (!fieldId) {
-    logger.warning(`Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`);
+    logger.warning(
+      `Sprint field not found for project ${projectId}. Aborting sprint batch update of ${updates.length} items.`,
+    );
     return 0;
   }
 
@@ -283,18 +320,18 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
       const vName = `input${idx}`;
       varDecls.push(`$${vName}: UpdateProjectV2ItemFieldValueInput!`);
       parts.push(`m${idx}: updateProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
-      variables[ vName ] = {
+      variables[vName] = {
         projectId,
         itemId: u.projectItemId,
         fieldId,
-        value: { iterationId: u.iterationId }
+        value: { iterationId: u.iterationId },
       };
     });
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     const res = await graphqlClient(mutation, variables);
     // Each alias key (m0, m1, ...) maps to a mutation result
-    Object.keys(res || {}).forEach(mutationKey => {
-      if (res[ mutationKey ]?.projectV2Item?.id) success += 1;
+    Object.keys(res || {}).forEach((mutationKey) => {
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
     });
   }
   return success;
@@ -314,17 +351,15 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
  * @internal
  */
 async function assignItemToSprint(projectId, projectItemId, iterationId, overrides = {}) {
-  const {
-    getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
-    graphqlClient = graphql
-  } = overrides;
+  const { getSprintFieldId: getSprintFieldIdFn = getSprintFieldId, graphqlClient = graphql } = overrides;
 
   const sprintFieldId = await getSprintFieldIdFn(projectId);
   if (!sprintFieldId) {
     throw new Error(`Sprint field not found for project ${projectId}`);
   }
 
-  await graphqlClient(`
+  await graphqlClient(
+    `
     mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
       updateProjectV2ItemFieldValue(input: {
         projectId: $projectId
@@ -335,7 +370,9 @@ async function assignItemToSprint(projectId, projectItemId, iterationId, overrid
         projectV2Item { id }
       }
     }
-  `, { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId });
+  `,
+    { projectId, itemId: projectItemId, fieldId: sprintFieldId, iterationId },
+  );
 
   return iterationId;
 }
@@ -361,18 +398,20 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
     getCurrentSprint: getCurrentSprintFn = getCurrentSprint,
     getSprintIterations: getSprintIterationsFn = getSprintIterations,
     getItemCompletionDate: getItemCompletionDateFn = getItemCompletionDate,
-    findSprintForDate: findSprintForDateFn = findSprintForDate
+    findSprintForDate: findSprintForDateFn = findSprintForDate,
   } = overrides;
 
-  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } =
-    await getItemSprintFn(projectId, projectItemId);
+  const { sprintId: currentSprintId, sprintTitle: currentSprintTitle } = await getItemSprintFn(
+    projectId,
+    projectItemId,
+  );
 
   if (!ELIGIBLE_COLUMNS.includes(currentColumn) && !INACTIVE_COLUMNS.includes(currentColumn)) {
     return {
       action: 'skip',
       reason: `Column ${currentColumn} not eligible for sprint changes`,
       currentSprintId,
-      currentSprintTitle
+      currentSprintTitle,
     };
   }
 
@@ -384,7 +423,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           action: 'skip',
           reason: 'Done item has no closed/merged date; refusing to default to current sprint',
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       }
 
@@ -395,7 +434,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
             action: 'skip',
             reason: 'Historical sprint already set',
             currentSprintId,
-            currentSprintTitle
+            currentSprintTitle,
           };
         }
 
@@ -405,16 +444,14 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           targetIterationId: target.id,
           targetSprintTitle: target.title,
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       }
 
       const iterations = await getSprintIterationsFn(projectId);
       const completionDate = new Date(completedAt);
-      const sortedIterations = [ ...iterations ].sort(
-        (a, b) => new Date(a.startDate) - new Date(b.startDate)
-      );
-      const nextSprint = sortedIterations.find(sprint => {
+      const sortedIterations = [...iterations].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      const nextSprint = sortedIterations.find((sprint) => {
         const sprintStart = new Date(sprint.startDate);
         return sprintStart > completionDate;
       });
@@ -425,7 +462,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
             action: 'skip',
             reason: 'Historical sprint already set',
             currentSprintId,
-            currentSprintTitle
+            currentSprintTitle,
           };
         }
 
@@ -435,7 +472,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           targetIterationId: nextSprint.id,
           targetSprintTitle: nextSprint.title,
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       }
 
@@ -447,7 +484,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
             action: 'skip',
             reason: 'No historical sprint found; already in current sprint',
             currentSprintId,
-            currentSprintTitle
+            currentSprintTitle,
           };
         }
 
@@ -457,7 +494,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           targetIterationId: fallbackSprintId,
           targetSprintTitle: fallbackSprintTitle,
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       } catch (error) {
         const message = error?.message || '';
@@ -470,7 +507,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
             action: 'skip',
             reason: 'No historical sprint found and no active sprint configured',
             currentSprintId,
-            currentSprintTitle
+            currentSprintTitle,
           };
         }
         throw error;
@@ -484,7 +521,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           action: 'skip',
           reason: 'Already in active sprint',
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       }
 
@@ -494,7 +531,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
         targetIterationId: activeSprintId,
         targetSprintTitle: activeSprintTitle,
         currentSprintId,
-        currentSprintTitle
+        currentSprintTitle,
       };
     } catch (error) {
       const message = error?.message || '';
@@ -507,7 +544,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
           action: 'skip',
           reason: 'No active sprint or Sprint field not configured',
           currentSprintId,
-          currentSprintTitle
+          currentSprintTitle,
         };
       }
 
@@ -521,7 +558,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
       action: 'skip',
       reason: 'No sprint assigned',
       currentSprintId,
-      currentSprintTitle
+      currentSprintTitle,
     };
   }
 
@@ -529,7 +566,7 @@ async function determineSprintAction({ projectId, projectItemId, currentColumn }
     action: 'remove',
     reason: `Removed sprint from inactive column (${currentColumn})`,
     currentSprintId,
-    currentSprintTitle
+    currentSprintTitle,
   };
 }
 
@@ -552,7 +589,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
     log.info(`  • Skip: ${decision.reason}`);
     return {
       changed: false,
-      reason: decision.reason
+      reason: decision.reason,
     };
   }
 
@@ -563,7 +600,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       changed: true,
       newSprint: decision.targetSprintTitle || decision.targetIterationId,
       previousSprint: decision.currentSprintTitle || 'None',
-      reason: decision.reason
+      reason: decision.reason,
     };
   } catch (error) {
     const message = error?.message || '';
@@ -575,7 +612,7 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
       log.info('  • Skip: No active sprint or Sprint field not configured');
       return {
         changed: false,
-        reason: 'No active sprint or Sprint field not configured'
+        reason: 'No active sprint or Sprint field not configured',
       };
     }
 
@@ -601,17 +638,18 @@ async function removeItemSprint(projectId, projectItemId) {
 
     // Clear sprint field using GitHub's dedicated clear mutation
     // This is the correct way to clear iteration field values per GitHub GraphQL API
-    await graphql(`
-      mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
-        clearProjectV2ItemFieldValue(input: {
-          projectId: $projectId
-          itemId: $itemId
-          fieldId: $fieldId
-        }) {
-          projectV2Item { id }
+    await graphql(
+      `
+        mutation ($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+          clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId }) {
+            projectV2Item {
+              id
+            }
+          }
         }
-      }
-    `, { projectId, itemId: projectItemId, fieldId: sprintFieldId });
+      `,
+      { projectId, itemId: projectItemId, fieldId: sprintFieldId },
+    );
 
     return true;
   } catch (error) {
@@ -639,7 +677,7 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
     log.info(`  • Skip: ${decision.reason}`);
     return {
       changed: false,
-      reason: decision.reason
+      reason: decision.reason,
     };
   }
 
@@ -651,7 +689,7 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
       changed: true,
       previousSprint: decision.currentSprintTitle || 'Active Sprint',
       newSprint: 'None',
-      reason: decision.reason
+      reason: decision.reason,
     };
   } catch (error) {
     const message = error?.message || '';
@@ -663,7 +701,7 @@ async function processSprintRemoval(item, projectItemId, projectId, currentColum
       log.info('  • Skip: Sprint field not configured');
       return {
         changed: false,
-        reason: 'Sprint field not configured'
+        reason: 'Sprint field not configured',
       };
     }
 
@@ -685,13 +723,15 @@ async function clearItemSprintsBatch(projectId, removals, batchSize = 20, option
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
     graphqlClient = graphql,
     dryRun = false,
-    logger = log
+    logger = log,
   } = options;
 
   if (!Array.isArray(removals) || removals.length === 0) return 0;
   const fieldId = await getSprintFieldIdFn(projectId);
   if (!fieldId) {
-    logger.warning(`Sprint field not found for project ${projectId}. Aborting sprint clear batch of ${removals.length} items.`);
+    logger.warning(
+      `Sprint field not found for project ${projectId}. Aborting sprint clear batch of ${removals.length} items.`,
+    );
     return 0;
   }
 
@@ -711,17 +751,17 @@ async function clearItemSprintsBatch(projectId, removals, batchSize = 20, option
       const vName = `input${idx}`;
       varDecls.push(`$${vName}: ClearProjectV2ItemFieldValueInput!`);
       parts.push(`m${idx}: clearProjectV2ItemFieldValue(input: $${vName}) { projectV2Item { id } }`);
-      variables[ vName ] = {
+      variables[vName] = {
         projectId,
         itemId: removal.projectItemId,
-        fieldId
+        fieldId,
       };
     });
 
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
     const res = await graphqlClient(mutation, variables);
-    Object.keys(res || {}).forEach(mutationKey => {
-      if (res[ mutationKey ]?.projectV2Item?.id) success += 1;
+    Object.keys(res || {}).forEach((mutationKey) => {
+      if (res[mutationKey]?.projectV2Item?.id) success += 1;
     });
   }
 
@@ -739,5 +779,5 @@ export {
   getSprintFieldId,
   getSprintIterations,
   findSprintForDate,
-  removeItemSprint
+  removeItemSprint,
 };

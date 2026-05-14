@@ -22,7 +22,7 @@ function getOctokit() {
       log.warning('GITHUB_TOKEN not found in environment or inputs');
     }
     _octokit = new Octokit({
-      auth: token
+      auth: token,
     });
   }
   return _octokit;
@@ -41,12 +41,12 @@ function getGraphql() {
       request: {
         fetch: (url, options) => {
           log.debug('GraphQL Request:', JSON.stringify(options.body, null, 2));
-          return fetch(url, options).then(response => {
+          return fetch(url, options).then((response) => {
             log.debug('GraphQL Response:', response.status);
             return response;
           });
-        }
-      }
+        },
+      },
     });
     _memoizedGraphql = memoizeGraphql(graphqlWithAuthRaw);
   }
@@ -54,38 +54,44 @@ function getGraphql() {
 }
 
 // Default execution wrapped in TaskQueue; priority can be overridden
-let graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) => 
+let graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) =>
   taskQueue.enqueue(() => getGraphql()(query, variables), priority);
 
 const graphqlWithAuth = async (query, variables, priority) => graphqlExecutor(query, variables, priority);
 
 // Create prioritized REST client wrapper
-const restWithAuth = new Proxy({}, {
-  get(target, prop) {
-    const octokit = getOctokit();
-    if (typeof octokit.rest[prop] === 'function') {
-      return (...args) => taskQueue.enqueue(() => octokit.rest[prop](...args), RatePriority.STANDARD);
-    }
-    if (typeof octokit.rest[prop] === 'object' && octokit.rest[prop] !== null) {
-      return new Proxy(octokit.rest[prop], {
-        get(t, p) {
-          if (typeof t[p] === 'function') {
-            return (...args) => taskQueue.enqueue(() => t[p](...args), RatePriority.STANDARD);
-          }
-          return t[p];
-        }
-      });
-    }
-    return octokit.rest[prop];
-  }
-});
+const restWithAuth = new Proxy(
+  {},
+  {
+    get(target, prop) {
+      const octokit = getOctokit();
+      if (typeof octokit.rest[prop] === 'function') {
+        return (...args) => taskQueue.enqueue(() => octokit.rest[prop](...args), RatePriority.STANDARD);
+      }
+      if (typeof octokit.rest[prop] === 'object' && octokit.rest[prop] !== null) {
+        return new Proxy(octokit.rest[prop], {
+          get(t, p) {
+            if (typeof t[p] === 'function') {
+              return (...args) => taskQueue.enqueue(() => t[p](...args), RatePriority.STANDARD);
+            }
+            return t[p];
+          },
+        });
+      }
+      return octokit.rest[prop];
+    },
+  },
+);
 
 // Create a lazy proxy for the raw octokit client
-const octokitProxy = new Proxy({}, {
-  get(target, prop) {
-    return getOctokit()[prop];
-  }
-});
+const octokitProxy = new Proxy(
+  {},
+  {
+    get(target, prop) {
+      return getOctokit()[prop];
+    },
+  },
+);
 
 // Register rate limit provider to avoid circular dynamic imports
 taskQueue.setRateLimitProvider(async () => {
@@ -107,7 +113,7 @@ function __setGraphqlExecutor(executor) {
 }
 
 function __resetGraphqlExecutor() {
-  graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) => 
+  graphqlExecutor = async (query, variables, priority = RatePriority.STANDARD) =>
     taskQueue.enqueue(() => getGraphql()(query, variables), priority);
 }
 
@@ -134,7 +140,8 @@ async function getStatusOptions(projectId) {
   if (statusOptionsCache.has(projectId)) {
     return statusOptionsCache.get(projectId);
   }
-  const result = await graphqlWithAuth(`
+  const result = await graphqlWithAuth(
+    `
     query($projectId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -146,7 +153,10 @@ async function getStatusOptions(projectId) {
         }
       }
     }
-  `, { projectId }, RatePriority.STANDARD);
+  `,
+    { projectId },
+    RatePriority.STANDARD,
+  );
   if (!result.node || !result.node.field) {
     log.error(`Status field not found in project ${projectId}. Please check project configuration.`);
     statusOptionsCache.set(projectId, []);
@@ -170,7 +180,7 @@ async function getColumnOptionId(projectId, columnName) {
   }
   try {
     const options = await getStatusOptions(projectId);
-    const option = options.find(opt => opt.name === columnName);
+    const option = options.find((opt) => opt.name === columnName);
     if (option) {
       columnOptionIdCache.set(cacheKey, option.id);
       return option.id;
@@ -197,18 +207,9 @@ async function getColumnOptionId(projectId, columnName) {
  * @returns {Promise<Map<string, string>>} Map of content node IDs to project item IDs.
  */
 async function getProjectItems(projectId, options = {}) {
-  const {
-    forceRefresh = false,
-    skipRateGuard = false,
-    logger = log,
-    overrides = {}
-  } = options;
+  const { forceRefresh = false, skipRateGuard = false, logger = log, overrides = {} } = options;
 
-  const {
-    shouldProceedFn = shouldProceed,
-    withBackoffFn = withBackoff,
-    graphqlClient = graphqlWithAuth
-  } = overrides;
+  const { shouldProceedFn = shouldProceed, withBackoffFn = withBackoff, graphqlClient = graphqlWithAuth } = overrides;
 
   if (!forceRefresh && projectItemsCache.has(projectId)) {
     return projectItemsCache.get(projectId);
@@ -233,11 +234,14 @@ async function getProjectItems(projectId, options = {}) {
   let endCursor = null;
   let totalItems = 0;
 
-  while (hasNextPage && totalItems < 300) { // Safety limit
+  while (hasNextPage && totalItems < 300) {
+    // Safety limit
     const variables = { id: projectId, cursor: endCursor };
     const priority = skipRateGuard ? RatePriority.CRITICAL : RatePriority.MAINTENANCE;
-    
-    const result = await withBackoffFn(() => graphqlClient(`
+
+    const result = await withBackoffFn(() =>
+      graphqlClient(
+        `
       query($id: ID!, $cursor: String) {
         node(id: $id) {
           ... on ProjectV2 {
@@ -254,7 +258,11 @@ async function getProjectItems(projectId, options = {}) {
           }
         }
       }
-    `, variables, priority));
+    `,
+        variables,
+        priority,
+      ),
+    );
 
     const projectItems = result.node?.items?.nodes || [];
     totalItems += projectItems.length;
@@ -289,7 +297,7 @@ async function isItemInProject(nodeId, projectId) {
     if (projectItems.has(nodeId)) {
       return {
         isInProject: true,
-        projectItemId: projectItems.get(nodeId)
+        projectItemId: projectItems.get(nodeId),
       };
     }
 
@@ -298,8 +306,10 @@ async function isItemInProject(nodeId, projectId) {
     let endCursor = null;
     let totalScanned = 0;
 
-    while (hasNextPage && totalScanned < 300) { // Safety guard
-      const result = await graphqlWithAuth(`
+    while (hasNextPage && totalScanned < 300) {
+      // Safety guard
+      const result = await graphqlWithAuth(
+        `
         query($projectId: ID!, $cursor: String) {
           node(id: $projectId) {
             ... on ProjectV2 {
@@ -316,10 +326,13 @@ async function isItemInProject(nodeId, projectId) {
             }
           }
         }
-      `, {
-        projectId,
-        cursor: endCursor
-      }, RatePriority.CRITICAL);
+      `,
+        {
+          projectId,
+          cursor: endCursor,
+        },
+        RatePriority.CRITICAL,
+      );
 
       const projectItemNodes = result.node?.items?.nodes || [];
       totalScanned += projectItemNodes.length;
@@ -332,7 +345,7 @@ async function isItemInProject(nodeId, projectId) {
           projectItems.set(nodeId, item.id);
           return {
             isInProject: true,
-            projectItemId: item.id
+            projectItemId: item.id,
           };
         }
       }
@@ -344,7 +357,7 @@ async function isItemInProject(nodeId, projectId) {
     log.info(`[isItemInProject] Item ${nodeId} not found in project ${projectId} after scanning ${totalScanned} items`);
     return {
       isInProject: false,
-      projectItemId: undefined
+      projectItemId: undefined,
     };
   } catch (error) {
     log.error(`Failed to check if item ${nodeId} is in project: ${error.message}`);
@@ -363,7 +376,8 @@ async function addItemToProject(nodeId, projectId) {
 
   try {
     log.info(`[DEBUG] About to call withBackoff with GraphQL mutation`);
-    const result = await graphqlWithAuth(`
+    const result = await graphqlWithAuth(
+      `
       mutation($projectId: ID!, $contentId: ID!) {
         addProjectV2ItemById(input: {
           projectId: $projectId,
@@ -374,10 +388,13 @@ async function addItemToProject(nodeId, projectId) {
           }
         }
       }
-    `, {
-      projectId,
-      contentId: nodeId
-    }, RatePriority.CRITICAL);
+    `,
+      {
+        projectId,
+        contentId: nodeId,
+      },
+      RatePriority.CRITICAL,
+    );
 
     log.info(`[DEBUG] GraphQL mutation completed, result:`, result);
 
@@ -421,17 +438,9 @@ async function addItemToProject(nodeId, projectId) {
  * @returns {Promise<Array>} - List of items (PRs and Issues)
  */
 async function getRecentItems(org, repos, monitoredUser, windowHours = undefined, options = {}) {
-  const {
-    logger = log,
-    overrides = {},
-    allowedOrgs = []
-  } = options;
+  const { logger = log, overrides = {}, allowedOrgs = [] } = options;
 
-  const {
-    shouldProceedFn = shouldProceed,
-    withBackoffFn = withBackoff,
-    graphqlClient = graphqlWithAuth
-  } = overrides;
+  const { shouldProceedFn = shouldProceed, withBackoffFn = withBackoff, graphqlClient = graphqlWithAuth } = overrides;
 
   // Determine search window (hours): env overrides param; default 24
   let hours = parseInt(process.env.UPDATE_WINDOW_HOURS || '', 10);
@@ -463,7 +472,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   // Query each repo separately so each gets its own 1000-item GitHub API cap
   // In backfill mode, only search the specified repo
   const reposToSearch = backfillRepo ? [backfillRepo] : repos;
-  const repoSearchQueries = reposToSearch.map(repo => {
+  const repoSearchQueries = reposToSearch.map((repo) => {
     const qualifiedName = repo.includes('/') ? repo : `${org}/${repo}`;
     return `repo:${qualifiedName}${sinceClause} sort:updated-desc`;
   });
@@ -471,9 +480,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   // Search for PRs authored by monitored user in allowed organizations only
   // Author/assignee searches always use the date filter (only repo search is unlimited in backfill)
   const sinceFilter = ` updated:>=${sinceDateStr}`;
-  const orgsFilter = allowedOrgs.length > 0
-    ? `(${allowedOrgs.map(o => `org:${o}`).join(' OR ')})`
-    : '';
+  const orgsFilter = allowedOrgs.length > 0 ? `(${allowedOrgs.map((o) => `org:${o}`).join(' OR ')})` : '';
 
   const authorSearchQuery = orgsFilter
     ? `${orgsFilter} author:${monitoredUser}${sinceFilter} sort:updated-desc`
@@ -531,47 +538,59 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   // Get items from monitored repositories — one search per repo
   // so each repo gets its own 1000-item cap (GitHub limit per query)
   for (const repoQuery of repoSearchQueries) {
-    const repoNodes = await paginatedSearch(`
+    const repoNodes = await paginatedSearch(
+      `
       query($searchQuery: String!, $cursor: String) {
         search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
           nodes { ${ITEM_FRAGMENT} }
           pageInfo { hasNextPage endCursor }
         }
       }
-    `, repoQuery, maxPages);
+    `,
+      repoQuery,
+      maxPages,
+    );
     results.push(...repoNodes);
   }
   logger.info(`Repo search returned ${results.length} items`);
 
   // Get PRs authored by monitored user in any repository
   // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
-  const authorNodes = await paginatedSearch(`
+  const authorNodes = await paginatedSearch(
+    `
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
         nodes { ${ITEM_FRAGMENT} }
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, authorSearchQuery, 5);
+  `,
+    authorSearchQuery,
+    5,
+  );
   results.push(...authorNodes);
   logger.info(`Author search returned ${authorNodes.length} items`);
 
   // Get issues and PRs assigned to monitored user in any repository
   // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
-  const assigneeNodes = await paginatedSearch(`
+  const assigneeNodes = await paginatedSearch(
+    `
     query($searchQuery: String!, $cursor: String) {
       search(query: $searchQuery, type: ISSUE, first: 100, after: $cursor) {
         nodes { ${ITEM_FRAGMENT} }
         pageInfo { hasNextPage endCursor }
       }
     }
-  `, assigneeSearchQuery, 5);
+  `,
+    assigneeSearchQuery,
+    5,
+  );
   results.push(...assigneeNodes);
   logger.info(`Assignee search returned ${assigneeNodes.length} items`);
 
   // Remove duplicates based on item ID
   const seen = new Set();
-  return results.filter(item => {
+  return results.filter((item) => {
     if (seen.has(item.id)) {
       return false;
     }
@@ -591,7 +610,8 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
     return [];
   }
 
-  const result = await graphqlWithAuth(`
+  const result = await graphqlWithAuth(
+    `
     query($pullRequestId: ID!) {
       node(id: $pullRequestId) {
         ... on PullRequest {
@@ -615,17 +635,20 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
         }
       }
     }
-  `, { pullRequestId }, RatePriority.STANDARD);
+  `,
+    { pullRequestId },
+    RatePriority.STANDARD,
+  );
 
   const issues = result?.node?.closingIssuesReferences?.nodes || [];
 
-  return issues.map(issue => {
-    const projectItemId = issue.projectItems?.nodes?.find(node => node.project?.id === projectId)?.id || null;
+  return issues.map((issue) => {
+    const projectItemId = issue.projectItems?.nodes?.find((node) => node.project?.id === projectId)?.id || null;
     return {
       id: issue.id,
       number: issue.number,
       repository: issue.repository,
-      projectItemId
+      projectItemId,
     };
   });
 }
@@ -637,7 +660,8 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
  * @returns {Promise<string|null>} - The current column name or null
  */
 async function getItemColumn(projectId, itemId) {
-  const result = await graphqlWithAuth(`
+  const result = await graphqlWithAuth(
+    `
     query($projectId: ID!, $itemId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -669,15 +693,16 @@ async function getItemColumn(projectId, itemId) {
         }
       }
     }
-  `, {
-    projectId,
-    itemId
-  }, RatePriority.STANDARD);
+  `,
+    {
+      projectId,
+      itemId,
+    },
+    RatePriority.STANDARD,
+  );
 
   const fieldValues = result.item?.fieldValues.nodes || [];
-  const statusValue = fieldValues.find(value =>
-    value.field && value.field.name === 'Status'
-  );
+  const statusValue = fieldValues.find((value) => value.field && value.field.name === 'Status');
 
   return statusValue ? statusValue.name : null;
 }
@@ -696,7 +721,7 @@ async function setItemColumn(projectId, projectItemId, optionId) {
   // No-op guard: avoid write if already the same column (map optionId -> name once)
   try {
     const statusOptions = await getStatusOptions(projectId);
-    const desired = statusOptions.find(o => o.id === optionId);
+    const desired = statusOptions.find((o) => o.id === optionId);
     if (desired && desired.name) {
       const current = await getItemColumn(projectId, projectItemId);
       if (current === desired.name) {
@@ -734,14 +759,18 @@ async function setItemColumn(projectId, projectItemId, optionId) {
   try {
     const result = await graphqlWithAuth(mutation, { input }, RatePriority.STANDARD);
     if (!result.updateProjectV2ItemFieldValue || !result.updateProjectV2ItemFieldValue.projectV2Item) {
-      log.error(`[API] setItemColumn: No projectV2Item returned for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`);
+      log.error(
+        `[API] setItemColumn: No projectV2Item returned for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`,
+      );
       log.error(`[API] setItemColumn: Full response: ${JSON.stringify(result)}`);
       throw new Error('setItemColumn: No projectV2Item in response');
     }
     log.info(`[API] setItemColumn: Successfully set column for itemId=${projectItemId} to optionId=${optionId}`);
     return result;
   } catch (error) {
-    log.error(`[API] setItemColumn: Failed to set column for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`);
+    log.error(
+      `[API] setItemColumn: Failed to set column for itemId=${projectItemId}, projectId=${projectId}, optionId=${optionId}`,
+    );
     log.error(`[API] setItemColumn: Error: ${error.stack || error}`);
     throw error;
   }
@@ -777,7 +806,7 @@ async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
         projectId,
         itemId: u.projectItemId,
         fieldId: statusFieldId,
-        value: { singleSelectOptionId: u.optionId }
+        value: { singleSelectOptionId: u.optionId },
       };
     });
     const mutation = `mutation(${varDecls.join(', ')}) { ${parts.join(' ')} }`;
@@ -813,7 +842,8 @@ async function getFieldId(projectId, fieldName) {
   }
 
   log.debug(`Fetching field ID for ${fieldName} in project ${projectId}`);
-  const result = await graphqlWithAuth(`
+  const result = await graphqlWithAuth(
+    `
     query($projectId: ID!, $fieldName: String!) {
       node(id: $projectId) {
         ... on ProjectV2 {
@@ -828,7 +858,10 @@ async function getFieldId(projectId, fieldName) {
         }
       }
     }
-  `, { projectId, fieldName }, RatePriority.STANDARD);
+  `,
+    { projectId, fieldName },
+    RatePriority.STANDARD,
+  );
 
   if (!result.node.field || !result.node.field.id) {
     throw new Error(`Field '${fieldName}' not found in project or doesn't have an ID`);
@@ -866,5 +899,5 @@ export {
   fetchLinkedIssuesForPullRequest,
   __setGraphqlExecutor,
   __resetGraphqlExecutor,
-  __resetProjectCaches
+  __resetProjectCaches,
 };

@@ -13,7 +13,7 @@ class Logger {
       unchanged: [],
       skipped: [],
       debugs: [],
-      states: [] // Add states tracking
+      states: [], // Add states tracking
     };
     this.counters = new Map();
   }
@@ -101,7 +101,7 @@ class Logger {
       timestamp: new Date(),
       itemId,
       context,
-      state: formattedState
+      state: formattedState,
     };
     this.logs.states.push(entry);
     console.log(`STATE [${context}] Item ${itemId}:`, JSON.stringify(formattedState, null, 2));
@@ -113,18 +113,18 @@ class Logger {
    * @returns {Object|null} The changes detected, or null if comparison not possible
    */
   getStateChanges(itemId) {
-    const states = this.logs.states.filter(s => s.itemId === itemId);
+    const states = this.logs.states.filter((s) => s.itemId === itemId);
     if (states.length < 2) return null;
 
     const before = states[0].state;
     const after = states[states.length - 1].state;
 
     const changes = {};
-    Object.keys(before).forEach(key => {
+    Object.keys(before).forEach((key) => {
       if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
         changes[key] = {
           from: before[key],
-          to: after[key]
+          to: after[key],
         };
       }
     });
@@ -137,13 +137,13 @@ class Logger {
    */
   printStateSummary() {
     console.log('\nState Changes Summary:');
-    const uniqueItems = [...new Set(this.logs.states.map(s => s.itemId))];
+    const uniqueItems = [...new Set(this.logs.states.map((s) => s.itemId))];
 
     for (const itemId of uniqueItems) {
       const changes = this.getStateChanges(itemId);
       if (changes) {
         console.log(`\nItem ${itemId} changes:`);
-        Object.entries(changes).forEach(([field, {from, to}]) => {
+        Object.entries(changes).forEach(([field, { from, to }]) => {
           console.log(`  ${field}: ${JSON.stringify(from)} → ${JSON.stringify(to)}`);
         });
       }
@@ -160,7 +160,7 @@ class Logger {
       warnings: this.logs.warnings.length,
       unchanged: this.logs.unchanged.length,
       skipped: this.logs.skipped.length,
-      stateChanges: this.logs.states.length
+      stateChanges: this.logs.states.length,
     };
 
     console.log(`Total Items Processed: ${stats.total}`);
@@ -200,7 +200,7 @@ class Logger {
 
     if (this.logs.errors.length > 0) {
       console.log('\n❌ Errors:');
-      this.logs.errors.forEach(msg => console.log(`- ${msg}`));
+      this.logs.errors.forEach((msg) => console.log(`- ${msg}`));
     }
   }
 }
