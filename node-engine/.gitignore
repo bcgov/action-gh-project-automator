@@ -103,5 +103,3 @@ __tests__/runner/*
 
 # Explicitly include build artifacts
 !dist/
-.tmp/
-.kilo/
