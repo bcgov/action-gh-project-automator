@@ -43,7 +43,6 @@
  */
 
 import * as core from '@actions/core';
-import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
 import { shouldProceed } from './utils/rate-limit.js';
 import { RatePriority } from './utils/rate-priority.js';
 import { Logger } from './utils/log.js';
@@ -53,12 +52,9 @@ import { processAddItems } from './rules/add-items.js';
 import { processColumnAssignment } from './rules/columns.js';
 import {
   processSprintAssignment,
-  processSprintRemoval,
-  determineSprintAction,
-  setItemSprintsBatch,
-  clearItemSprintsBatch
+  processSprintRemoval
 } from './rules/sprints.js';
-import { processAssignees, getItemDetails } from './rules/assignees.js';
+import { processAssignees } from './rules/assignees.js';
 import { processLinkedIssues } from './rules/linked-issues-processor.js';
 import { StepVerification } from './utils/verification-steps.js';
 import { EnvironmentValidator } from './utils/environment-validator.js';
@@ -189,7 +185,8 @@ async function validateEnvironment() {
     // Re-throw with enhanced context
     throw new Error(
       `Environment validation failed:\n${error.message}\n\n` +
-      `Please check your environment variables and try again.`
+      'Please check your environment variables and try again.',
+      { cause: error }
     );
   }
 }
@@ -290,7 +287,7 @@ async function main() {
       log.info('DRY_RUN enabled – mutations will be skipped.');
     }
 
-    const { addedItems, skippedItems } = await processAddItems({
+    const { addedItems } = await processAddItems({
       org: context.org,
       repos: context.repos,
       monitoredUser: context.monitoredUser,
