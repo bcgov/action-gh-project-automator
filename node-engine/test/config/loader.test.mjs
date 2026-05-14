@@ -9,8 +9,8 @@ test('ConfigLoader', async (t) => {
       const loader = new ConfigLoader();
       const __filename = new URL(import.meta.url).pathname;
       const __dirname = __filename.substring(0, __filename.lastIndexOf('/'));
-      const repoRoot = path.resolve(__dirname, '../..');
-      const configPath = path.join(repoRoot, 'rules.yml');
+      const repoRoot = path.resolve(__dirname, '../../..');
+      const configPath = path.join(repoRoot, 'shared/rules.yml');
       // Ensure downstream loaders use the same config resolution during this test
       process.env.CONFIG_FILE = configPath;
       const config = loader.load(configPath);

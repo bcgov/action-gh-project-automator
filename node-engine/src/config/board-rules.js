@@ -151,16 +151,21 @@ function resolveConfigPath() {
         if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
     }
 
-    // 2) CWD/rules.yml (root level config)
+    // 2) CWD/rules.yml or shared/rules.yml
     const rootConfig = path.join(process.cwd(), 'rules.yml');
     if (fs.existsSync(rootConfig)) return rootConfig;
+    const sharedConfig = path.join(process.cwd(), 'shared/rules.yml');
+    if (fs.existsSync(sharedConfig)) return sharedConfig;
 
-    // 3) Walk up to find repo-level rules.yml
+    // 3) Walk up to find repo-level rules.yml or shared/rules.yml
     const DIRECTORY_TRAVERSAL_LIMIT = 8;
     let current = process.cwd();
     for (let i = 0; i < DIRECTORY_TRAVERSAL_LIMIT; i += 1) {
         const candidate = path.join(current, 'rules.yml');
         if (fs.existsSync(candidate)) return candidate;
+        const sharedCandidate = path.join(current, 'shared/rules.yml');
+        if (fs.existsSync(sharedCandidate)) return sharedCandidate;
+
         const parent = path.dirname(current);
         if (parent === current) break;
         current = parent;

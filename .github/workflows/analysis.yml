@@ -25,6 +25,9 @@ jobs:
     if: (! github.event.pull_request.draft)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: node-engine
     steps:
       - uses: actions/checkout@v6
 
@@ -79,7 +82,7 @@ jobs:
           severity: "CRITICAL,HIGH"
           trivyignores: ".github/.trivyignore"
           cache-dir: .trivycache
-          skip-dirs: "**/node_modules,**/coverage,**/dist,.git"
+          skip-dirs: "**/node_modules,**/coverage,**/dist,node-engine/node_modules,node-engine/dist,.git"
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4

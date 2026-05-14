@@ -28,6 +28,9 @@ concurrency:
 jobs:
   test-and-sync:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: node-engine
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
