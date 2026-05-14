@@ -125,7 +125,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
       logger.info('\n  Processing board actions:', true);
       for (const action of boardActions) {
         if (isInProject && action.action === 'add_to_board') {
-          logger.info(`    • Skipping add_to_board - Already in project board`, true);
+          logger.info('    • Skipping add_to_board - Already in project board', true);
           logger.incrementCounter('board.actions.skipped');
           continue;
         }
@@ -209,7 +209,7 @@ async function processAddItems({ org, repos, monitoredUser, projectId, windowHou
 
   // Log summary with more detail
   logger.info('\n📊 Processing Summary', true);
-  logger.info(`━━━━━━━━━━━━━━━━━━━`, true);
+  logger.info('━━━━━━━━━━━━━━━━━━━', true);
   logger.info(`Total items processed: ${items.length}`, true);
 
   if (addedItems.length > 0) {

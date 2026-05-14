@@ -82,7 +82,7 @@ class TaskQueue {
             }
             continue;
           }
-          log.warning(`[THROTTLED] Unable to verify rate limit budget; skipping task for safety.`);
+          log.warning('[THROTTLED] Unable to verify rate limit budget; skipping task for safety.');
           throttleCount++;
           if (throttleCount > 10) {
             log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
@@ -154,7 +154,7 @@ class TaskQueue {
       // We try to avoid dynamic import in the loop if possible
       try {
         const { graphqlRaw } = await import('../github/api.js');
-        const res = await graphqlRaw(`query { rateLimit { remaining limit resetAt cost } }`);
+        const res = await graphqlRaw('query { rateLimit { remaining limit resetAt cost } }');
         rl = res.rateLimit;
       } catch (e) {
         log.warning(`rateLimit fallback query failed: ${e.message}`);

@@ -94,7 +94,7 @@ taskQueue.setRateLimitProvider(async () => {
   }
   try {
     // MUST use raw client to avoid deadlock (rate limit check can't be queued)
-    const res = await getGraphql()(`query { rateLimit { remaining limit resetAt cost } }`);
+    const res = await getGraphql()('query { rateLimit { remaining limit resetAt cost } }');
     return res.rateLimit;
   } catch (error) {
     log.warning(`Rate limit provider check failed: ${error.message}`);
@@ -362,7 +362,7 @@ async function addItemToProject(nodeId, projectId) {
   log.info(`[DEBUG] Starting addItemToProject for node ${nodeId} to project ${projectId}`);
 
   try {
-    log.info(`[DEBUG] About to call withBackoff with GraphQL mutation`);
+    log.info('[DEBUG] About to call withBackoff with GraphQL mutation');
     const result = await graphqlWithAuth(`
       mutation($projectId: ID!, $contentId: ID!) {
         addProjectV2ItemById(input: {
@@ -379,7 +379,7 @@ async function addItemToProject(nodeId, projectId) {
       contentId: nodeId
     }, RatePriority.CRITICAL);
 
-    log.info(`[DEBUG] GraphQL mutation completed, result:`, result);
+    log.info('[DEBUG] GraphQL mutation completed, result:', result);
 
     if (!result.addProjectV2ItemById?.item?.id) {
       throw new Error('Failed to add item to project - missing item ID in response');

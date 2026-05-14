@@ -193,13 +193,13 @@ class StateTransitionValidator {
         if (failedConditions.length > 0) {
           return {
             valid: false,
-            reason: `Failed conditions for transition:`,
+            reason: 'Failed conditions for transition:',
             details: failedConditions.map(c => ({
               condition: c.expression,
               description: c.description,
               dependencies: c.dependencies
             })),
-            recovery: `Ensure all conditions are met before attempting transition`
+            recovery: 'Ensure all conditions are met before attempting transition'
           };
         }
       }

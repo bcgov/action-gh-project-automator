@@ -61,7 +61,7 @@ function validateEnum(value, allowedValues, name, context = {}) {
         recoverySteps: [
           `Check if "${value}" is a typo`,
           `Verify that ${name} is using an up-to-date value from the allowed list`,
-          `Update configurations if the value should be added to allowed values`
+          'Update configurations if the value should be added to allowed values'
         ]
       }
     );

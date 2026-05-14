@@ -91,26 +91,26 @@ class AuditLogger {
     summary += metaInfo;
 
     if (this.errors.length > 0) {
-      summary += `\n### ❌ Critical Failures\n\n`;
+      summary += '\n### ❌ Critical Failures\n\n';
       summary += '| Item | Error |\n';
       summary += '| :--- | :--- |\n';
       for (const err of this.errors) {
         const segment = err.type === 'PullRequest' ? 'pull' : 'issues';
         const itemLink = err.repo !== 'Unknown' 
           ? `[${err.type} #${err.number}](https://github.com/${err.repo}/${segment}/${err.number})`
-          : `System`;
+          : 'System';
         summary += `| ${itemLink} | \`${err.message}\` |\n`;
       }
-      summary += `\n> [!CAUTION]\n> **Critical errors occurred.** The sync watermark was NOT saved. These items will be retried in the next run.\n\n`;
+      summary += '\n> [!CAUTION]\n> **Critical errors occurred.** The sync watermark was NOT saved. These items will be retried in the next run.\n\n';
     }
 
     if (this.events.length === 0) {
-      summary += `\n**No successful changes were made.**\n`;
+      summary += '\n**No successful changes were made.**\n';
       summary += `\n*Completed at ${timeStr} (Duration: ${durationSec}s)*\n`;
       return summary;
     }
 
-    summary += `\n### ⚙️ Successful Actions\n\n`;
+    summary += '\n### ⚙️ Successful Actions\n\n';
     summary += `\n*Run Duration: ${durationSec}s*\n\n`;
     summary += '| Item | Action | Transition | Rule | Reason |\n';
     summary += '| :--- | :--- | :--- | :--- | :--- |\n';

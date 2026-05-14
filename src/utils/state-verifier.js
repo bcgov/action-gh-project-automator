@@ -506,13 +506,13 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         return [
           `Verify column "${expected}" exists in project board`,
           `Check column transition rules allow moving to "${expected}"`,
-          `Ensure required conditions are met for column transition`
+          'Ensure required conditions are met for column transition'
         ];
       case 'sprint':
         return [
           `Verify sprint "${expected}" exists and is active`,
-          `Check if sprint dates are valid`,
-          `Ensure sprint is available for assignment`
+          'Check if sprint dates are valid',
+          'Ensure sprint is available for assignment'
         ];
       case 'assignees':
         const missing = expected.filter(a => !actual.includes(a));
