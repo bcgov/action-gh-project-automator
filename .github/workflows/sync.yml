@@ -101,7 +101,7 @@ jobs:
   results:
     name: Sync Results
     needs: [tests, sync, trivy]
-    if: always()
+    if: always() &&(! github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
       - name: Notify on Failure
