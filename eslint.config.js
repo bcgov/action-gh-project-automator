@@ -4,12 +4,15 @@ import prettier from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
+  // 1. Base configuration for all files
+  {
+    ignores: ['node_modules/', 'dist/', 'coverage/', '.tmp/'],
+  },
   js.configs.recommended,
   {
     languageOptions: {
       globals: {
         ...globals.node,
-        ...globals.mocha,
       },
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -25,7 +28,14 @@ export default [
       'preserve-caught-error': 'off',
     },
   },
+  // 2. Specific configuration for test files
   {
-    ignores: ['node_modules/', 'dist/', 'coverage/', '.tmp/'],
+    files: ['test/**/*.js', 'test/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.mocha,
+        ...globals.node,
+      },
+    },
   },
 ];
