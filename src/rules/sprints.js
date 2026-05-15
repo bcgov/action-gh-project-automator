@@ -269,7 +269,7 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
     return 0;
   }
 
-  if (dryRun) {
+  if (dryRun || process.env.DRY_RUN === 'true') {
     logger.info(`[DRY_RUN] Skipping sprint assignment batch for ${updates.length} item(s).`);
     return 0;
   }
@@ -314,6 +314,10 @@ async function setItemSprintsBatch(projectId, updates, batchSize = 20, options =
  * @internal
  */
 async function assignItemToSprint(projectId, projectItemId, iterationId, overrides = {}) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping assignItemToSprint for itemId=${projectItemId} to iterationId=${iterationId}`);
+    return iterationId;
+  }
   const {
     getSprintFieldId: getSprintFieldIdFn = getSprintFieldId,
     graphqlClient = graphql
@@ -592,6 +596,10 @@ async function processSprintAssignment(item, projectItemId, projectId, currentCo
  * @returns {Promise<boolean>} True if sprint was removed successfully
  */
 async function removeItemSprint(projectId, projectItemId) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping removeItemSprint for itemId=${projectItemId}`);
+    return true;
+  }
   try {
     const sprintFieldId = await getSprintFieldId(projectId);
     if (!sprintFieldId) {
@@ -695,7 +703,7 @@ async function clearItemSprintsBatch(projectId, removals, batchSize = 20, option
     return 0;
   }
 
-  if (dryRun) {
+  if (dryRun || process.env.DRY_RUN === 'true') {
     logger.info(`[DRY_RUN] Skipping sprint removal batch for ${removals.length} item(s).`);
     return 0;
   }

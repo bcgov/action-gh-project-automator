@@ -126,6 +126,10 @@ async function fetchRepoAssignees({ owner, repo, number, isPullRequest }) {
  * @returns {Promise<void>}
  */
 async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {}) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping setItemAssignees for itemId=${itemId} with assignees: ${assigneeLogins.join(', ')}`);
+    return;
+  }
   const {
     getItemDetailsFn = getItemDetails,
     fetchRepoAssigneesFn = fetchRepoAssignees,

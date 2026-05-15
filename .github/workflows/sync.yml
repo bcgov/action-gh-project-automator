@@ -1,0 +1,128 @@
+name: Sync
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 * * * *" # hourly
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
+        required: false
+        default: ''
+        type: string
+      window_hours:
+        description: 'Update window (hours)'
+        required: false
+        default: '2'
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Unit Tests
+    if: (! github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Run Tests
+        shell: bash
+        run: |
+          npm ci
+          npm test
+
+  sync:
+    name: Action
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Sync Engine
+        uses: ./.github/actions/sync-engine
+        with:
+          backfill: ${{ inputs.backfill }}
+          window_hours: ${{ inputs.window_hours || '2' }}
+          verbose: 'true'
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+
+  trivy:
+    name: Trivy Security Scan
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v5
+        with:
+          path: .trivycache
+          key: ${{ runner.os }}-trivy-v0.36.0-cache-v1
+          restore-keys: |
+            ${{ runner.os }}-trivy-
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          format: "sarif"
+          output: "trivy-results.sarif"
+          ignore-unfixed: true
+          scan-type: "fs"
+          scanners: "vuln,secret,misconfig"
+          severity: "CRITICAL,HIGH"
+          trivyignores: ".github/.trivyignore"
+          cache-dir: .trivycache
+          scan-ref: "."
+          skip-dirs: "**/node_modules,**/coverage,**/dist,.git"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-results.sarif"
+
+  results:
+    name: Results
+    needs: [tests, sync, trivy]
+    if: always() && (! github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Notify on Failure
+        if: failure() && github.event_name != 'pull_request'
+        uses: bcgov/actions/workflow-notifier@da66900b0442d7fd13e8f04e83ded84b4b75a6fb #v0.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "fix: failure in ${{ github.workflow }}"
+          labels: "failure"
+
+      - name: Check Overall Status
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "At least one sync job failed or was cancelled."
+          exit 1
+      - name: Success Message
+        run: echo "Sync completed successfully!"

@@ -11,6 +11,7 @@ import { memoizeGraphql } from '../utils/graphql-cache.js';
  */
 let _octokit = null;
 let _memoizedGraphql = null;
+let dryRunIdCounter = 0;
 
 function getOctokit() {
   if (!_octokit) {
@@ -359,6 +360,11 @@ async function isItemInProject(nodeId, projectId) {
  * @returns {Promise<string>} - The project item ID
  */
 async function addItemToProject(nodeId, projectId) {
+  if (process.env.DRY_RUN === 'true') {
+    const dryRunId = `dry-run-item-${++dryRunIdCounter}`;
+    log.info(`[DRY RUN] Skipping addItemToProject for node ${nodeId} to project ${projectId} (Assigned: ${dryRunId})`);
+    return dryRunId;
+  }
   log.info(`[DEBUG] Starting addItemToProject for node ${nodeId} to project ${projectId}`);
 
   try {
@@ -690,6 +696,10 @@ async function getItemColumn(projectId, itemId) {
  * @returns {Promise<void>}
  */
 async function setItemColumn(projectId, projectItemId, optionId) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping setItemColumn for itemId=${projectItemId} to optionId=${optionId}`);
+    return;
+  }
   // Get Status field ID from cache
   const statusFieldId = await getFieldId(projectId, 'Status');
 
@@ -758,6 +768,10 @@ async function setItemColumn(projectId, projectItemId, optionId) {
  * @returns {Promise<Array<string>>}
  */
 async function setItemColumnsBatch(projectId, updates, batchSize = 20) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping setItemColumnsBatch for ${updates.length} items`);
+    return updates.map(u => u.projectItemId);
+  }
   if (!Array.isArray(updates) || updates.length === 0) return [];
   const statusFieldId = await getFieldId(projectId, 'Status');
   const successes = [];
