@@ -1,4 +1,4 @@
-name: Scheduled Project Sync
+name: Sync
 
 on:
   pull_request:
