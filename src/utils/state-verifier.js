@@ -206,15 +206,15 @@ class StateVerifier {
   }
 
   static async verifyAddition(item, projectId) {
-    this.tracker.startTracking(item);
-    const beforeState = this.getState(item);
     if (process.env.DRY_RUN === 'true') {
       log.info(`[DRY RUN] Skipping verifyAddition for ${item.type} #${item.number}`);
       return this.updateState(item, {
         inProject: true,
-        projectItemId: `dry-run-item-${Date.now()}`
+        projectItemId: `dry-run-item-${crypto.randomUUID()}`
       });
     }
+    this.tracker.startTracking(item);
+    const beforeState = this.getState(item);
 
     return this.retryWithTracking(
       item,

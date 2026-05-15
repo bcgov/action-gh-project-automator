@@ -11,6 +11,7 @@ import { memoizeGraphql } from '../utils/graphql-cache.js';
  */
 let _octokit = null;
 let _memoizedGraphql = null;
+let dryRunIdCounter = 0;
 
 function getOctokit() {
   if (!_octokit) {
@@ -360,8 +361,9 @@ async function isItemInProject(nodeId, projectId) {
  */
 async function addItemToProject(nodeId, projectId) {
   if (process.env.DRY_RUN === 'true') {
-    log.info(`[DRY RUN] Skipping addItemToProject for node ${nodeId} to project ${projectId}`);
-    return `dry-run-item-${Date.now()}`;
+    const dryRunId = `dry-run-item-${++dryRunIdCounter}`;
+    log.info(`[DRY RUN] Skipping addItemToProject for node ${nodeId} to project ${projectId} (Assigned: ${dryRunId})`);
+    return dryRunId;
   }
   log.info(`[DEBUG] Starting addItemToProject for node ${nodeId} to project ${projectId}`);
 
@@ -696,7 +698,7 @@ async function getItemColumn(projectId, itemId) {
 async function setItemColumn(projectId, projectItemId, optionId) {
   if (process.env.DRY_RUN === 'true') {
     log.info(`[DRY RUN] Skipping setItemColumn for itemId=${projectItemId} to optionId=${optionId}`);
-    return { skipped: true, dryRun: true };
+    return;
   }
   // Get Status field ID from cache
   const statusFieldId = await getFieldId(projectId, 'Status');
