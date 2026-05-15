@@ -47,7 +47,7 @@ jobs:
           npm ci
           npm test
   sync:
-    name: Sync
+    name: Action
     needs: tests
     runs-on: ubuntu-latest
     env:
@@ -99,7 +99,7 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
   results:
-    name: Sync Results
+    name: Results
     needs: [tests, sync, trivy]
     if: always() &&(! github.event.pull_request.draft)
     runs-on: ubuntu-latest
