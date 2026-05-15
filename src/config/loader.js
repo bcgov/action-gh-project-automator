@@ -17,7 +17,6 @@
 
 import yaml from 'js-yaml';
 import fs from 'fs';
-import path from 'path';
 import Ajv from 'ajv';
 import schema from './schema.js';
 
@@ -40,7 +39,7 @@ class ConfigLoader {
       return config;
     } catch (error) {
       if (error.code === 'ENOENT') {
-        throw new Error(`Configuration file not found: ${configPath}`);
+        throw new Error(`Configuration file not found: ${configPath}`, { cause: error });
       }
       throw error;
     }

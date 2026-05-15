@@ -70,7 +70,7 @@ class StepVerification {
    * @returns {boolean} True if all required steps are complete
    */
   areAllStepsCompleted() {
-    return this.requiredSteps.every(step => this.completedSteps.has(step));
+    return this.requiredSteps.every((step) => this.completedSteps.has(step));
   }
 
   /**
@@ -78,7 +78,7 @@ class StepVerification {
    * @returns {string[]} List of steps not yet completed
    */
   getIncompleteSteps() {
-    return this.requiredSteps.filter(step => !this.completedSteps.has(step));
+    return this.requiredSteps.filter((step) => !this.completedSteps.has(step));
   }
 
   /**
@@ -96,7 +96,7 @@ class StepVerification {
     this.log.info('\nVerification Step Status:', true);
     this.log.info('========================', true);
 
-    this.requiredSteps.forEach(step => {
+    this.requiredSteps.forEach((step) => {
       const completed = this.completedSteps.has(step);
       const dependencies = this.stepDependencies.get(step);
       this.log.info(`${completed ? '✓' : '✗'} ${step}`, true);

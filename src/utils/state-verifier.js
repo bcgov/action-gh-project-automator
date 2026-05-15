@@ -54,7 +54,7 @@ class StateVerifierError extends Error {
       msg = `${this.context.itemType} #${this.context.itemNumber}: ${msg}`;
     }
     if (this.recoverySteps.length > 0) {
-      msg += '\nRecovery Steps:\n' + this.recoverySteps.map(step => `- ${step}`).join('\n');
+      msg += '\nRecovery Steps:\n' + this.recoverySteps.map((step) => `- ${step}`).join('\n');
     }
     return msg;
   }
@@ -74,15 +74,22 @@ class StateVerifier {
     'RULES_INITIALIZED',
     'STATE_VALIDATED',
     'DEPENDENCIES_VERIFIED',
-    'STATE_VERIFIED'
+    'STATE_VERIFIED',
   ]);
 
   static {
     // Enhanced step dependencies with validation requirements
-    StateVerifier.steps.addStepDependencies('VERIFICATION_PROGRESS_SETUP', [ 'STATE_TRACKING_INITIALIZED' ]);
-    StateVerifier.steps.addStepDependencies('RULES_INITIALIZED', [ 'TRANSITION_VALIDATOR_CONFIGURED' ]);
-    StateVerifier.steps.addStepDependencies('STATE_VALIDATED', [ 'RULES_INITIALIZED', 'DEPENDENCIES_VERIFIED' ]);
-    StateVerifier.steps.addStepDependencies('STATE_VERIFIED', [ 'STATE_VALIDATED' ]);
+    StateVerifier.steps.addStepDependencies('VERIFICATION_PROGRESS_SETUP', [
+      'STATE_TRACKING_INITIALIZED',
+    ]);
+    StateVerifier.steps.addStepDependencies('RULES_INITIALIZED', [
+      'TRANSITION_VALIDATOR_CONFIGURED',
+    ]);
+    StateVerifier.steps.addStepDependencies('STATE_VALIDATED', [
+      'RULES_INITIALIZED',
+      'DEPENDENCIES_VERIFIED',
+    ]);
+    StateVerifier.steps.addStepDependencies('STATE_VERIFIED', ['STATE_VALIDATED']);
   }
 
   static getTransitionValidator() {
@@ -110,7 +117,9 @@ class StateVerifier {
           : [];
 
       if (columnRules.length === 0) {
-        verifierLog.warning('⚠ No column rules found while initializing validTransitions; skipping enforcement.');
+        verifierLog.warning(
+          '⚠ No column rules found while initializing validTransitions; skipping enforcement.'
+        );
         return;
       }
 
@@ -144,7 +153,7 @@ class StateVerifier {
       if (error instanceof ValidationError) {
         throw new StateVerifierError('Failed to initialize rules: Invalid configuration', {
           originalError: error,
-          rules
+          rules,
         });
       }
       throw error;
@@ -164,8 +173,8 @@ class StateVerifier {
         recoverySteps: [
           'Verify state values match allowed values in rules',
           'Check for typos in column names and sprint names',
-          'Ensure assignee usernames are correct'
-        ]
+          'Ensure assignee usernames are correct',
+        ],
       });
 
       this.steps.markStepComplete('STATE_VALIDATED');
@@ -175,7 +184,7 @@ class StateVerifier {
           originalError: error,
           item,
           state,
-          recoverySteps: error.recoverySteps
+          recoverySteps: error.recoverySteps,
         });
       }
       throw error;
@@ -187,10 +196,10 @@ class StateVerifier {
     if (!this.stateMap.has(key)) {
       this.stateMap.set(key, {
         inProject: item.projectItems?.nodes?.length > 0,
-        projectItemId: item.projectItems?.nodes?.[ 0 ]?.id || null,
+        projectItemId: item.projectItems?.nodes?.[0]?.id || null,
         assignees: [],
         column: 'None',
-        sprint: 'None'
+        sprint: 'None',
       });
       this.steps.markStepComplete('STATE_TRACKING_INITIALIZED');
     }
@@ -210,7 +219,7 @@ class StateVerifier {
       log.info(`[DRY RUN] Skipping verifyAddition for ${item.type} #${item.number}`);
       return this.updateState(item, {
         inProject: true,
-        projectItemId: `dry-run-item-${crypto.randomUUID()}`
+        projectItemId: `dry-run-item-${crypto.randomUUID()}`,
       });
     }
     this.tracker.startTracking(item);
@@ -224,22 +233,16 @@ class StateVerifier {
         if (attempt > 1) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
           log.info(`Retry ${attempt}: Waiting ${delay}ms before checking project status...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
 
         const { isInProject, projectItemId } = await isItemInProject(item.id, projectId);
         const afterState = this.updateState(item, {
           inProject: true,
-          projectItemId
+          projectItemId,
         });
 
-        this.tracker.recordChange(
-          item,
-          'Project Addition',
-          beforeState,
-          afterState,
-          attempt
-        );
+        this.tracker.recordChange(item, 'Project Addition', beforeState, afterState, attempt);
 
         if (!isInProject) {
           const error = new Error(`Item ${item.type} #${item.number} was not added to project`);
@@ -257,7 +260,9 @@ class StateVerifier {
   static async verifyColumn(item, projectId, expectedColumn) {
     const beforeState = this.getState(item);
     if (process.env.DRY_RUN === 'true') {
-      log.info(`[DRY RUN] Skipping verifyColumn for ${item.type} #${item.number} (expected: ${expectedColumn})`);
+      log.info(
+        `[DRY RUN] Skipping verifyColumn for ${item.type} #${item.number} (expected: ${expectedColumn})`
+      );
       return this.updateState(item, { column: expectedColumn });
     }
 
@@ -277,18 +282,14 @@ class StateVerifier {
       'Column Verification',
       async (attempt) => {
         const delayMs = attempt === 1 ? 2000 : Math.min(2000 * attempt, 8000);
-        log.info(`Waiting ${delayMs}ms for column state to settle before verification (attempt ${attempt}).`);
+        log.info(
+          `Waiting ${delayMs}ms for column state to settle before verification (attempt ${attempt}).`
+        );
         await sleep(delayMs);
         const currentColumn = await getItemColumn(projectId, item.projectItemId);
         const afterState = this.updateState(item, { column: currentColumn });
 
-        this.tracker.recordChange(
-          item,
-          'Column Verification',
-          beforeState,
-          afterState,
-          attempt
-        );
+        this.tracker.recordChange(item, 'Column Verification', beforeState, afterState, attempt);
 
         if (currentColumn?.toLowerCase() !== expectedColumn?.toLowerCase()) {
           const mismatchError = new Error(`Column mismatch for ${item.type} #${item.number}:
@@ -309,7 +310,9 @@ Current: "${currentColumn}"`);
   static async verifyAssignees(item, projectId, expectedAssignees) {
     const beforeState = this.getState(item);
     if (process.env.DRY_RUN === 'true') {
-      log.info(`[DRY RUN] Skipping verifyAssignees for ${item.type} #${item.number} (expected: ${expectedAssignees.join(', ')})`);
+      log.info(
+        `[DRY RUN] Skipping verifyAssignees for ${item.type} #${item.number} (expected: ${expectedAssignees.join(', ')})`
+      );
       return this.updateState(item, { assignees: expectedAssignees });
     }
 
@@ -319,7 +322,9 @@ Current: "${currentColumn}"`);
       async (attempt) => {
         // Add robust delay to allow eventual consistency to propagate
         const delayMs = attempt === 1 ? 2000 : Math.min(2000 * attempt, 8000);
-        verifierLog.info(`Waiting ${delayMs}ms for assignee state to settle before verification (attempt ${attempt}).`);
+        verifierLog.info(
+          `Waiting ${delayMs}ms for assignee state to settle before verification (attempt ${attempt}).`
+        );
         await sleep(delayMs);
 
         // Get assignees from both project board and Issue/PR
@@ -333,40 +338,41 @@ Current: "${currentColumn}"`);
 
         // Get Issue/PR assignees via REST API
         const { repository, number } = itemDetails.content;
-        const [ owner, repo ] = repository.nameWithOwner.split('/');
-        const issueOrPrData = itemDetails.type === 'PullRequest'
-          ? await rest.pulls.get({ owner, repo, pull_number: number })
-          : await rest.issues.get({ owner, repo, issue_number: number });
+        const [owner, repo] = repository.nameWithOwner.split('/');
+        const issueOrPrData =
+          itemDetails.type === 'PullRequest'
+            ? await rest.pulls.get({ owner, repo, pull_number: number })
+            : await rest.issues.get({ owner, repo, issue_number: number });
 
-        const repoAssignees = issueOrPrData.data.assignees.map(a => a.login);
+        const repoAssignees = issueOrPrData.data.assignees.map((a) => a.login);
 
         // Verify both are in sync
         const afterState = this.updateState(item, { assignees: projectAssignees });
-        this.tracker.recordChange(
-          item,
-          'Assignee Verification',
-          beforeState,
-          afterState,
-          attempt
-        );
+        this.tracker.recordChange(item, 'Assignee Verification', beforeState, afterState, attempt);
 
         // Compare project board assignees with expected
-        const missingInProject = expectedAssignees.filter(a => !projectAssignees.includes(a));
-        const extraInProject = projectAssignees.filter(a => !expectedAssignees.includes(a));
+        const missingInProject = expectedAssignees.filter((a) => !projectAssignees.includes(a));
+        const extraInProject = projectAssignees.filter((a) => !expectedAssignees.includes(a));
 
         // Compare Issue/PR assignees with expected
-        const missingInRepo = expectedAssignees.filter(a => !repoAssignees.includes(a));
-        const extraInRepo = repoAssignees.filter(a => !expectedAssignees.includes(a));
+        const missingInRepo = expectedAssignees.filter((a) => !repoAssignees.includes(a));
+        const extraInRepo = repoAssignees.filter((a) => !expectedAssignees.includes(a));
 
-        if (missingInProject.length > 0 || extraInProject.length > 0 ||
-          missingInRepo.length > 0 || extraInRepo.length > 0) {
+        if (
+          missingInProject.length > 0 ||
+          extraInProject.length > 0 ||
+          missingInRepo.length > 0 ||
+          extraInRepo.length > 0
+        ) {
           const mismatchError = new Error(`Assignee mismatch for ${item.type} #${item.number}:
 ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.join(', ')}\n` : ''}${extraInProject.length > 0 ? `Extra in project board: ${extraInProject.join(', ')}\n` : ''}${missingInRepo.length > 0 ? `Missing in Issue/PR: ${missingInRepo.join(', ')}\n` : ''}${extraInRepo.length > 0 ? `Extra in Issue/PR: ${extraInRepo.join(', ')}` : ''}`);
           mismatchError.isRetryable = true;
           throw mismatchError;
         }
 
-        verifierLog.info(`✓ Assignees verified for ${item.type} #${item.number} (attempt ${attempt}/3)`);
+        verifierLog.info(
+          `✓ Assignees verified for ${item.type} #${item.number} (attempt ${attempt}/3)`
+        );
         return afterState;
       },
       `assignee state for ${item.type} #${item.number}`
@@ -398,15 +404,13 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
 
     if (!validationResult.valid) {
       const error = new StateVerifierError(
-        `Invalid state transition:\n${validationResult.errors.map(e => `  - ${e}`).join('\n')}`,
+        `Invalid state transition:\n${validationResult.errors.map((e) => `  - ${e}`).join('\n')}`,
         {
           item,
           currentState: beforeState,
           expectedState,
           isRetryable: false,
-          recoverySteps: validationResult.errors
-            .filter(e => e.recovery)
-            .map(e => e.recovery)
+          recoverySteps: validationResult.errors.filter((e) => e.recovery).map((e) => e.recovery),
         }
       );
       throw error;
@@ -422,9 +426,9 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
           const currentState = {
             inProject: true,
             projectItemId: item.projectItemId,
-            column: await getItemColumn(projectId, item.projectItemId) || 'None',
+            column: (await getItemColumn(projectId, item.projectItemId)) || 'None',
             sprint: (await getItemSprint(projectId, item.projectItemId))?.sprintId || 'None',
-            assignees: await getItemAssignees(projectId, item.projectItemId) || []
+            assignees: (await getItemAssignees(projectId, item.projectItemId)) || [],
           };
 
           const afterState = this.updateState(item, currentState);
@@ -432,22 +436,34 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
 
           // Enhanced state verification with detailed error messages
           const mismatches = [];
-          [ 'column', 'sprint', 'assignees' ].forEach(aspect => {
-            if (expectedState[ aspect ]) {
-              const success = this.verifyStateAspect(aspect, expectedState[ aspect ], afterState[ aspect ]);
-              this.progress.recordStep('Complete Verification', itemRef,
-                `Verify ${aspect}: ${JSON.stringify(expectedState[ aspect ])}`, success);
+          ['column', 'sprint', 'assignees'].forEach((aspect) => {
+            if (expectedState[aspect]) {
+              const success = this.verifyStateAspect(
+                aspect,
+                expectedState[aspect],
+                afterState[aspect]
+              );
+              this.progress.recordStep(
+                'Complete Verification',
+                itemRef,
+                `Verify ${aspect}: ${JSON.stringify(expectedState[aspect])}`,
+                success
+              );
 
               if (!success) {
                 const mismatchMessage = this.getStateAspectMismatchMessage(
                   aspect,
-                  expectedState[ aspect ],
-                  afterState[ aspect ]
+                  expectedState[aspect],
+                  afterState[aspect]
                 );
                 mismatches.push({
                   aspect,
                   message: mismatchMessage,
-                  recovery: this.getRecoverySteps(aspect, expectedState[ aspect ], afterState[ aspect ])
+                  recovery: this.getRecoverySteps(
+                    aspect,
+                    expectedState[aspect],
+                    afterState[aspect]
+                  ),
                 });
               }
             }
@@ -455,13 +471,12 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
 
           if (mismatches.length > 0) {
             throw new StateVerifierError(
-              'State verification failed:\n' +
-              mismatches.map(m => `  - ${m.message}`).join('\n'),
+              'State verification failed:\n' + mismatches.map((m) => `  - ${m.message}`).join('\n'),
               {
                 itemType: item.type,
                 itemNumber: item.number,
                 isRetryable: true,
-                recoverySteps: mismatches.flatMap(m => m.recovery)
+                recoverySteps: mismatches.flatMap((m) => m.recovery),
               }
             );
           }
@@ -505,13 +520,17 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
           return actual?.toLowerCase() === expected?.toLowerCase();
         case 'sprint':
           return actual === expected;
-        case 'assignees':
+        case 'assignees': {
           const expectedSet = new Set(expected);
           const actualSet = new Set(actual);
-          return expected.length === actual.length &&
-            expected.every(a => actualSet.has(a)) &&
-            actual.every(a => expectedSet.has(a));
-        default: verifierLog.warning(`Unknown state aspect: ${aspect}`);
+          return (
+            expected.length === actual.length &&
+            expected.every((a) => actualSet.has(a)) &&
+            actual.every((a) => expectedSet.has(a))
+          );
+        }
+        default:
+          verifierLog.warning(`Unknown state aspect: ${aspect}`);
           return false;
       }
     } catch (error) {
@@ -526,17 +545,17 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         return [
           `Verify column "${expected}" exists in project board`,
           `Check column transition rules allow moving to "${expected}"`,
-          `Ensure required conditions are met for column transition`
+          `Ensure required conditions are met for column transition`,
         ];
       case 'sprint':
         return [
           `Verify sprint "${expected}" exists and is active`,
           `Check if sprint dates are valid`,
-          `Ensure sprint is available for assignment`
+          `Ensure sprint is available for assignment`,
         ];
-      case 'assignees':
-        const missing = expected.filter(a => !actual.includes(a));
-        const extra = actual.filter(a => !expected.includes(a));
+      case 'assignees': {
+        const missing = expected.filter((a) => !actual.includes(a));
+        const extra = actual.filter((a) => !expected.includes(a));
         const steps = [];
         if (missing.length > 0) {
           steps.push(`Add missing assignees: ${missing.join(', ')}`);
@@ -545,8 +564,9 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
           steps.push(`Remove extra assignees: ${extra.join(', ')}`);
         }
         return steps;
+      }
       default:
-        return [ `Verify ${aspect} configuration and permissions` ];
+        return [`Verify ${aspect} configuration and permissions`];
     }
   }
 
@@ -556,11 +576,11 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         return `Column mismatch: expected "${expected}" but got "${actual}"`;
       case 'sprint':
         return `Sprint mismatch: expected "${expected}" but got "${actual}"`;
-      case 'assignees':
+      case 'assignees': {
         const expectedSet = new Set(expected);
         const actualSet = new Set(actual);
-        const missing = expected.filter(a => !actualSet.has(a));
-        const extra = actual.filter(a => !expectedSet.has(a));
+        const missing = expected.filter((a) => !actualSet.has(a));
+        const extra = actual.filter((a) => !expectedSet.has(a));
         let message = 'Assignee mismatch:';
         if (missing.length > 0) {
           message += ` missing ${missing.join(', ')}`;
@@ -569,6 +589,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
           message += ` extra ${extra.join(', ')}`;
         }
         return message;
+      }
       default:
         return `${aspect} mismatch: expected "${expected}" but got "${actual}"`;
     }
@@ -584,7 +605,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         const result = await operation(attempt, lastState);
         lastState = {
           ...lastState,
-          ...(typeof result === 'object' ? result : {})
+          ...(typeof result === 'object' ? result : {}),
         };
         return result;
       } catch (error) {
@@ -599,7 +620,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
    Item: ${item.type} #${item.number}
    Current State: ${JSON.stringify(lastState, null, 2)}
    Error: ${error.message}
-   Recovery Steps:\n${error.recoverySteps?.map(s => `   - ${s}`).join('\n') || '   None provided'}
+   Recovery Steps:\n${error.recoverySteps?.map((s) => `   - ${s}`).join('\n') || '   None provided'}
    Retrying in ${delay / 1000}s...`);
           await sleep(delay);
           continue;
@@ -614,7 +635,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
         itemType: item.type,
         itemNumber: item.number,
         lastError,
-        lastState
+        lastState,
       }
     );
   }
@@ -636,7 +657,7 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
 }
 
 async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export { StateVerifier };

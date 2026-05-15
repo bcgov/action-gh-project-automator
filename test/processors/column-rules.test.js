@@ -5,104 +5,104 @@ import { setupTestEnvironment } from '../setup.js';
 import { loadBoardRules } from '../../src/config/board-rules.js';
 
 describe('processColumnRules', () => {
-    test('sets PR column to Active when no column set', async () => {
-        setupTestEnvironment();
-        const config = await loadBoardRules();
-        const monitoredUser = config.monitoredUser;
+  test('sets PR column to Active when no column set', async () => {
+    setupTestEnvironment();
+    const config = await loadBoardRules();
+    const monitoredUser = config.monitoredUser;
 
-        const pr = {
-            __typename: 'PullRequest',
-            author: { login: monitoredUser },
-            column: null, // No column set
-            projectItems: {
-                nodes: []
-            }
-        };
+    const pr = {
+      __typename: 'PullRequest',
+      author: { login: monitoredUser },
+      column: null, // No column set
+      projectItems: {
+        nodes: [],
+      },
+    };
 
-        const actions = await processColumnRules(pr);
+    const actions = await processColumnRules(pr);
 
-        assert.equal(actions.length, 1, 'should set column');
-        assert.equal(actions[0].action, 'set_column: Active', 'should set to Active');
-        assert.equal(actions[0].params.item, pr, 'should include PR in params');
-    });
+    assert.equal(actions.length, 1, 'should set column');
+    assert.equal(actions[0].action, 'set_column: Active', 'should set to Active');
+    assert.equal(actions[0].params.item, pr, 'should include PR in params');
+  });
 
-    test('sets PR column to Active when in New column', async () => {
-        setupTestEnvironment();
-        const config = await loadBoardRules();
-        const monitoredUser = config.monitoredUser;
+  test('sets PR column to Active when in New column', async () => {
+    setupTestEnvironment();
+    const config = await loadBoardRules();
+    const monitoredUser = config.monitoredUser;
 
-        const pr = {
-            __typename: 'PullRequest',
-            author: { login: monitoredUser },
-            column: 'New', // In New column
-            projectItems: {
-                nodes: []
-            }
-        };
+    const pr = {
+      __typename: 'PullRequest',
+      author: { login: monitoredUser },
+      column: 'New', // In New column
+      projectItems: {
+        nodes: [],
+      },
+    };
 
-        const actions = await processColumnRules(pr);
+    const actions = await processColumnRules(pr);
 
-        assert.equal(actions.length, 1, 'should set column');
-        assert.equal(actions[0].action, 'set_column: Active', 'should set to Active');
-        assert.equal(actions[0].params.item, pr, 'should include PR in params');
-    });
+    assert.equal(actions.length, 1, 'should set column');
+    assert.equal(actions[0].action, 'set_column: Active', 'should set to Active');
+    assert.equal(actions[0].params.item, pr, 'should include PR in params');
+  });
 
-    test('sets Issue column to New when no column set', async () => {
-        setupTestEnvironment();
-        const config = await loadBoardRules();
-        const monitoredUser = config.monitoredUser;
+  test('sets Issue column to New when no column set', async () => {
+    setupTestEnvironment();
+    const config = await loadBoardRules();
+    const monitoredUser = config.monitoredUser;
 
-        const issue = {
-            __typename: 'Issue',
-            author: { login: monitoredUser },
-            column: null, // No column set
-            projectItems: {
-                nodes: []
-            }
-        };
+    const issue = {
+      __typename: 'Issue',
+      author: { login: monitoredUser },
+      column: null, // No column set
+      projectItems: {
+        nodes: [],
+      },
+    };
 
-        const actions = await processColumnRules(issue);
+    const actions = await processColumnRules(issue);
 
-        assert.equal(actions.length, 1, 'should set column');
-        assert.equal(actions[0].action, 'set_column: New', 'should set to New');
-        assert.equal(actions[0].params.item, issue, 'should include Issue in params');
-    });
+    assert.equal(actions.length, 1, 'should set column');
+    assert.equal(actions[0].action, 'set_column: New', 'should set to New');
+    assert.equal(actions[0].params.item, issue, 'should include Issue in params');
+  });
 
-    test('skips PR when column is already set except New', async () => {
-        setupTestEnvironment();
-        const config = await loadBoardRules();
-        const monitoredUser = config.monitoredUser;
+  test('skips PR when column is already set except New', async () => {
+    setupTestEnvironment();
+    const config = await loadBoardRules();
+    const monitoredUser = config.monitoredUser;
 
-        const pr = {
-            __typename: 'PullRequest',
-            author: { login: monitoredUser },
-            column: 'Active', // Already set to Active
-            projectItems: {
-                nodes: []
-            }
-        };
+    const pr = {
+      __typename: 'PullRequest',
+      author: { login: monitoredUser },
+      column: 'Active', // Already set to Active
+      projectItems: {
+        nodes: [],
+      },
+    };
 
-        const actions = await processColumnRules(pr);
+    const actions = await processColumnRules(pr);
 
-        assert.equal(actions.length, 0, 'should skip when column already set');
-    });
+    assert.equal(actions.length, 0, 'should skip when column already set');
+  });
 
-    test('skips Issue when column is already set', async () => {
-        setupTestEnvironment();
-        const config = await loadBoardRules();
-        const monitoredUser = config.monitoredUser;
+  test('skips Issue when column is already set', async () => {
+    setupTestEnvironment();
+    const config = await loadBoardRules();
+    const monitoredUser = config.monitoredUser;
 
-        const issue = {
-            __typename: 'Issue',
-            author: { login: monitoredUser },
-            column: 'New', // Already set to New
-            projectItems: {
-                nodes: []
-            }
-        };
+    const issue = {
+      __typename: 'Issue',
+      author: { login: monitoredUser },
+      column: 'New', // Already set to New
+      projectItems: {
+        nodes: [],
+      },
+    };
 
-        const actions = await processColumnRules(issue);
+    const actions = await processColumnRules(issue);
 
-        assert.equal(actions.length, 0, 'should skip when column already set');
-    });
+    assert.equal(actions.length, 0, 'should skip when column already set');
+  });
 });

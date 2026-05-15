@@ -18,7 +18,7 @@ class ValidationRunner {
     const results = {
       environment: false,
       config: false,
-      state: false
+      state: false,
     };
 
     try {
@@ -31,15 +31,12 @@ class ValidationRunner {
         // Be lenient only in CI/GitHub Actions, or on rate limit errors.
         const isCI = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
         const lowerMessage = error.message?.toLowerCase();
-        const isRateLimit = (
+        const isRateLimit =
           error.code === 'RATE_LIMITED' ||
           error.name === 'RateLimitError' ||
-          (lowerMessage && lowerMessage.includes('rate limit'))
-        );
-        const isAuthError = (
-          error.code === '401' || error.code === '403' ||
-          error.name === 'TokenError'
-        );
+          (lowerMessage && lowerMessage.includes('rate limit'));
+        const isAuthError =
+          error.code === '401' || error.code === '403' || error.name === 'TokenError';
 
         if (isCI && (isAuthError || isRateLimit)) {
           log.info(`⚠️  Environment validation failed in CI: ${error.message}`);
@@ -58,7 +55,7 @@ class ValidationRunner {
 
       // 2. Configuration validation (respect flattened config resolution)
       const config = loadBoardRules();
-      
+
       // Verify project configuration (supports URL, ID, or number)
       const configProjectId = config.project?.id;
       const configProjectUrl = config.project?.url;
@@ -71,17 +68,19 @@ class ValidationRunner {
       const hasEnvProject = envProjectId || envProjectUrl;
 
       if (envProjectId && configProjectId && envProjectId !== configProjectId) {
-        throw new Error(`Project ID mismatch: environment has "${envProjectId}" but config has "${configProjectId}"`);
+        throw new Error(
+          `Project ID mismatch: environment has "${envProjectId}" but config has "${configProjectId}"`
+        );
       }
 
       if (!hasEnvProject && !hasConfigProject) {
         throw new Error(
           'No project configuration found. Please provide one of:\n' +
-          '  - PROJECT_ID environment variable\n' +
-          '  - PROJECT_URL environment variable\n' +
-          '  - project.id in config/rules.yml\n' +
-          '  - project.url in config/rules.yml\n' +
-          '  - project.number in config/rules.yml'
+            '  - PROJECT_ID environment variable\n' +
+            '  - PROJECT_URL environment variable\n' +
+            '  - project.id in config/rules.yml\n' +
+            '  - project.url in config/rules.yml\n' +
+            '  - project.number in config/rules.yml'
         );
       }
 
@@ -98,13 +97,13 @@ class ValidationRunner {
 
       return {
         success: true,
-        results
+        results,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        results
+        results,
       };
     }
   }
@@ -118,7 +117,7 @@ class ValidationRunner {
       id: 'TEST_VALIDATION',
       type: 'PullRequest',
       number: 999,
-      projectItemId: 'test'
+      projectItemId: 'test',
     };
 
     // Test state updates
@@ -127,9 +126,9 @@ class ValidationRunner {
       throw new Error('Initial state validation failed');
     }
 
-    const updatedState = StateVerifier.updateState(testItem, { 
+    const updatedState = StateVerifier.updateState(testItem, {
       column: 'Active',
-      assignees: ['test-user']
+      assignees: ['test-user'],
     });
 
     if (updatedState.column !== 'Active' || !updatedState.assignees.includes('test-user')) {

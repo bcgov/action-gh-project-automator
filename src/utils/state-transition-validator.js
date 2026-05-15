@@ -55,13 +55,16 @@ class StateTransitionValidator {
       'RULES_VALIDATED',
       'CONDITIONS_DOCUMENTED',
       'DEPENDENCIES_VERIFIED',
-      'TRANSITION_VALIDATED'
+      'TRANSITION_VALIDATED',
     ]);
 
     // Set up step dependencies with enhanced validation
     this.steps.addStepDependencies('RULES_VALIDATED', ['CONFIG_LOADED', 'DEPENDENCIES_VERIFIED']);
     this.steps.addStepDependencies('CONDITIONS_DOCUMENTED', ['CONFIG_LOADED']);
-    this.steps.addStepDependencies('TRANSITION_VALIDATED', ['RULES_VALIDATED', 'CONDITIONS_DOCUMENTED']);
+    this.steps.addStepDependencies('TRANSITION_VALIDATED', [
+      'RULES_VALIDATED',
+      'CONDITIONS_DOCUMENTED',
+    ]);
 
     // Initialize error tracking
     this.validationErrors = new Map();
@@ -83,27 +86,27 @@ class StateTransitionValidator {
         }
 
         // Validate and document conditions
-        const validatedConditions = conditions.map(condition => {
-          const isValid = typeof condition === 'string' && (
-            condition === 'item.hasReviewers' ||
-            condition === 'item.hasAssignees' ||
-            condition === 'item.isMerged' ||
-            condition === 'item.isApproved'
-          );
+        const validatedConditions = conditions.map((condition) => {
+          const isValid =
+            typeof condition === 'string' &&
+            (condition === 'item.hasReviewers' ||
+              condition === 'item.hasAssignees' ||
+              condition === 'item.isMerged' ||
+              condition === 'item.isApproved');
           if (!isValid) {
             throw new Error(`Invalid condition format: ${condition}`);
           }
           return {
             expression: condition,
             description: this.getConditionDescription(condition),
-            dependencies: this.getConditionDependencies(condition)
+            dependencies: this.getConditionDependencies(condition),
           };
         });
 
         this.columnRules.get(sourceLower).push({
           to,
           conditions: validatedConditions,
-          addedAt: new Date()
+          addedAt: new Date(),
         });
       }
 
@@ -150,20 +153,24 @@ class StateTransitionValidator {
       if (!rules) {
         // If system has rules, be strict. Otherwise allow (legacy/unconfigured)
         if (this.columnRules.size > 0) {
-            log.debug(`No explicit transitions defined from "${from}" – blocking transition.`);
-            return {
-              valid: false,
-              reason: `Transition from "${from}" is not allowed`,
-              recovery: `Define valid transitions from "${from}" in rules.yml if needed.`
-            };
+          log.debug(`No explicit transitions defined from "${from}" – blocking transition.`);
+          return {
+            valid: false,
+            reason: `Transition from "${from}" is not allowed`,
+            recovery: `Define valid transitions from "${from}" in rules.yml if needed.`,
+          };
         }
-        log.debug(`No explicit transitions defined from "${from}" – allowing "${from}" → "${to}" by default (no rules defined in system).`);
+        log.debug(
+          `No explicit transitions defined from "${from}" – allowing "${from}" → "${to}" by default (no rules defined in system).`
+        );
         return { valid: true };
       }
 
       // Find matching rule with enhanced validation
-      const matchingRule = rules.find(rule => {
-        const ruleToLower = Array.isArray(rule.to) ? rule.to.map(t => t.toLowerCase()) : rule.to.toLowerCase();
+      const matchingRule = rules.find((rule) => {
+        const ruleToLower = Array.isArray(rule.to)
+          ? rule.to.map((t) => t.toLowerCase())
+          : rule.to.toLowerCase();
         if (Array.isArray(ruleToLower)) {
           return ruleToLower.includes(normalizedTo);
         }
@@ -174,14 +181,14 @@ class StateTransitionValidator {
         return {
           valid: false,
           reason: `Transition from "${from}" to "${to}" is not allowed`,
-          allowedTransitions: rules.map(r => r.to),
-          recovery: `Consider one of the allowed transitions: ${rules.map(r => r.to).join(', ')}`
+          allowedTransitions: rules.map((r) => r.to),
+          recovery: `Consider one of the allowed transitions: ${rules.map((r) => r.to).join(', ')}`,
         };
       }
 
       // Check conditions if any with detailed failure tracking
       if (matchingRule.conditions.length > 0) {
-        const failedConditions = matchingRule.conditions.filter(condition => {
+        const failedConditions = matchingRule.conditions.filter((condition) => {
           try {
             return !this.evaluateCondition(condition.expression, context);
           } catch (error) {
@@ -194,12 +201,12 @@ class StateTransitionValidator {
           return {
             valid: false,
             reason: `Failed conditions for transition:`,
-            details: failedConditions.map(c => ({
+            details: failedConditions.map((c) => ({
               condition: c.expression,
               description: c.description,
-              dependencies: c.dependencies
+              dependencies: c.dependencies,
             })),
-            recovery: `Ensure all conditions are met before attempting transition`
+            recovery: `Ensure all conditions are met before attempting transition`,
           };
         }
       }
@@ -219,7 +226,7 @@ class StateTransitionValidator {
       'item.hasReviewers': 'Pull request must have reviewers assigned',
       'item.hasAssignees': 'Issue/PR must have assignees',
       'item.isMerged': 'Pull request must be merged',
-      'item.isApproved': 'Pull request must be approved by reviewers'
+      'item.isApproved': 'Pull request must be approved by reviewers',
     };
     return descriptions[condition] || `Condition: ${condition}`;
   }
@@ -232,7 +239,7 @@ class StateTransitionValidator {
       'item.hasReviewers': ['reviewer-access'],
       'item.hasAssignees': ['write-access'],
       'item.isMerged': ['repo-access', 'merge-access'],
-      'item.isApproved': ['reviewer-access', 'approval-access']
+      'item.isApproved': ['reviewer-access', 'approval-access'],
     };
     return dependencies[condition] || [];
   }
@@ -254,10 +261,10 @@ class StateTransitionValidator {
         case 'item.isApproved':
           return !!item.isApproved;
         default:
-          return true;  // For testing, assume other conditions pass
+          return true; // For testing, assume other conditions pass
       }
     }
-    return true;  // For testing, non-string conditions pass
+    return true; // For testing, non-string conditions pass
   }
 
   /**
@@ -267,15 +274,17 @@ class StateTransitionValidator {
     // Check if RULES_VALIDATED step is completed, but don't fail if it's not
     // This allows the system to work even when no transition rules are defined
     if (!this.steps.isStepCompleted('RULES_VALIDATED')) {
-      log.debug('RULES_VALIDATED step not completed - allowing state transition (no rules defined)');
+      log.debug(
+        'RULES_VALIDATED step not completed - allowing state transition (no rules defined)'
+      );
       return {
         valid: true,
         errors: [],
         context: {
           startTime: Date.now(),
           item,
-          changes: []
-        }
+          changes: [],
+        },
       };
     }
 
@@ -283,23 +292,22 @@ class StateTransitionValidator {
     const validationContext = {
       startTime: Date.now(),
       item,
-      changes: []
+      changes: [],
     };
 
     try {
       // Check column transition if changing
       if (newState.column && newState.column !== currentState.column) {
-        const result = this.validateColumnTransition(
-          currentState.column,
-          newState.column,
-          { ...context, item }
-        );
+        const result = this.validateColumnTransition(currentState.column, newState.column, {
+          ...context,
+          item,
+        });
         if (!result.valid) {
           errors.push({
             type: 'column',
             message: result.reason,
             details: result.details,
-            recovery: result.recovery
+            recovery: result.recovery,
           });
         }
       }
@@ -310,12 +318,12 @@ class StateTransitionValidator {
         const newSet = new Set(newState.assignees);
 
         // Check for invalid removals
-        const removedAssignees = Array.from(currentSet).filter(a => !newSet.has(a));
+        const removedAssignees = Array.from(currentSet).filter((a) => !newSet.has(a));
         if (removedAssignees.length > 0) {
           errors.push({
             type: 'assignees',
             message: `Cannot remove assignees "${removedAssignees.join(', ')}" without explicit removal action`,
-            recovery: 'Use explicit assignee removal operation instead of direct state change'
+            recovery: 'Use explicit assignee removal operation instead of direct state change',
           });
         }
 
@@ -326,28 +334,28 @@ class StateTransitionValidator {
             message: `Maximum of ${context.maxAssignees} assignees allowed`,
             current: newSet.size,
             max: context.maxAssignees,
-            recovery: `Remove ${newSet.size - context.maxAssignees} assignee(s)`
+            recovery: `Remove ${newSet.size - context.maxAssignees} assignee(s)`,
           });
         }
       }
 
       // Track state changes
-      ['column', 'sprint', 'assignees'].forEach(aspect => {
+      ['column', 'sprint', 'assignees'].forEach((aspect) => {
         if (newState[aspect] !== undefined) {
           validationContext.changes.push({
             type: aspect,
             from: currentState[aspect],
             to: newState[aspect],
             timestamp: Date.now(),
-            valid: !errors.find(e => e.type === aspect)
+            valid: !errors.find((e) => e.type === aspect),
           });
         }
       });
 
       return {
         valid: errors.length === 0,
-        errors: errors.map(e => `${e.message}${e.recovery ? `\nRecovery: ${e.recovery}` : ''}`),
-        context: validationContext
+        errors: errors.map((e) => `${e.message}${e.recovery ? `\nRecovery: ${e.recovery}` : ''}`),
+        context: validationContext,
       };
     } catch (error) {
       // Track validation failure

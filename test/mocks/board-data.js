@@ -14,7 +14,7 @@ import { graphql } from '@octokit/graphql';
  * @property {string} [content.reviewDecision] - Review state (PRs only)
  * @property {Object} fieldValues - Project board field values
  * @property {Array<{field: {name: string}, name: string}>} fieldValues.nodes - Field values
- * 
+ *
  * @example
  * // Example item structure that should be returned:
  * {
@@ -35,10 +35,10 @@ import { graphql } from '@octokit/graphql';
  *     ]
  *   }
  * }
- * 
+ *
  * @returns {Promise<{items: {nodes: ProjectItem[]}}>} Project board data
  * @throws {Error} If GraphQL query fails or response format is unexpected
- * 
+ *
  * @test {verifyBoardData} Verifies returned data matches expected structure
  * @test {verifyFieldValues} Ensures all required fields are present
  * @test {verifyNoMutations} Confirms query is read-only
@@ -91,8 +91,8 @@ export async function fetchBoardData() {
       }
     `,
     headers: {
-      authorization: `token ${process.env.GITHUB_TOKEN}`
-    }
+      authorization: `token ${process.env.GITHUB_TOKEN}`,
+    },
   });
 
   return node;

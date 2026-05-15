@@ -22,7 +22,9 @@ function validateColumnTransition(fromColumn, toColumn, item) {
     const result = validator.validateColumnTransition(fromColumn, toColumn, context);
 
     if (!result.valid) {
-      log.warning(`🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`);
+      log.warning(
+        `🚨 BLOCKED: Column transition from "${fromColumn}" to "${toColumn}" is not allowed`
+      );
       log.warning(`   Reason: ${result.reason}`);
       if (result.recovery) {
         log.warning(`   Recovery: ${result.recovery}`);
@@ -38,7 +40,9 @@ function validateColumnTransition(fromColumn, toColumn, item) {
     // This ensures transitions are only allowed if explicitly declared in rules.yml
     log.error(`Critical error validating column transition: ${error.message}`);
     log.error(`Transition from "${fromColumn}" to "${toColumn}" blocked due to validation error`);
-    throw new Error(`Column transition validation failed: ${error.message}. Transition blocked for safety.`);
+    throw new Error(
+      `Column transition validation failed: ${error.message}. Transition blocked for safety.`
+    );
   }
 }
 
@@ -57,22 +61,25 @@ async function getColumnOptions(projectId) {
 
   // Cache miss - fetch from API
   log.debug(`Fetching column options for project ${projectId}`);
-  const result = await graphql(`
-    query($projectId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          field(name: "Status") {
-            ... on ProjectV2SingleSelectField {
-              options {
-                id
-                name
+  const result = await graphql(
+    `
+      query ($projectId: ID!) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            field(name: "Status") {
+              ... on ProjectV2SingleSelectField {
+                options {
+                  id
+                  name
+                }
               }
             }
           }
         }
       }
-    }
-  `, { projectId });
+    `,
+    { projectId }
+  );
 
   // Create mapping of column names to option IDs
   const columnMap = new Map();
@@ -101,9 +108,13 @@ function getColumnOptionId(columnName, options) {
   const optionId = options.get(columnName) || options.get(columnName.toLowerCase());
   if (!optionId) {
     // Get original case-sensitive column names, removing duplicates while preserving case
-    const uniqueColumns = [...new Set([...options.keys()].filter((k, i, arr) =>
-      arr.findIndex(item => item.toLowerCase() === k.toLowerCase()) === i
-    ))];
+    const uniqueColumns = [
+      ...new Set(
+        [...options.keys()].filter(
+          (k, i, arr) => arr.findIndex((item) => item.toLowerCase() === k.toLowerCase()) === i
+        )
+      ),
+    ];
     log.info(`Status option not found: "${columnName}". Available: ${uniqueColumns.join(', ')}`);
     return null;
   }
@@ -142,7 +153,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
         return {
           changed: false,
           reason: 'Column already set to Done/Closed',
-          currentStatus: currentColumn
+          currentStatus: currentColumn,
         };
       }
       // Try to set to 'Done'; if not found, try 'Closed'; otherwise skip gracefully
@@ -154,11 +165,14 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
           optionId = getColumnOptionId('Closed', options);
         }
         if (!optionId) {
-          log.info('  • No Done/Closed status option found on project → Skipping column update', true);
+          log.info(
+            '  • No Done/Closed status option found on project → Skipping column update',
+            true
+          );
           return {
             changed: false,
             reason: 'No Done/Closed status option found',
-            currentStatus: currentColumn
+            currentStatus: currentColumn,
           };
         }
         // Validate transition before making changes
@@ -168,7 +182,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
           return {
             changed: false,
             reason: `Transition blocked: ${validation.reason}`,
-            currentStatus: currentColumn
+            currentStatus: currentColumn,
           };
         }
 
@@ -181,14 +195,14 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
           changed: true,
           newStatus: targetName,
           rule: 'State Sync',
-          reason: `Item state=${item.state} → Set column to ${targetName}`
+          reason: `Item state=${item.state} → Set column to ${targetName}`,
         };
       } catch (e) {
         log.info(`  • Could not set to Done/Closed (${e.message}) → Skipping column update`, true);
         return {
           changed: false,
           reason: 'Failed to resolve Done/Closed option',
-          currentStatus: currentColumn
+          currentStatus: currentColumn,
         };
       }
     }
@@ -198,17 +212,22 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       // For PRs: Move to Active if in an initial or "waiting" column
       const preActiveColumns = ['new', 'parked', 'backlog', 'next'];
       const isInitialColumn = !currentColumn || preActiveColumns.includes(currentColumnLower);
-      
+
       if (isInitialColumn) {
         targetColumn = 'Active';
-        reason = !currentColumn ? 'Initial PR placement in Active' : `PR moved from ${currentColumn} to Active`;
+        reason = !currentColumn
+          ? 'Initial PR placement in Active'
+          : `PR moved from ${currentColumn} to Active`;
         log.info(`  • Rule: Column=${currentColumn || 'None'} → Moving PR to Active`, true);
       }
     } else if (item.__typename === 'Issue' && (!currentColumn || currentColumnLower === 'parked')) {
       // For Issues: Move to New if column is none or Parked
       targetColumn = 'New';
       reason = !currentColumn ? 'Initial issue placement in New' : 'Issue moved from Parked to New';
-      log.info(`  • Rule: Column=${currentColumn || 'None'} → Setting initial issue column to New`, true);
+      log.info(
+        `  • Rule: Column=${currentColumn || 'None'} → Setting initial issue column to New`,
+        true
+      );
     }
 
     // Skip if no target column determined
@@ -217,7 +236,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       return {
         changed: false,
         reason: 'No column change needed',
-        currentStatus: currentColumn
+        currentStatus: currentColumn,
       };
     }
 
@@ -227,7 +246,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       return {
         changed: false,
         reason: 'Column "Done" is handled by GitHub automation',
-        currentStatus: currentColumn
+        currentStatus: currentColumn,
       };
     }
 
@@ -237,7 +256,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       return {
         changed: false,
         reason: `Column already set to ${currentColumn}`,
-        currentStatus: currentColumn
+        currentStatus: currentColumn,
       };
     }
 
@@ -250,7 +269,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       return {
         changed: false,
         reason: `No Status option found for ${targetColumn}`,
-        currentStatus: currentColumn
+        currentStatus: currentColumn,
       };
     }
     // Validate transition before making changes
@@ -260,7 +279,7 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       return {
         changed: false,
         reason: `Transition blocked: ${validation.reason}`,
-        currentStatus: currentColumn
+        currentStatus: currentColumn,
       };
     }
 
@@ -274,12 +293,16 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
       changed: true,
       newStatus: targetColumn,
       rule: 'Gating Rules',
-      reason: reason || `Set column to ${targetColumn} based on ${item.state ? `state (${item.state})` : 'initial rules'}`
+      reason:
+        reason ||
+        `Set column to ${targetColumn} based on ${item.state ? `state (${item.state})` : 'initial rules'}`,
     };
   } catch (error) {
-    const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+    const itemIdentifier = item
+      ? `${item.__typename} #${item.number || 'unknown'}`
+      : 'unknown item';
     log.error(`Failed to process column for ${itemIdentifier}: ${error.message}`);
-    
+
     if (error.stack) {
       log.debug(`Error details: ${error.stack}`);
     }
@@ -287,31 +310,37 @@ async function processColumnAssignment(item, projectItemId, projectId, batchQueu
     // Classify errors for better handling
     const errorMessage = error.message || '';
     const errorCode = error.code || '';
-    
+
     // Critical errors that should stop processing
-    const isAuthError = errorMessage.includes('Bad credentials') || 
-                        errorMessage.includes('Not authenticated');
-    const isRateLimitError = errorMessage.includes('rate limit') || 
-                             (errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate'));
-    
+    const isAuthError =
+      errorMessage.includes('Bad credentials') || errorMessage.includes('Not authenticated');
+    const isRateLimitError =
+      errorMessage.includes('rate limit') ||
+      (errorCode === 'ECONNRESET' && errorMessage.toLowerCase().includes('rate'));
+
     if (isAuthError || isRateLimitError) {
-      const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+      const apiError = new Error(
+        `GitHub API error: ${errorMessage}. Please check configuration and retry.`
+      );
       apiError.cause = error;
       throw apiError;
     }
-    
+
     // Network/timeout errors - log but continue
     const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
-    const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                           errorMessage.includes('timeout') ||
-                           errorMessage.includes('ECONNRESET') ||
-                           errorMessage.includes('ENOTFOUND');
-    
+    const isNetworkError =
+      (errorCode && networkErrorCodes.includes(errorCode)) ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('ECONNRESET') ||
+      errorMessage.includes('ENOTFOUND');
+
     if (isNetworkError) {
-      log.warning(`Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
+      log.warning(
+        `Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`
+      );
       throw error; // Re-throw network errors so they can be handled by caller
     }
-    
+
     // Other errors - re-throw for upstream handling
     throw error;
   }
@@ -336,12 +365,17 @@ async function processColumns({ projectId, items }) {
     try {
       log.debug(`Processing column assignment for ${item.type || item.__typename} #${item.number}`);
       // Process column assignment - make sure we pass the full item with type info
-      const result = await processColumnAssignment({
-        ...item,
-        __typename: item.type || item.__typename,
-        number: item.number,
-        state: item.state || 'OPEN'  // Default to OPEN if state is not provided
-      }, item.projectItemId, projectId, batchQueue);
+      const result = await processColumnAssignment(
+        {
+          ...item,
+          __typename: item.type || item.__typename,
+          number: item.number,
+          state: item.state || 'OPEN', // Default to OPEN if state is not provided
+        },
+        item.projectItemId,
+        projectId,
+        batchQueue
+      );
 
       if (result.changed) {
         processedItems.push({
@@ -349,7 +383,7 @@ async function processColumns({ projectId, items }) {
           number: item.number,
           repo: item.repository.nameWithOwner,
           column: result.newStatus,
-          reason: result.reason
+          reason: result.reason,
         });
       } else {
         skippedItems.push({
@@ -357,35 +391,48 @@ async function processColumns({ projectId, items }) {
           number: item.number,
           repo: item.repository.nameWithOwner,
           column: result.currentStatus,
-          reason: result.reason
+          reason: result.reason,
         });
       }
     } catch (error) {
-      const itemIdentifier = item ? `${item.__typename} #${item.number || 'unknown'}` : 'unknown item';
+      const itemIdentifier = item
+        ? `${item.__typename} #${item.number || 'unknown'}`
+        : 'unknown item';
       const errorMessage = error.message || '';
       const errorCode = error.code || '';
-      
+
       // Log error with context
       log.error(`Failed to process column for ${itemIdentifier}: ${errorMessage || errorCode}`);
-      
+
       if (error.stack) {
         log.debug(`Error details: ${error.stack}`);
       }
-      
+
       // Network/timeout errors - log but continue with next item
-      const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
-      const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                             errorMessage.includes('timeout') ||
-                             errorMessage.includes('ECONNRESET') ||
-                             errorMessage.includes('ENOTFOUND');
-      
+      const networkErrorCodes = [
+        'ETIMEDOUT',
+        'ECONNRESET',
+        'ENOTFOUND',
+        'EAI_AGAIN',
+        'ECONNREFUSED',
+      ];
+      const isNetworkError =
+        (errorCode && networkErrorCodes.includes(errorCode)) ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ENOTFOUND');
+
       if (isNetworkError) {
-        log.warning(`Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
+        log.warning(
+          `Network error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`
+        );
         continue; // Continue processing other items
       }
-      
+
       // Other errors - log but continue (don't fail entire batch)
-      log.warning(`Error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`);
+      log.warning(
+        `Error processing column for ${itemIdentifier}: ${errorMessage || errorCode}. Continuing with next item.`
+      );
     }
   }
 
@@ -397,12 +444,14 @@ async function processColumns({ projectId, items }) {
   }
 
   // Log results
-  processedItems.forEach(item => {
+  processedItems.forEach((item) => {
     log.info(`${item.type} #${item.number} [${item.repo}] - ${item.reason}`);
   });
 
-  skippedItems.forEach(item => {
-    log.info(`Skipped ${item.type} #${item.number} [${item.repo}] - ${item.reason} (${item.column})`);
+  skippedItems.forEach((item) => {
+    log.info(
+      `Skipped ${item.type} #${item.number} [${item.repo}] - ${item.reason} (${item.column})`
+    );
   });
 
   return { processedItems, skippedItems };

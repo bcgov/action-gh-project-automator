@@ -12,7 +12,7 @@ describe('AuditLogger', () => {
     // Reset events
     auditLog.events = [];
     auditLog.startTime = new Date();
-    
+
     // Create a temporary file for GITHUB_STEP_SUMMARY simulation
     tempSummaryFile = path.join(os.tmpdir(), `summary-${Date.now()}.md`);
     process.env.GITHUB_STEP_SUMMARY = tempSummaryFile;
@@ -52,7 +52,7 @@ describe('AuditLogger', () => {
       from: 'New',
       to: 'Active',
       rule: 'Test Rule',
-      reason: 'Testing reason'
+      reason: 'Testing reason',
     });
 
     auditLog.logEvent({
@@ -62,20 +62,20 @@ describe('AuditLogger', () => {
       action: 'Set Sprint',
       from: 'None',
       to: 'Sprint 1',
-      rule: 'Sprint Rule'
+      rule: 'Sprint Rule',
     });
 
     const summary = auditLog.generateSummary();
-    
+
     // Check for table headers
     assert.match(summary, /\| Item \| Action \| Transition \| Rule \| Reason \|/);
-    
+
     // Check for Issue link
     assert.match(summary, /\[Issue #123\]\(https:\/\/github\.com\/org\/repo\/issues\/123\)/);
-    
+
     // Check for PR link
     assert.match(summary, /\[PullRequest #456\]\(https:\/\/github\.com\/org\/repo\/pull\/456\)/);
-    
+
     // Check for actions and rules
     assert.match(summary, /Move Column/);
     assert.match(summary, /Set Sprint/);
@@ -91,11 +91,11 @@ describe('AuditLogger', () => {
       action: 'Add',
       from: 'None',
       to: 'Board',
-      rule: 'Add Rule'
+      rule: 'Add Rule',
     });
 
     await auditLog.pushToGhaSummary();
-    
+
     const content = await fs.readFile(tempSummaryFile, 'utf-8');
     assert.match(content, /### 🤖 Automator Run Summary/);
     assert.match(content, /\[Issue #1\]/);
@@ -104,7 +104,7 @@ describe('AuditLogger', () => {
   it('gracefully handles missing GITHUB_STEP_SUMMARY', async () => {
     delete process.env.GITHUB_STEP_SUMMARY;
     auditLog.logEvent({ type: 'Issue', number: 1, repo: 'a/b', action: 'Add' });
-    
+
     // Should not throw
     await auditLog.pushToGhaSummary();
   });
