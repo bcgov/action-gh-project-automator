@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/actions/sync-engine
         with:
           backfill: ${{ inputs.backfill }}
-          window_hours: ${{ inputs.window_hours || '1' }}
+          window_hours: ${{ inputs.window_hours || '2' }}
           verbose: 'true'
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
 
@@ -97,7 +97,7 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
   results:
-    name: Analysis Results
+    name: Sync Results
     needs: [tests, sync, trivy]
     if: always()
     runs-on: ubuntu-latest
@@ -107,13 +107,13 @@ jobs:
         uses: bcgov/actions/workflow-notifier@v0.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: "fix: failure in analysis.yml"
+          title: "fix: failure in sync.yml"
           labels: "failure,security,analysis"
 
       - name: Check Overall Status
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "At least one analysis job failed or was cancelled."
+          echo "At least one sync job failed or was cancelled."
           exit 1
       - name: Success Message
-        run: echo "Analysis completed successfully!"
+        run: echo "Sync completed successfully!"
