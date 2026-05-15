@@ -301,6 +301,15 @@ async function main() {
       since: watermark
     });
 
+    // Dry Run Safety Threshold: Fail if we would have modified a massive number of items
+    const DRY_RUN_SAFETY_THRESHOLD = 50;
+    if (context.dryRun && addedItems.length > DRY_RUN_SAFETY_THRESHOLD) {
+      const msg = `⚠️ DRY RUN SAFETY CHECK FAILED: This run would have modified ${addedItems.length} items, which exceeds the safety threshold of ${DRY_RUN_SAFETY_THRESHOLD}. Please review your rules.yml for overly broad filters.`;
+      log.error(msg);
+      core.setFailed(msg);
+      return;
+    }
+
     // Process additional rules for added items
     const errors = [];
     for (const item of addedItems) {
