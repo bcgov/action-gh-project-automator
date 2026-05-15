@@ -46,6 +46,10 @@ jobs:
     name: Action
     needs: tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     env:
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
     steps:
@@ -53,9 +57,6 @@ jobs:
 
       - name: Run Sync Engine
         uses: ./.github/actions/sync-engine
-        permissions:
-          contents: read
-          pull-requests: write
         with:
           backfill: ${{ inputs.backfill }}
           window_hours: ${{ inputs.window_hours || '2' }}
@@ -67,6 +68,9 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -80,8 +84,6 @@ jobs:
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        permissions:
-          contents: read
         with:
           format: "sarif"
           output: "trivy-results.sarif"
@@ -96,28 +98,25 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
-        permissions:
-          contents: read
-          security-events: write
         with:
           sarif_file: "trivy-results.sarif"
 
   results:
     name: Results
     needs: [tests, sync, trivy]
-    if: always() &&(! github.event.pull_request.draft)
+    if: always() && (! github.event.pull_request.draft)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Notify on Failure
         if: failure() && github.event_name != 'pull_request'
         uses: bcgov/actions/workflow-notifier@da66900b0442d7fd13e8f04e83ded84b4b75a6fb #v0.1.0
-        permissions:
-          contents: read
-          issues: write 
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: "fix: failure in sync.yml"
-          labels: "failure,security,analysis"
+          title: "fix: failure in ${{ github.workflow }}"
+          labels: "failure"
 
       - name: Check Overall Status
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
