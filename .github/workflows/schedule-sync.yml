@@ -1,6 +1,10 @@
 name: Scheduled Project Sync
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
   schedule:
     - cron: "0 * * * *" # hourly
   workflow_dispatch:
@@ -19,18 +23,22 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: write
+  pull-requests: read
+  security-events: write
 
 concurrency:
-  group: scheduled-sync-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-and-sync:
+  tests:
+    name: Unit Tests
+    if: (! github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
       - name: Run Tests
@@ -38,10 +46,74 @@ jobs:
         run: |
           npm ci
           npm test
+  sync:
+    name: Sync
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
       - name: Run Sync Engine
         uses: ./.github/actions/sync-engine
         with:
           backfill: ${{ inputs.backfill }}
-          window_hours: ${{ inputs.window_hours || '2' }}
+          window_hours: ${{ inputs.window_hours || '1' }}
           verbose: 'true'
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+
+  trivy:
+    name: Trivy Security Scan
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: .trivycache
+          key: ${{ runner.os }}-trivy-v0.36.0-cache-v1
+          restore-keys: |
+            ${{ runner.os }}-trivy-
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          format: "sarif"
+          output: "trivy-results.sarif"
+          ignore-unfixed: true
+          scan-type: "fs"
+          scanners: "vuln,secret,misconfig"
+          severity: "CRITICAL,HIGH"
+          trivyignores: ".github/.trivyignore"
+          cache-dir: .trivycache
+          scan-ref: "."
+          skip-dirs: "**/node_modules,**/coverage,**/dist,.git"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-results.sarif"
+
+  results:
+    name: Analysis Results
+    needs: [tests, sync, trivy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on Failure
+        if: failure() && github.event_name != 'pull_request'
+        uses: bcgov/actions/workflow-notifier@v0.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "fix: failure in analysis.yml"
+          labels: "failure,security,analysis"
+
+      - name: Check Overall Status
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "At least one analysis job failed or was cancelled."
+          exit 1
+      - name: Success Message
+        run: echo "Analysis completed successfully!"
