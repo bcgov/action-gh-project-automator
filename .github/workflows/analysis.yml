@@ -20,33 +20,19 @@ permissions:
   pull-requests: read
 
 jobs:
-  tests:
-    name: Tests
-    if: (! github.event.pull_request.draft)
+  test-and-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run Tests
-        run: npm test
-
-      - name: Notify on Failure
-        if: failure() && github.event_name != 'pull_request'
-        uses: bcgov/actions/workflow-notifier@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Analysis Failure: Tests"
-          labels: "failure,bug,analysis"
+        shell: bash
+        run: |
+          npm ci
+          npm test
 
   trivy:
     name: Trivy Security Scan
@@ -93,7 +79,7 @@ jobs:
 
   results:
     name: Analysis Results
-    needs: [tests, trivy]
+    needs: [test-and-sync, trivy]
     if: always() && (! github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
