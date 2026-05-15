@@ -106,7 +106,7 @@ jobs:
     steps:
       - name: Notify on Failure
         if: failure() && github.event_name != 'pull_request'
-        uses: bcgov/actions/workflow-notifier@v0.1.0
+        uses: bcgov/actions/workflow-notifier@da66900b0442d7fd13e8f04e83ded84b4b75a6fb #v0.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "fix: failure in sync.yml"
