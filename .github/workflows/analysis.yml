@@ -20,7 +20,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  test-and-sync:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -79,7 +79,7 @@ jobs:
 
   results:
     name: Analysis Results
-    needs: [test-and-sync, trivy]
+    needs: [tests, trivy]
     if: always() && (! github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
