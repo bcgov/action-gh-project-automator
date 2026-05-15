@@ -15,8 +15,8 @@ const __dirname = path.dirname(__filename);
 
 test('workflow concurrency configuration', async (t) => {
   await t.test('workflow has strict concurrency to prevent race conditions', async () => {
-    // Check pr-sync.yml
-    const workflowPath = path.join(__dirname, '..', '.github', 'workflows', 'pr-sync.yml');
+    // Check sync.yml
+    const workflowPath = path.join(__dirname, '..', '.github', 'workflows', 'sync.yml');
     const workflowContent = fs.readFileSync(workflowPath, 'utf8');
     const workflow = yaml.load(workflowContent);
     
@@ -24,7 +24,7 @@ test('workflow concurrency configuration', async (t) => {
     assert(workflow.concurrency, 'Workflow must have concurrency configuration');
     
     // Verify concurrency group is strict
-    // Note: We accept both ${{ github.workflow }} and pr-sync-${{ github.event.pull_request.number }}
+    // Note: We accept both ${{ github.workflow }} and sync-${{ github.event.pull_request.number }}
     const concurrencyGroup = workflow.concurrency.group;
     assert(concurrencyGroup.includes('github.workflow') || concurrencyGroup.includes('pull_request.number'),
       'Concurrency group must be strict to prevent race conditions');

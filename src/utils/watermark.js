@@ -72,6 +72,10 @@ export async function getWatermark(projectId, overrides = {}) {
  * @returns {Promise<void>}
  */
 export async function saveWatermark(projectId, timestamp, overrides = {}) {
+  if (process.env.DRY_RUN === 'true') {
+    log.info(`[DRY RUN] Skipping watermark update to ${timestamp}`);
+    return;
+  }
   const {
     cache: cacheModule = cache,
     fs: fsModule = fs,

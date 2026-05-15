@@ -208,6 +208,13 @@ class StateVerifier {
   static async verifyAddition(item, projectId) {
     this.tracker.startTracking(item);
     const beforeState = this.getState(item);
+    if (process.env.DRY_RUN === 'true') {
+      log.info(`[DRY RUN] Skipping verifyAddition for ${item.type} #${item.number}`);
+      return this.updateState(item, {
+        inProject: true,
+        projectItemId: `dry-run-item-${Date.now()}`
+      });
+    }
 
     return this.retryWithTracking(
       item,
@@ -249,6 +256,10 @@ class StateVerifier {
 
   static async verifyColumn(item, projectId, expectedColumn) {
     const beforeState = this.getState(item);
+    if (process.env.DRY_RUN === 'true') {
+      log.info(`[DRY RUN] Skipping verifyColumn for ${item.type} #${item.number} (expected: ${expectedColumn})`);
+      return this.updateState(item, { column: expectedColumn });
+    }
 
     // Validate the transition before attempting it
     const validationResult = this.getTransitionValidator().validateColumnTransition(
@@ -297,6 +308,10 @@ Current: "${currentColumn}"`);
 
   static async verifyAssignees(item, projectId, expectedAssignees) {
     const beforeState = this.getState(item);
+    if (process.env.DRY_RUN === 'true') {
+      log.info(`[DRY RUN] Skipping verifyAssignees for ${item.type} #${item.number} (expected: ${expectedAssignees.join(', ')})`);
+      return this.updateState(item, { assignees: expectedAssignees });
+    }
 
     return this.retryWithTracking(
       item,
@@ -361,6 +376,11 @@ ${missingInProject.length > 0 ? `Missing in project board: ${missingInProject.jo
   static async verifyCompleteState(item, projectId, expectedState) {
     // Validate required steps
     this.steps.validateStepCompleted('RULES_INITIALIZED');
+
+    if (process.env.DRY_RUN === 'true') {
+      log.info(`[DRY RUN] Skipping verifyCompleteState for ${item.type} #${item.number}`);
+      return this.updateState(item, expectedState);
+    }
 
     const itemRef = `${item.type}#${item.number}`;
     const totalSteps = Object.keys(expectedState).length;
