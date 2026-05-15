@@ -20,11 +20,7 @@ on:
         default: '2'
         type: string
 
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
-  security-events: write
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,8 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
       - name: Run Tests
@@ -46,6 +41,7 @@ jobs:
         run: |
           npm ci
           npm test
+
   sync:
     name: Action
     needs: tests
@@ -57,6 +53,9 @@ jobs:
 
       - name: Run Sync Engine
         uses: ./.github/actions/sync-engine
+        permissions:
+          contents: read
+          pull-requests: write
         with:
           backfill: ${{ inputs.backfill }}
           window_hours: ${{ inputs.window_hours || '2' }}
@@ -81,6 +80,8 @@ jobs:
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        permissions:
+          contents: read
         with:
           format: "sarif"
           output: "trivy-results.sarif"
@@ -95,6 +96,9 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
+        permissions:
+          contents: read
+          security-events: write
         with:
           sarif_file: "trivy-results.sarif"
 
@@ -107,6 +111,9 @@ jobs:
       - name: Notify on Failure
         if: failure() && github.event_name != 'pull_request'
         uses: bcgov/actions/workflow-notifier@da66900b0442d7fd13e8f04e83ded84b4b75a6fb #v0.1.0
+        permissions:
+          contents: read
+          issues: write 
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "fix: failure in sync.yml"
