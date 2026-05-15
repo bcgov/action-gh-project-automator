@@ -9,34 +9,37 @@ import { processAssigneeRules } from './processors/unified-rule-processor.js';
  */
 async function getItemDetails(itemId) {
   try {
-    const result = await graphql(`
-      query($itemId: ID!) {
-        node(id: $itemId) {
-          ... on ProjectV2Item {
-            id
-            type
-            content {
-              ... on Issue {
-                id
-                number
-                repository {
-                  nameWithOwner
+    const result = await graphql(
+      `
+        query ($itemId: ID!) {
+          node(id: $itemId) {
+            ... on ProjectV2Item {
+              id
+              type
+              content {
+                ... on Issue {
+                  id
+                  number
+                  repository {
+                    nameWithOwner
+                  }
                 }
-              }
-              ... on PullRequest {
-                id
-                number
-                repository {
-                  nameWithOwner
+                ... on PullRequest {
+                  id
+                  number
+                  repository {
+                    nameWithOwner
+                  }
                 }
               }
             }
           }
         }
+      `,
+      {
+        itemId,
       }
-    `, {
-      itemId
-    });
+    );
 
     return result.node;
   } catch (error) {
@@ -65,30 +68,32 @@ function arraysEqual(a, b) {
  * @returns {Promise<string[]>} Array of assignee logins
  */
 async function getItemAssignees(projectId, itemId) {
-  const result = await graphql(`
-    query($projectId: ID!, $itemId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          field(name: "Assignees") {
-            ... on ProjectV2Field {
-              id
+  const result = await graphql(
+    `
+      query ($projectId: ID!, $itemId: ID!) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            field(name: "Assignees") {
+              ... on ProjectV2Field {
+                id
+              }
             }
           }
         }
-      }
-      item: node(id: $itemId) {
-        ... on ProjectV2Item {
-          fieldValues(first: 10) {
-            nodes {
-              ... on ProjectV2ItemFieldUserValue {
-                field {
-                  ... on ProjectV2Field {
-                    name
+        item: node(id: $itemId) {
+          ... on ProjectV2Item {
+            fieldValues(first: 10) {
+              nodes {
+                ... on ProjectV2ItemFieldUserValue {
+                  field {
+                    ... on ProjectV2Field {
+                      name
+                    }
                   }
-                }
-                users(first: 10) {
-                  nodes {
-                    login
+                  users(first: 10) {
+                    nodes {
+                      login
+                    }
                   }
                 }
               }
@@ -96,26 +101,27 @@ async function getItemAssignees(projectId, itemId) {
           }
         }
       }
+    `,
+    {
+      projectId,
+      itemId,
     }
-  `, {
-    projectId,
-    itemId
-  });
+  );
 
   const fieldValues = result.item?.fieldValues.nodes || [];
-  const assigneeValue = fieldValues.find(v => v.field?.name === 'Assignees');
+  const assigneeValue = fieldValues.find((v) => v.field?.name === 'Assignees');
 
   if (!assigneeValue) {
     return [];
   }
 
-  return assigneeValue.users?.nodes?.map(u => u.login) || [];
+  return assigneeValue.users?.nodes?.map((u) => u.login) || [];
 }
 async function fetchRepoAssignees({ owner, repo, number, isPullRequest }) {
   const issueOrPrData = isPullRequest
     ? await rest.pulls.get({ owner, repo, pull_number: number })
     : await rest.issues.get({ owner, repo, issue_number: number });
-  return (issueOrPrData.data.assignees || []).map(a => a.login);
+  return (issueOrPrData.data.assignees || []).map((a) => a.login);
 }
 
 /**
@@ -127,7 +133,9 @@ async function fetchRepoAssignees({ owner, repo, number, isPullRequest }) {
  */
 async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {}) {
   if (process.env.DRY_RUN === 'true') {
-    log.info(`[DRY RUN] Skipping setItemAssignees for itemId=${itemId} with assignees: ${assigneeLogins.join(', ')}`);
+    log.info(
+      `[DRY RUN] Skipping setItemAssignees for itemId=${itemId} with assignees: ${assigneeLogins.join(', ')}`
+    );
     return;
   }
   const {
@@ -135,7 +143,7 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
     fetchRepoAssigneesFn = fetchRepoAssignees,
     getItemAssigneesFn = getItemAssignees,
     graphqlClient = graphql,
-    getUserIdsFn = getUserIdsBatched
+    getUserIdsFn = getUserIdsBatched,
   } = overrides;
 
   try {
@@ -152,7 +160,10 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
     const projectAssignees = await getItemAssigneesFn(projectId, itemId);
 
     // No-op guard: Only skip if BOTH repo and project board are already in sync
-    if (arraysEqual(repoAssignees, assigneeLogins) && arraysEqual(projectAssignees, assigneeLogins)) {
+    if (
+      arraysEqual(repoAssignees, assigneeLogins) &&
+      arraysEqual(projectAssignees, assigneeLogins)
+    ) {
       log.info('Assignees already up to date in both repo and project; skipping');
       return;
     }
@@ -160,15 +171,19 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
     // Compute delta to minimize calls (add and remove to exactly match target)
     // We sync the REPO first, as Project V2 built-in Assignees field should follow it.
     const current = repoAssignees;
-    const toAdd = assigneeLogins.filter(a => !current.includes(a));
-    const toRemove = current.filter(a => !assigneeLogins.includes(a));
+    const toAdd = assigneeLogins.filter((a) => !current.includes(a));
+    const toRemove = current.filter((a) => !assigneeLogins.includes(a));
 
     // Single batch-scoped cache for this operation
     const userIdBatchCache = new Map();
 
     // Removals first (if any)
     if (toRemove.length > 0) {
-      const { ids: removeIds, missing: missingRemove } = await getUserIdsFn(toRemove, userIdBatchCache, graphqlClient);
+      const { ids: removeIds, missing: missingRemove } = await getUserIdsFn(
+        toRemove,
+        userIdBatchCache,
+        graphqlClient
+      );
       if (missingRemove.length > 0) {
         log.warning(`Some assignees to remove not found: ${missingRemove.join(', ')}`);
       }
@@ -185,7 +200,11 @@ async function setItemAssignees(projectId, itemId, assigneeLogins, overrides = {
 
     // Additions (if any)
     if (toAdd.length > 0) {
-      const { ids: addIds, missing: missingAdd } = await getUserIdsFn(toAdd, userIdBatchCache, graphqlClient);
+      const { ids: addIds, missing: missingAdd } = await getUserIdsFn(
+        toAdd,
+        userIdBatchCache,
+        graphqlClient
+      );
       if (missingAdd.length > 0) {
         log.warning(`Some assignee logins to add not found: ${missingAdd.join(', ')}`);
       }
@@ -214,23 +233,27 @@ async function getUserIdsBatched(logins, cache, graphqlClient = graphql) {
   const userIdCache = cache instanceof Map ? cache : new Map();
 
   // Prepare vars for uncached logins
-  const uncached = unique.filter(l => !userIdCache.has(l));
+  const uncached = unique.filter((l) => !userIdCache.has(l));
   if (uncached.length > 0) {
     const varDecls = uncached.map((_, i) => `$l${i}: String!`).join(', ');
     const fields = uncached.map((_, i) => `u${i}: user(login: $l${i}) { id login }`).join(' ');
     const query = `query(${varDecls}) { ${fields} }`;
     const variables = {};
-    uncached.forEach((l, i) => { variables[`l${i}`] = l; });
+    uncached.forEach((l, i) => {
+      variables[`l${i}`] = l;
+    });
     const res = await graphqlClient(query, variables);
     uncached.forEach((l, i) => {
       const node = res[`u${i}`];
-      if (node?.id) userIdCache.set(l, node.id); else missingSet.add(l);
+      if (node?.id) userIdCache.set(l, node.id);
+      else missingSet.add(l);
     });
   }
 
-  unique.forEach(l => {
+  unique.forEach((l) => {
     const id = userIdCache.get(l);
-    if (id) ids.push(id); else missingSet.add(l);
+    if (id) ids.push(id);
+    else missingSet.add(l);
   });
 
   return { ids, missing: Array.from(missingSet) };
@@ -262,10 +285,14 @@ async function processAssignees(item, projectId, itemId) {
     const { repository, number } = itemDetails.content;
 
     // Validate repository format before splitting
-    if (!repository ||
-        typeof repository.nameWithOwner !== 'string' ||
-        !repository.nameWithOwner.includes('/')) {
-      throw new Error(`Invalid repository.nameWithOwner format for item ${itemId}: ${repository?.nameWithOwner}`);
+    if (
+      !repository ||
+      typeof repository.nameWithOwner !== 'string' ||
+      !repository.nameWithOwner.includes('/')
+    ) {
+      throw new Error(
+        `Invalid repository.nameWithOwner format for item ${itemId}: ${repository?.nameWithOwner}`
+      );
     }
 
     const [owner, repo] = repository.nameWithOwner.split('/');
@@ -276,7 +303,7 @@ async function processAssignees(item, projectId, itemId) {
       ? await rest.pulls.get({ owner, repo, pull_number: number })
       : await rest.issues.get({ owner, repo, issue_number: number });
 
-    const repoAssignees = issueOrPrData.data.assignees.map(a => a.login);
+    const repoAssignees = issueOrPrData.data.assignees.map((a) => a.login);
     log.info(`  • Current assignees in Issue/PR: ${repoAssignees.join(', ') || 'none'}`, true);
 
     // Process assignee rules from YAML config
@@ -287,7 +314,7 @@ async function processAssignees(item, projectId, itemId) {
         changed: false,
         assignees: currentAssignees,
         previousAssignees: currentAssignees,
-        reason: 'No assignee rules triggered'
+        reason: 'No assignee rules triggered',
       };
     }
 
@@ -314,7 +341,7 @@ async function processAssignees(item, projectId, itemId) {
       return {
         changed: false,
         assignees: currentAssignees,
-        reason: 'No valid assignee found'
+        reason: 'No valid assignee found',
       };
     }
 
@@ -323,7 +350,7 @@ async function processAssignees(item, projectId, itemId) {
       return {
         changed: false,
         assignees: currentAssignees,
-        reason: `Assignee ${assigneeToAdd} already assigned`
+        reason: `Assignee ${assigneeToAdd} already assigned`,
       };
     }
 
@@ -338,12 +365,14 @@ async function processAssignees(item, projectId, itemId) {
       changed: true,
       assignees: targetAssignees,
       previousAssignees: currentAssignees,
-      reason: `Added ${assigneeToAdd} as assignee`
+      reason: `Added ${assigneeToAdd} as assignee`,
     };
   } catch (error) {
-    const itemIdentifier = item ? `${item.__typename || item.type} #${item.number || 'unknown'}` : 'unknown item';
+    const itemIdentifier = item
+      ? `${item.__typename || item.type} #${item.number || 'unknown'}`
+      : 'unknown item';
     log.error(`Failed to process assignees for ${itemIdentifier}: ${error.message}`);
-    
+
     if (error.stack) {
       log.debug(`Error details: ${error.stack}`);
     }
@@ -351,35 +380,47 @@ async function processAssignees(item, projectId, itemId) {
     // Classify errors for better handling
     const errorMessage = error.message || '';
     const errorCode = error.code || '';
-    
+
     // Critical errors that should stop processing
-    const isAuthError = errorMessage.includes('Bad credentials') || 
-                        errorMessage.includes('Not authenticated');
+    const isAuthError =
+      errorMessage.includes('Bad credentials') || errorMessage.includes('Not authenticated');
     const isRateLimitError = errorMessage.includes('rate limit');
-    
+
     if (isAuthError || isRateLimitError) {
-      const apiError = new Error(`GitHub API error: ${errorMessage}. Please check configuration and retry.`);
+      const apiError = new Error(
+        `GitHub API error: ${errorMessage}. Please check configuration and retry.`
+      );
       apiError.cause = error;
       throw apiError;
     }
-    
+
     // Network/timeout errors - re-throw for upstream handling
     const networkErrorCodes = ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'];
-    const isNetworkError = (errorCode && networkErrorCodes.includes(errorCode)) ||
-                           errorMessage.includes('timeout') ||
-                           errorMessage.includes('ECONNRESET') ||
-                           errorMessage.includes('ENOTFOUND');
-    
+    const isNetworkError =
+      (errorCode && networkErrorCodes.includes(errorCode)) ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('ECONNRESET') ||
+      errorMessage.includes('ENOTFOUND');
+
     if (isNetworkError) {
       // Network errors that cause re-throwing are logged as errors since they stop processing
       // This differs from network errors that allow continuing (which use log.warning())
-      log.error(`Network error processing assignees for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`);
+      log.error(
+        `Network error processing assignees for ${itemIdentifier}: ${errorMessage || errorCode}. Re-throwing for upstream handling.`
+      );
       throw error; // Re-throw network errors so they can be handled by caller
     }
-    
+
     // Other errors - re-throw for upstream handling
     throw error;
   }
 }
 
-export { processAssignees, getItemAssignees, setItemAssignees, getItemDetails, fetchRepoAssignees, getUserIdsBatched };
+export {
+  processAssignees,
+  getItemAssignees,
+  setItemAssignees,
+  getItemDetails,
+  fetchRepoAssignees,
+  getUserIdsBatched,
+};

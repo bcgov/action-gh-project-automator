@@ -52,7 +52,7 @@ class StateChangeTracker {
     // Initialize with meaningful initial state
     const initialState = {
       inProject: item.projectItems?.nodes?.length > 0,
-      projectItemId: item.projectItems?.nodes?.[0]?.id || null
+      projectItemId: item.projectItems?.nodes?.[0]?.id || null,
     };
     this.currentState.set(key, initialState);
   }
@@ -71,7 +71,7 @@ class StateChangeTracker {
     // Create new state by merging current with after
     const newState = {
       ...currentState,
-      ...after
+      ...after,
     };
 
     changes.push({
@@ -80,7 +80,7 @@ class StateChangeTracker {
       before: attemptCount === 1 ? before : currentState,
       after: newState,
       attemptCount,
-      duration: Date.now() - this.startTimes.get(key)
+      duration: Date.now() - this.startTimes.get(key),
     });
 
     this.changes.set(key, changes);
@@ -101,7 +101,7 @@ class StateChangeTracker {
       type,
       error: error.message,
       attempt,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -148,7 +148,7 @@ class StateChangeTracker {
         // Print state differences in a readable format
         if (typeof change.before === 'object') {
           const diffs = this.getDiffs(change.before, change.after);
-          diffs.forEach(diff => log.info(`    ${diff}`, true));
+          diffs.forEach((diff) => log.info(`    ${diff}`, true));
         } else {
           log.info(`    ${change.before} → ${change.after}`, true);
         }
@@ -161,7 +161,7 @@ class StateChangeTracker {
     log.info('══════════════════\n', true);
     log.info(`Total Duration: ${(this.timingStats.totalDuration / 1000).toFixed(1)}s\n`, true);
 
-    Object.keys(this.timingStats.verificationCounts).forEach(type => {
+    Object.keys(this.timingStats.verificationCounts).forEach((type) => {
       const count = this.timingStats.verificationCounts[type];
       const avgDuration = this.timingStats.averageDurations[type];
       const maxRetries = this.timingStats.maxRetries[type];

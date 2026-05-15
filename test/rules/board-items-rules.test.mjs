@@ -11,7 +11,7 @@ function buildSeedItem(overrides = {}) {
     repository: { nameWithOwner: 'org/repo' },
     assignees: { nodes: [] },
     projectItems: { nodes: [] },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -19,7 +19,7 @@ function buildIssueItem(overrides = {}) {
   return buildSeedItem({
     __typename: 'Issue',
     author: undefined,
-    ...overrides
+    ...overrides,
   });
 }
 
@@ -27,11 +27,11 @@ function buildConfig(boardItemsRules) {
   return {
     project: {
       organization: 'org',
-      repositories: ['repo']
+      repositories: ['repo'],
     },
     rules: {
-      board_items: boardItemsRules
-    }
+      board_items: boardItemsRules,
+    },
   };
 }
 
@@ -41,7 +41,7 @@ function createTestValidator({ monitoredUsers = [], monitoredRepos = [] } = {}) 
 
   return {
     steps: {
-      markStepComplete: () => {}
+      markStepComplete: () => {},
     },
     validateSkipRule: (item, skipIf) => {
       if (skipIf === 'item.inProject') {
@@ -62,7 +62,7 @@ function createTestValidator({ monitoredUsers = [], monitoredRepos = [] } = {}) 
         default:
           return false;
       }
-    }
+    },
   };
 }
 
@@ -74,18 +74,18 @@ test('processBoardItemRules returns add_to_board for authored pull request', asy
       name: 'authored_pull_requests',
       trigger: {
         type: 'PullRequest',
-        condition: 'monitored.users.includes(item.author)'
+        condition: 'monitored.users.includes(item.author)',
       },
       action: 'add_to_board',
-      skip_if: 'item.inProject'
-    }
+      skip_if: 'item.inProject',
+    },
   ]);
 
   const actions = await processBoardItemRules(item, {
     loadBoardRulesFn: () => config,
     ruleValidator: createTestValidator({
-      monitoredUsers: ['octocat']
-    })
+      monitoredUsers: ['octocat'],
+    }),
   });
 
   assert.equal(actions.length, 1);
@@ -94,7 +94,7 @@ test('processBoardItemRules returns add_to_board for authored pull request', asy
 
 test('processBoardItemRules skips item already in project', async () => {
   const item = buildSeedItem({
-    projectItems: { nodes: [{ id: 'existing' }] }
+    projectItems: { nodes: [{ id: 'existing' }] },
   });
 
   const config = buildConfig([
@@ -102,18 +102,18 @@ test('processBoardItemRules skips item already in project', async () => {
       name: 'authored_pull_requests',
       trigger: {
         type: 'PullRequest',
-        condition: 'monitored.users.includes(item.author)'
+        condition: 'monitored.users.includes(item.author)',
       },
       action: 'add_to_board',
-      skip_if: 'item.inProject'
-    }
+      skip_if: 'item.inProject',
+    },
   ]);
 
   const actions = await processBoardItemRules(item, {
     loadBoardRulesFn: () => config,
     ruleValidator: createTestValidator({
-      monitoredUsers: ['octocat']
-    })
+      monitoredUsers: ['octocat'],
+    }),
   });
 
   assert.equal(actions.length, 0);
@@ -125,26 +125,25 @@ test('processBoardItemRules triggers repository scope rule for issues', async ()
       name: 'repository_issues',
       trigger: {
         type: 'Issue',
-        condition: 'monitored.repos.includes(item.repository)'
+        condition: 'monitored.repos.includes(item.repository)',
       },
       action: 'add_to_board',
-      skip_if: 'item.inProject'
-    }
+      skip_if: 'item.inProject',
+    },
   ]);
 
   const issueItem = buildIssueItem({
     number: 77,
-    id: 'ISSUE_node'
+    id: 'ISSUE_node',
   });
 
   const actions = await processBoardItemRules(issueItem, {
     loadBoardRulesFn: () => config,
     ruleValidator: createTestValidator({
-      monitoredRepos: ['org/repo']
-    })
+      monitoredRepos: ['org/repo'],
+    }),
   });
 
   assert.equal(actions.length, 1);
   assert.equal(actions[0].action, 'add_to_board');
 });
-

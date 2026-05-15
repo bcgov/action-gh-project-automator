@@ -23,13 +23,15 @@ class AuditLogger {
   logEvent(event) {
     this.events.push({
       ...event,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    
+
     // Also log to standard output for real-time visibility
     const itemRef = `${event.type} #${event.number} [${event.repo}]`;
     const reasonText = event.reason ? ` | Reason: ${event.reason}` : '';
-    log.info(`[AUDIT] ${itemRef}: ${event.action} | ${event.from} -> ${event.to} (Rule: ${event.rule})${reasonText}`);
+    log.info(
+      `[AUDIT] ${itemRef}: ${event.action} | ${event.from} -> ${event.to} (Rule: ${event.rule})${reasonText}`
+    );
   }
 
   /**
@@ -44,10 +46,12 @@ class AuditLogger {
       number: item?.number || 'Unknown',
       repo: item?.repo || item?.repository?.nameWithOwner || 'Unknown',
       stack: error.stack,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    
-    const itemRef = item ? `${item.type} #${item.number} [${item.repo || item.repository?.nameWithOwner}]` : 'System';
+
+    const itemRef = item
+      ? `${item.type} #${item.number} [${item.repo || item.repository?.nameWithOwner}]`
+      : 'System';
     log.error(`[AUDIT] FAILURE for ${itemRef}: ${error.message}`);
   }
 
@@ -72,16 +76,17 @@ class AuditLogger {
 
     let healthIndicator = '';
     if (stats.health) {
-      const emoji = {
-        GREEN: '🟢',
-        YELLOW: '🟡',
-        RED: '🔴',
-        BLACK: '💀',
-        UNKNOWN: '⚪'
-      }[stats.health] || '⚪';
+      const emoji =
+        {
+          GREEN: '🟢',
+          YELLOW: '🟡',
+          RED: '🔴',
+          BLACK: '💀',
+          UNKNOWN: '⚪',
+        }[stats.health] || '⚪';
       healthIndicator = `\n**API Health: ${emoji} ${stats.health}**\n`;
     }
-    
+
     if (this.events.length === 0 && this.errors.length === 0) {
       return `### ✅ Run Complete: No changes needed.\n${healthIndicator}\nAll items are currently perfectly aligned with board rules.\n\n*Completed at ${timeStr} (Duration: ${durationSec}s)*`;
     }
@@ -96,9 +101,10 @@ class AuditLogger {
       summary += '| :--- | :--- |\n';
       for (const err of this.errors) {
         const segment = err.type === 'PullRequest' ? 'pull' : 'issues';
-        const itemLink = err.repo !== 'Unknown' 
-          ? `[${err.type} #${err.number}](https://github.com/${err.repo}/${segment}/${err.number})`
-          : `System`;
+        const itemLink =
+          err.repo !== 'Unknown'
+            ? `[${err.type} #${err.number}](https://github.com/${err.repo}/${segment}/${err.number})`
+            : `System`;
         summary += `| ${itemLink} | \`${err.message}\` |\n`;
       }
       summary += `\n> [!CAUTION]\n> **Critical errors occurred.** The sync watermark was NOT saved. These items will be retried in the next run.\n\n`;

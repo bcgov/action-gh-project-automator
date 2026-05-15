@@ -21,7 +21,7 @@ function buildSeedPullRequest(overrides = {}) {
     author: { login: 'octocat' },
     repository: { nameWithOwner: 'org/repo' },
     assignees: { nodes: [] },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -33,37 +33,36 @@ function buildSeedIssue(overrides = {}) {
     author: { login: 'someone' },
     repository: { nameWithOwner: 'org/repo' },
     assignees: { nodes: [] },
-    ...overrides
+    ...overrides,
   };
 }
 
 test('processAddItems adds monitored PR to board and increments counters', async () => {
   const logger = createLogger();
 
-  const seedItems = [
-    buildSeedPullRequest()
-  ];
+  const seedItems = [buildSeedPullRequest()];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_1',
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 1);
   assert.equal(result.addedItems[0].projectItemId, 'PROJECT_ITEM_1');
@@ -77,26 +76,27 @@ test('processAddItems adds monitored PR to board and increments counters', async
 
 test('processAddItems skips items when board rules do not match', async () => {
   const logger = createLogger();
-  const seedItems = [
-    buildSeedPullRequest({ author: { login: 'someone_else' } })
-  ];
+  const seedItems = [buildSeedPullRequest({ author: { login: 'someone_else' } })];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     processBoardItemRulesFn: async () => [],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 0);
   assert.equal(result.skippedItems.length, 1);
@@ -116,30 +116,31 @@ test('processAddItems adds issue assigned to monitored user to board', async () 
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [{ login: 'octocat' }] },
-      repository: { nameWithOwner: 'org/other-repo' } // Not in monitored repos
-    })
+      repository: { nameWithOwner: 'org/other-repo' }, // Not in monitored repos
+    }),
   ];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_2',
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'], // Issue is in 'other-repo', not in monitored list
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'], // Issue is in 'other-repo', not in monitored list
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 1);
   assert.equal(result.addedItems[0].projectItemId, 'PROJECT_ITEM_2');
@@ -162,30 +163,31 @@ test('processAddItems prioritizes issue assignment over monitored repo', async (
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [{ login: 'octocat' }] },
-      repository: { nameWithOwner: 'org/repo' } // Also in monitored repo
-    })
+      repository: { nameWithOwner: 'org/repo' }, // Also in monitored repo
+    }),
   ];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_3',
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'], // Issue is in monitored repo AND assigned
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'], // Issue is in monitored repo AND assigned
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 1);
   // Verify assignment reason takes precedence over repo monitoring
@@ -200,8 +202,8 @@ test('processAddItems skips assigned issue when board rules do not match', async
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [{ login: 'octocat' }] },
-      repository: { nameWithOwner: 'org/other-repo' }
-    })
+      repository: { nameWithOwner: 'org/other-repo' },
+    }),
   ];
 
   const overrides = {
@@ -209,17 +211,20 @@ test('processAddItems skips assigned issue when board rules do not match', async
     processBoardItemRulesFn: async () => [], // No matching rules
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 0);
   assert.equal(result.skippedItems.length, 1);
@@ -238,29 +243,30 @@ test('processAddItems skips adding assigned issue already in project', async () 
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [{ login: 'octocat' }] },
-      repository: { nameWithOwner: 'org/other-repo' }
-    })
+      repository: { nameWithOwner: 'org/other-repo' },
+    }),
   ];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: true, projectItemId: 'EXISTING_ITEM_ID' }),
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   // Item should be added to addedItems (with existing projectItemId) but add_to_board action should be skipped
   assert.equal(result.addedItems.length, 1);
@@ -283,30 +289,31 @@ test('processAddItems includes flags for PR assigned to monitored user', async (
     buildSeedPullRequest({
       author: { login: 'someone_else' },
       assignees: { nodes: [{ login: 'octocat' }] },
-      repository: { nameWithOwner: 'org/other-repo' }
-    })
+      repository: { nameWithOwner: 'org/other-repo' },
+    }),
   ];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_4',
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 1);
   assert.equal(result.addedItems[0].reason, 'PR is assigned to monitored user');
@@ -320,8 +327,8 @@ test('processAddItems includes flags for issue in monitored repo when skipped', 
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [] }, // Not assigned
-      repository: { nameWithOwner: 'org/repo' } // In monitored repo
-    })
+      repository: { nameWithOwner: 'org/repo' }, // In monitored repo
+    }),
   ];
 
   const overrides = {
@@ -329,17 +336,20 @@ test('processAddItems includes flags for issue in monitored repo when skipped', 
     processBoardItemRulesFn: async () => [], // No matching rules
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 0);
   assert.equal(result.skippedItems.length, 1);
@@ -354,34 +364,34 @@ test('processAddItems includes flags for added issue in monitored repo', async (
   const seedItems = [
     buildSeedIssue({
       assignees: { nodes: [] }, // Not assigned
-      repository: { nameWithOwner: 'org/repo' } // In monitored repo
-    })
+      repository: { nameWithOwner: 'org/repo' }, // In monitored repo
+    }),
   ];
 
   const overrides = {
     getRecentItemsFn: async () => seedItems,
     isItemInProjectFn: async () => ({ isInProject: false, projectItemId: null }),
     addItemToProjectFn: async () => 'PROJECT_ITEM_5',
-    processBoardItemRulesFn: async () => [
-      { action: 'add_to_board', params: {} }
-    ],
+    processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
     analyzeBoardItemFn: analyzeBoardItem,
     logger,
-    delayFn: async () => {}
+    delayFn: async () => {},
   };
 
-  const result = await processAddItems({
-    org: 'org',
-    repos: ['repo'],
-    monitoredUser: 'octocat',
-    projectId: 'PROJECT_ID',
-    windowHours: 1,
-    seedItems: []
-  }, overrides);
+  const result = await processAddItems(
+    {
+      org: 'org',
+      repos: ['repo'],
+      monitoredUser: 'octocat',
+      projectId: 'PROJECT_ID',
+      windowHours: 1,
+      seedItems: [],
+    },
+    overrides
+  );
 
   assert.equal(result.addedItems.length, 1);
   assert.equal(result.addedItems[0].reason, 'Issue is in a monitored repository');
   assert.equal(result.addedItems[0].isAssignedToUser, false);
   assert.equal(result.addedItems[0].isMonitoredRepo, true);
 });
-

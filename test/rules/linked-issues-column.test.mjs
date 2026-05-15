@@ -31,22 +31,19 @@ test('processLinkedIssues inherits column and assignees when state differs', asy
     getColumnOptionIdFn: mock.fn(async () => 'status-active'),
     isItemInProjectFn: mock.fn(async (nodeId) => ({
       isInProject: true,
-      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item'
+      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item',
     })),
     fetchLinkedIssuesFn: mock.fn(async () => [
       {
         id: 'issue-content',
         number: 101,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_column' },
-      { action: 'inherit_assignees' }
-    ],
+    ruleActionsOverride: [{ action: 'inherit_column' }, { action: 'inherit_assignees' }],
     logger: createLogger(),
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true })),
   };
 
   const result = await processLinkedIssues(
@@ -56,7 +53,7 @@ test('processLinkedIssues inherits column and assignees when state differs', asy
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: 'pr-item',
       assignees: { nodes: [] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Backlog',
@@ -92,15 +89,12 @@ test('processLinkedIssues skips updates when column and assignees already match'
         id: 'issue-content',
         number: 202,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_column' },
-      { action: 'inherit_assignees' }
-    ],
+    ruleActionsOverride: [{ action: 'inherit_column' }, { action: 'inherit_assignees' }],
     logger: createLogger(),
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true })),
   };
 
   const result = await processLinkedIssues(
@@ -110,7 +104,7 @@ test('processLinkedIssues skips updates when column and assignees already match'
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: 'pr-item',
       assignees: { nodes: [] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Active',
@@ -143,22 +137,22 @@ test('processLinkedIssues blocks column inheritance when transition invalid but 
     getColumnOptionIdFn: mock.fn(async () => 'status-active'),
     isItemInProjectFn: mock.fn(async (nodeId) => ({
       isInProject: true,
-      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item'
+      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item',
     })),
     fetchLinkedIssuesFn: mock.fn(async () => [
       {
         id: 'issue-content',
         number: 303,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_column' },
-      { action: 'inherit_assignees' }
-    ],
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: false, reason: 'No transitions defined' })),
-    logger: createLogger()
+    ruleActionsOverride: [{ action: 'inherit_column' }, { action: 'inherit_assignees' }],
+    validateColumnTransitionFn: mock.fn(async () => ({
+      valid: false,
+      reason: 'No transitions defined',
+    })),
+    logger: createLogger(),
   };
 
   const result = await processLinkedIssues(
@@ -168,7 +162,7 @@ test('processLinkedIssues blocks column inheritance when transition invalid but 
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: 'pr-item',
       assignees: { nodes: [] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Active',
@@ -178,10 +172,13 @@ test('processLinkedIssues blocks column inheritance when transition invalid but 
 
   assert.equal(result.changed, true, 'Assignee inheritance should still mark changes');
   assert.equal(overrides.setItemColumnFn.mock.callCount(), 0, 'Column update must be skipped');
-  assert.equal(overrides.setItemAssigneesFn.mock.callCount(), 1, 'Assignee update should still happen');
+  assert.equal(
+    overrides.setItemAssigneesFn.mock.callCount(),
+    1,
+    'Assignee update should still happen'
+  );
   const logger = overrides.logger;
   assert.equal(logger.getCounter('linked.actions.column.blocked'), 1);
   assert.equal(logger.getCounter('linked.actions.column.assigned'), 0);
   assert.equal(logger.getCounter('linked.actions.assignees.assigned'), 1);
 });
-

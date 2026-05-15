@@ -6,9 +6,7 @@ function mapAssignees(list) {
     return { nodes: [] };
   }
   return {
-    nodes: list
-      .filter(Boolean)
-      .map(assignee => ({ login: assignee.login }))
+    nodes: list.filter(Boolean).map((assignee) => ({ login: assignee.login })),
   };
 }
 
@@ -34,7 +32,7 @@ function fromPullRequest(payload) {
     assignees: mapAssignees(pr.assignees),
     state: pr.state,
     updatedAt: pr.updated_at,
-    url: pr.html_url
+    url: pr.html_url,
   };
 }
 
@@ -50,7 +48,7 @@ function fromIssues(payload) {
     assignees: mapAssignees(issue.assignees),
     state: issue.state,
     updatedAt: issue.updated_at,
-    url: issue.html_url
+    url: issue.html_url,
   };
 }
 
@@ -58,7 +56,7 @@ const eventTransformers = {
   pull_request: fromPullRequest,
   pull_request_target: fromPullRequest,
   issues: fromIssues,
-  issue_comment: fromIssues
+  issue_comment: fromIssues,
 };
 
 /**
@@ -93,4 +91,3 @@ export async function loadEventItems(eventName, eventPath) {
     return [];
   }
 }
-

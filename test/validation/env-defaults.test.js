@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { EnvironmentValidator } from '../../src/utils/environment-validator.js';
 import { loadBoardRules } from '../../src/config/board-rules.js';
 
-
 // Store original env
 const originalEnv = { ...process.env };
 
@@ -15,8 +14,12 @@ test('environment validation with defaults', async (t) => {
   // Reset env before each test
   t.beforeEach(() => {
     resetEnv();
-    t.mock.method(EnvironmentValidator, 'validateGitHubToken', () => Promise.resolve(config.monitoredUser));
-    t.mock.method(EnvironmentValidator, 'resolveProjectFromUrl', () => Promise.resolve('test-project-id'));
+    t.mock.method(EnvironmentValidator, 'validateGitHubToken', () =>
+      Promise.resolve(config.monitoredUser)
+    );
+    t.mock.method(EnvironmentValidator, 'resolveProjectFromUrl', () =>
+      Promise.resolve('test-project-id')
+    );
   });
   t.afterEach(resetEnv);
 
@@ -60,7 +63,10 @@ test('environment validation with defaults', async (t) => {
       await EnvironmentValidator.validateAll();
       assert.fail('Should have thrown an error for missing GITHUB_TOKEN');
     } catch (error) {
-      assert(error.message.includes('Missing required environment variables'), 'Should mention missing variables');
+      assert(
+        error.message.includes('Missing required environment variables'),
+        'Should mention missing variables'
+      );
       assert(error.message.includes('GITHUB_TOKEN'), 'Should mention GITHUB_TOKEN');
     }
   });
@@ -76,7 +82,10 @@ test('environment validation with defaults', async (t) => {
       assert(true, 'Should not throw with old environment setup');
     } catch (error) {
       // Expected to fail due to invalid token, but should not fail due to setup
-      assert(!error.message.includes('Missing required environment variables'), 'Should not fail due to missing variables');
+      assert(
+        !error.message.includes('Missing required environment variables'),
+        'Should not fail due to missing variables'
+      );
     }
   });
 });

@@ -43,7 +43,7 @@ class VerificationProgress {
       currentStep: 0,
       totalSteps,
       steps: [],
-      startTime: Date.now()
+      startTime: Date.now(),
     });
   }
 
@@ -59,7 +59,7 @@ class VerificationProgress {
     operation.steps.push({
       description: stepDescription,
       success,
-      timing: Date.now() - operation.startTime
+      timing: Date.now() - operation.startTime,
     });
   }
 
@@ -72,7 +72,7 @@ class VerificationProgress {
         calls: 0,
         totalDuration: 0,
         maxDuration: 0,
-        minDuration: Infinity
+        minDuration: Infinity,
       });
     }
 
@@ -92,7 +92,7 @@ class VerificationProgress {
 
     // Print operation progress
     for (const [key, operation] of this.operationProgress) {
-      const progress = (operation.currentStep / operation.totalSteps * 100).toFixed(0);
+      const progress = ((operation.currentStep / operation.totalSteps) * 100).toFixed(0);
       const duration = ((Date.now() - operation.startTime) / 1000).toFixed(1);
 
       console.log(`${operation.type}: ${operation.itemRef}`);

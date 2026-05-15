@@ -27,10 +27,12 @@ class TaskQueue {
     const start = Date.now();
     while (this.processing || this.tasks.length > 0) {
       if (Date.now() - start > timeoutMs) {
-        log.warning(`TaskQueue.idle() timed out after ${timeoutMs}ms. Processing: ${this.processing}, Tasks: ${this.tasks.length}`);
+        log.warning(
+          `TaskQueue.idle() timed out after ${timeoutMs}ms. Processing: ${this.processing}, Tasks: ${this.tasks.length}`
+        );
         break;
       }
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -51,7 +53,7 @@ class TaskQueue {
       // Sort priority descending: highest priority (1000) first
       this.tasks.sort((a, b) => b.priority - a.priority);
     });
-    
+
     if (!this.processing) {
       await this.process();
     }
@@ -68,10 +70,10 @@ class TaskQueue {
       while (this.tasks.length > 0) {
         const rl = await this.getRateLimit();
         const rateStatus = this.evaluateBudget(rl);
-        
+
         if (!rl) {
           // Rate limit unverifiable - allow CRITICAL tasks through, throttle the rest
-          const criticalIndex = this.tasks.findIndex(t => t.priority >= RatePriority.CRITICAL);
+          const criticalIndex = this.tasks.findIndex((t) => t.priority >= RatePriority.CRITICAL);
           if (criticalIndex !== -1) {
             const task = this.tasks.splice(criticalIndex, 1)[0];
             try {
@@ -85,17 +87,19 @@ class TaskQueue {
           log.warning(`[THROTTLED] Unable to verify rate limit budget; skipping task for safety.`);
           throttleCount++;
           if (throttleCount > 10) {
-            log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
+            log.error(
+              `TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`
+            );
             this.rejectAll(new Error('Unable to verify rate limit budget after repeated attempts'));
             break;
           }
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
           continue;
         }
 
         // Find the highest priority task we can run
-        const taskIndex = this.tasks.findIndex(t => t.priority >= rateStatus.threshold);
-        
+        const taskIndex = this.tasks.findIndex((t) => t.priority >= rateStatus.threshold);
+
         if (rateStatus.allStop || taskIndex === -1) {
           // If allStop is true (BLACK), reject immediately
           if (rateStatus.allStop) {
@@ -108,14 +112,22 @@ class TaskQueue {
           // If no tasks meet current threshold, we throttle and wait unless it's persistent
           throttleCount++;
           if (throttleCount > 10) {
-            log.error(`TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`);
-            this.rejectAll(new Error(`Throttled: budget ${rateStatus.score} too low for remaining tasks (State: ${rateStatus.health})`));
+            log.error(
+              `TaskQueue: Persistent budget exhaustion after ${throttleCount} throttles. Rejecting all.`
+            );
+            this.rejectAll(
+              new Error(
+                `Throttled: budget ${rateStatus.score} too low for remaining tasks (State: ${rateStatus.health})`
+              )
+            );
             break;
           }
 
-          log.info(`TaskQueue: Budget low (${rateStatus.score}). Throttling lower priority tasks (Attempt ${throttleCount}).`);
+          log.info(
+            `TaskQueue: Budget low (${rateStatus.score}). Throttling lower priority tasks (Attempt ${throttleCount}).`
+          );
           // Wait briefly for budget recovery if we have tasks left
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
           continue;
         }
 
@@ -142,11 +154,11 @@ class TaskQueue {
 
   async getRateLimit(force = false) {
     const now = Date.now();
-    if (!force && this.rateLimit && (now - this.lastChecked < 5000)) {
+    if (!force && this.rateLimit && now - this.lastChecked < 5000) {
       return this.rateLimit;
     }
 
-    let rl = null;
+    let rl;
     if (this.rateLimitProvider) {
       rl = await this.rateLimitProvider();
     } else {
@@ -161,7 +173,7 @@ class TaskQueue {
         return null;
       }
     }
-    
+
     if (rl) {
       this.rateLimit = rl;
       this.lastChecked = now;
@@ -170,11 +182,12 @@ class TaskQueue {
   }
 
   evaluateBudget(rl) {
-    if (!rl) return { threshold: RatePriority.CRITICAL, health: 'UNKNOWN', score: 0, allStop: true };
+    if (!rl)
+      return { threshold: RatePriority.CRITICAL, health: 'UNKNOWN', score: 0, allStop: true };
 
     const remaining = rl.remaining;
-    let health = 'GREEN';
-    let threshold = 0; // Allow everything
+    let health;
+    let threshold;
     let allStop = false;
 
     // Budget assessment (Intelligent Budgeting / Issue #157):
@@ -184,10 +197,10 @@ class TaskQueue {
       threshold = RatePriority.CRITICAL;
     } else if (remaining < 750) {
       health = 'RED'; // Reserve mode: Only CRITICAL/DISCOVERY allowed
-      threshold = RatePriority.CRITICAL; 
+      threshold = RatePriority.CRITICAL;
     } else if (remaining < 1500) {
       health = 'YELLOW'; // Maintenance Pause: No background caching
-      threshold = RatePriority.STANDARD; 
+      threshold = RatePriority.STANDARD;
     } else {
       health = 'GREEN';
       threshold = 0; // Allow everything
@@ -198,7 +211,7 @@ class TaskQueue {
       health,
       score: remaining,
       allStop,
-      rl
+      rl,
     };
   }
 }
@@ -218,7 +231,9 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
   const proceed = !status.allStop && priority >= status.threshold && status.rl.remaining >= 1;
   if (!proceed) {
     const label = PriorityLabels[priority] || priority;
-    log.info(`[THROTTLED/RESERVE] Skipping ${label} task (Priority: ${priority}): remaining=${status.rl.remaining}/${status.rl.limit}, health=${status.health}`);
+    log.info(
+      `[THROTTLED/RESERVE] Skipping ${label} task (Priority: ${priority}): remaining=${status.rl.remaining}/${status.rl.limit}, health=${status.health}`
+    );
   }
 
   return {
@@ -227,7 +242,7 @@ async function shouldProceed(priority = RatePriority.STANDARD) {
     limit: status.rl.limit,
     resetAt: status.rl.resetAt,
     cost: status.rl.cost ?? null,
-    health: status.health
+    health: status.health,
   };
 }
 
@@ -257,16 +272,20 @@ async function withBackoff(fn, { retries = 3 } = {}) {
     } catch (e) {
       lastErr = e;
       const message = ((e && e.message) || '').toLowerCase();
-      const isRate = (
+      const isRate =
         (e && (e.code === 'RATE_LIMITED' || e.name === 'RateLimitError' || e.status === 403)) ||
-        (e && e.response && e.response.headers && (e.response.headers['x-ratelimit-remaining'] === '0' || e.response.headers['retry-after'])) ||
-        message.includes('rate limit') || message.includes('abuse')
-      );
+        (e &&
+          e.response &&
+          e.response.headers &&
+          (e.response.headers['x-ratelimit-remaining'] === '0' ||
+            e.response.headers['retry-after'])) ||
+        message.includes('rate limit') ||
+        message.includes('abuse');
       if (!isRate || attempt === retries) break;
       const jitter = Math.floor(Math.random() * 250);
       const delay = backoffDelay(attempt) + jitter;
       log.info(`Rate limited; backing off ${delay}ms (attempt ${attempt + 1}/${retries})`);
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastErr;

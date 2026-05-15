@@ -20,7 +20,9 @@ test('processLinkedIssues inherits assignees when project state differs', async 
 
   const overrides = {
     getItemColumnFn: mock.fn(async () => 'Active'),
-    getItemAssigneesFn: mock.fn(async (_, itemId) => (itemId === 'pr-item' ? ['alice', 'bob'] : ['bob'])),
+    getItemAssigneesFn: mock.fn(async (_, itemId) =>
+      itemId === 'pr-item' ? ['alice', 'bob'] : ['bob']
+    ),
     setItemColumnFn: mock.fn(async () => {}),
     setItemAssigneesFn: mock.fn(async (_, itemId, assignees) => {
       setAssigneeCalls.push({ itemId, assignees });
@@ -28,21 +30,19 @@ test('processLinkedIssues inherits assignees when project state differs', async 
     getColumnOptionIdFn: mock.fn(async () => 'status-active'),
     isItemInProjectFn: mock.fn(async (nodeId) => ({
       isInProject: true,
-      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item'
+      projectItemId: nodeId === 'issue-content' ? 'issue-item' : 'pr-item',
     })),
     fetchLinkedIssuesFn: mock.fn(async () => [
       {
         id: 'issue-content',
         number: 210,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_assignees' }
-    ],
+    ruleActionsOverride: [{ action: 'inherit_assignees' }],
     logger: createLogger(),
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true })),
   };
 
   const result = await processLinkedIssues(
@@ -52,7 +52,7 @@ test('processLinkedIssues inherits assignees when project state differs', async 
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: 'pr-item',
       assignees: { nodes: [] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Backlog',
@@ -86,14 +86,12 @@ test('processLinkedIssues skips assignee inheritance when sets already match', a
         id: 'issue-content',
         number: 211,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_assignees' }
-    ],
+    ruleActionsOverride: [{ action: 'inherit_assignees' }],
     logger: createLogger(),
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true })),
   };
 
   const result = await processLinkedIssues(
@@ -103,7 +101,7 @@ test('processLinkedIssues skips assignee inheritance when sets already match', a
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: 'pr-item',
       assignees: { nodes: [] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Active',
@@ -140,14 +138,12 @@ test('processLinkedIssues falls back to payload assignees when project lookup fa
         id: 'issue-content',
         number: 212,
         repository: { nameWithOwner: 'org/repo' },
-        projectItemId: 'issue-item'
-      }
+        projectItemId: 'issue-item',
+      },
     ]),
-    ruleActionsOverride: [
-      { action: 'inherit_assignees' }
-    ],
+    ruleActionsOverride: [{ action: 'inherit_assignees' }],
     logger: createLogger(),
-    validateColumnTransitionFn: mock.fn(async () => ({ valid: true }))
+    validateColumnTransitionFn: mock.fn(async () => ({ valid: true })),
   };
 
   const result = await processLinkedIssues(
@@ -157,7 +153,7 @@ test('processLinkedIssues falls back to payload assignees when project lookup fa
       repository: { nameWithOwner: 'org/repo' },
       projectItemId: null,
       assignees: { nodes: [{ login: 'carol' }] },
-      linkedIssues: { nodes: [] }
+      linkedIssues: { nodes: [] },
     },
     'project-1',
     'Active',
@@ -175,4 +171,3 @@ test('processLinkedIssues falls back to payload assignees when project lookup fa
   assert.equal(logger.getCounter('linked.actions.skipped'), 0);
   assert.equal(logger.getCounter('linked.actions.failed'), 0);
 });
-

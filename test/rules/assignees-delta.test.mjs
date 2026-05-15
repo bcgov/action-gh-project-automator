@@ -12,36 +12,36 @@ test('setItemAssignees applies minimal add/remove deltas', async (t) => {
       content: {
         repository: { nameWithOwner: 'org/repo' },
         number: 42,
-        id: 'assignableId'
-      }
+        id: 'assignableId',
+      },
     }),
     fetchRepoAssigneesFn: async () => ['alice', 'bob'],
     getItemAssigneesFn: async () => ['alice', 'bob'],
     getUserIdsFn: async (logins) => ({
-      ids: logins.map(login => `user-${login}`),
-      missing: []
+      ids: logins.map((login) => `user-${login}`),
+      missing: [],
     }),
     graphqlClient: async (query, variables) => {
-    if (query.includes('removeAssigneesFromAssignable')) {
-      removeCalls.push(variables.assigneeIds);
-      return {
-        removeAssigneesFromAssignable: {
-          assignable: { __typename: 'PullRequest' }
-        }
-      };
-    }
+      if (query.includes('removeAssigneesFromAssignable')) {
+        removeCalls.push(variables.assigneeIds);
+        return {
+          removeAssigneesFromAssignable: {
+            assignable: { __typename: 'PullRequest' },
+          },
+        };
+      }
 
-    if (query.includes('addAssigneesToAssignable')) {
-      addCalls.push(variables.assigneeIds);
-      return {
-        addAssigneesToAssignable: {
-          assignable: { __typename: 'PullRequest' }
-        }
-      };
-    }
+      if (query.includes('addAssigneesToAssignable')) {
+        addCalls.push(variables.assigneeIds);
+        return {
+          addAssigneesToAssignable: {
+            assignable: { __typename: 'PullRequest' },
+          },
+        };
+      }
 
       return {};
-    }
+    },
   });
 
   assert.equal(removeCalls.length, 1);
@@ -50,4 +50,3 @@ test('setItemAssignees applies minimal add/remove deltas', async (t) => {
   assert.equal(addCalls.length, 1);
   assert.deepEqual(addCalls[0], ['user-carol']);
 });
-

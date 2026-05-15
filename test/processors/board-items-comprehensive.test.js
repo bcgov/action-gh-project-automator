@@ -23,13 +23,13 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'DerekRoberts' },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       // Rule condition: monitored.users.includes(item.author)
       // Simulate condition evaluation
       const isAuthored = monitoredUsers.includes(item.author.login);
-      
+
       assert.strictEqual(isAuthored, true, 'Should match PR authored by monitored user');
     });
 
@@ -38,11 +38,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'other-user' },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       const isAuthored = monitoredUsers.includes(item.author.login);
-      
+
       assert.strictEqual(isAuthored, false, 'Should not match PR authored by different user');
     });
 
@@ -51,11 +51,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: null,
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       const isAuthored = !!(item.author && monitoredUsers.includes(item.author.login));
-      
+
       assert.strictEqual(isAuthored, false, 'Should not match PR with no author');
     });
   });
@@ -67,18 +67,15 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         __typename: 'PullRequest',
         author: { login: 'other-user' },
         assignees: {
-          nodes: [
-            { login: 'DerekRoberts' },
-            { login: 'another-user' }
-          ]
+          nodes: [{ login: 'DerekRoberts' }, { login: 'another-user' }],
         },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       // Rule condition: item.assignees.some(assignee => monitored.users.includes(assignee))
       // Simulate condition evaluation
-      const isAssigned = item.assignees.nodes.some(a => monitoredUsers.includes(a.login));
-      
+      const isAssigned = item.assignees.nodes.some((a) => monitoredUsers.includes(a.login));
+
       assert.strictEqual(isAssigned, true, 'Should match PR assigned to monitored user');
     });
 
@@ -88,16 +85,13 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         __typename: 'PullRequest',
         author: { login: 'other-user' },
         assignees: {
-          nodes: [
-            { login: 'user1' },
-            { login: 'user2' }
-          ]
+          nodes: [{ login: 'user1' }, { login: 'user2' }],
         },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
-      const isAssigned = item.assignees.nodes.some(a => monitoredUsers.includes(a.login));
-      
+      const isAssigned = item.assignees.nodes.some((a) => monitoredUsers.includes(a.login));
+
       assert.strictEqual(isAssigned, false, 'Should not match PR assigned to different users');
     });
 
@@ -107,11 +101,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         __typename: 'PullRequest',
         author: { login: 'other-user' },
         assignees: { nodes: [] },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
-      const isAssigned = item.assignees.nodes.some(a => monitoredUsers.includes(a.login));
-      
+      const isAssigned = item.assignees.nodes.some((a) => monitoredUsers.includes(a.login));
+
       assert.strictEqual(isAssigned, false, 'Should not match PR with no assignees');
     });
   });
@@ -122,13 +116,13 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'any-user' },
-        repository: { nameWithOwner: 'bcgov/nr-nerds' }
+        repository: { nameWithOwner: 'bcgov/nr-nerds' },
       };
 
       // Rule condition: monitored.repos.includes(item.repository)
       // Simulate condition evaluation
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
-      
+
       assert.strictEqual(isMonitored, true, 'Should match PR from monitored repository');
     });
 
@@ -137,11 +131,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'any-user' },
-        repository: { nameWithOwner: 'other-org/other-repo' }
+        repository: { nameWithOwner: 'other-org/other-repo' },
       };
 
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
-      
+
       assert.strictEqual(isMonitored, false, 'Should not match PR from unmonitored repository');
     });
   });
@@ -151,12 +145,12 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const monitoredRepos = ['bcgov/nr-nerds', 'bcgov/action-builder-ghcr'];
       const item = {
         __typename: 'Issue',
-        repository: { nameWithOwner: 'bcgov/nr-nerds' }
+        repository: { nameWithOwner: 'bcgov/nr-nerds' },
       };
 
       // Rule condition: monitored.repos.includes(item.repository)
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
-      
+
       assert.strictEqual(isMonitored, true, 'Should match Issue from monitored repository');
     });
 
@@ -164,11 +158,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const monitoredRepos = ['bcgov/nr-nerds', 'bcgov/action-builder-ghcr'];
       const item = {
         __typename: 'Issue',
-        repository: { nameWithOwner: 'other-org/other-repo' }
+        repository: { nameWithOwner: 'other-org/other-repo' },
       };
 
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
-      
+
       assert.strictEqual(isMonitored, false, 'Should not match Issue from unmonitored repository');
     });
   });
@@ -180,13 +174,13 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         author: { login: 'DerekRoberts' },
         repository: { nameWithOwner: 'bcgov/test-repo' },
         projectItems: {
-          nodes: [{ id: 'project-item-123' }]
-        }
+          nodes: [{ id: 'project-item-123' }],
+        },
       };
 
       // Skip condition: item.inProject
       const isInProject = item.projectItems?.nodes?.length > 0;
-      
+
       assert.strictEqual(isInProject, true, 'Should detect item is in project');
     });
 
@@ -196,12 +190,12 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         author: { login: 'DerekRoberts' },
         repository: { nameWithOwner: 'bcgov/test-repo' },
         projectItems: {
-          nodes: []
-        }
+          nodes: [],
+        },
       };
 
       const isInProject = item.projectItems?.nodes?.length > 0;
-      
+
       assert.strictEqual(isInProject, false, 'Should detect item is not in project');
     });
 
@@ -209,11 +203,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'DerekRoberts' },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       const isInProject = item.projectItems?.nodes?.length > 0;
-      
+
       assert.strictEqual(isInProject, false, 'Should handle missing projectItems field');
     });
   });
@@ -225,15 +219,17 @@ describe('Board Items Processor - Comprehensive Tests', () => {
         undefined,
         { __typename: 'PullRequest' }, // Missing repository
         { repository: { nameWithOwner: 'bcgov/test' } }, // Missing __typename
-        { __typename: 'PullRequest', repository: { nameWithOwner: 'bcgov/test' } } // Missing number
+        { __typename: 'PullRequest', repository: { nameWithOwner: 'bcgov/test' } }, // Missing number
       ];
 
       incompleteItems.forEach((item, index) => {
-        const isValid = !!(item && 
-                       item.__typename && 
-                       item.repository?.nameWithOwner && 
-                       typeof item.number === 'number');
-        
+        const isValid = !!(
+          item &&
+          item.__typename &&
+          item.repository?.nameWithOwner &&
+          typeof item.number === 'number'
+        );
+
         assert.strictEqual(isValid, false, `Incomplete item ${index} should be invalid`);
       });
     });
@@ -243,11 +239,11 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const item = {
         __typename: 'PullRequest',
         author: { login: 'user2' },
-        repository: { nameWithOwner: 'bcgov/test-repo' }
+        repository: { nameWithOwner: 'bcgov/test-repo' },
       };
 
       const isAuthored = monitoredUsers.includes(item.author.login);
-      
+
       assert.strictEqual(isAuthored, true, 'Should match when user is in monitored list');
     });
 
@@ -255,13 +251,12 @@ describe('Board Items Processor - Comprehensive Tests', () => {
       const monitoredRepos = ['bcgov/repo1', 'bcgov/repo2', 'bcgov/repo3'];
       const item = {
         __typename: 'PullRequest',
-        repository: { nameWithOwner: 'bcgov/repo2' }
+        repository: { nameWithOwner: 'bcgov/repo2' },
       };
 
       const isMonitored = monitoredRepos.includes(item.repository.nameWithOwner);
-      
+
       assert.strictEqual(isMonitored, true, 'Should match when repo is in monitored list');
     });
   });
 });
-

@@ -9,7 +9,7 @@ export class StatusTracker {
       unchanged: 0,
       skipped: 0,
       changed: 0,
-      errors: 0
+      errors: 0,
     };
   }
 
@@ -19,14 +19,14 @@ export class StatusTracker {
   trackItem(item, status, details = {}) {
     const key = `${item.__typename}-${item.number}-${item.repository.nameWithOwner}`;
     const timestamp = new Date();
-    
+
     this.items.set(key, {
       type: item.__typename,
       number: item.number,
       repo: item.repository.nameWithOwner,
       status,
       timestamp,
-      ...details
+      ...details,
     });
 
     // Update stats
@@ -40,7 +40,7 @@ export class StatusTracker {
   getSummary() {
     return {
       ...this.stats,
-      items: Array.from(this.items.values())
+      items: Array.from(this.items.values()),
     };
   }
 
@@ -48,8 +48,7 @@ export class StatusTracker {
    * Get items by status
    */
   getItemsByStatus(status) {
-    return Array.from(this.items.values())
-      .filter(item => item.status === status);
+    return Array.from(this.items.values()).filter((item) => item.status === status);
   }
 
   /**
@@ -57,7 +56,7 @@ export class StatusTracker {
    */
   printReport() {
     const summary = this.getSummary();
-    
+
     console.log('\n📊 Processing Report');
     console.log('═════════════════\n');
     console.log(`Total Items: ${summary.total}`);
@@ -68,7 +67,7 @@ export class StatusTracker {
 
     if (summary.changed > 0) {
       console.log('✨ Changed Items:');
-      this.getItemsByStatus('changed').forEach(item => {
+      this.getItemsByStatus('changed').forEach((item) => {
         console.log(`  • ${item.type} #${item.number} [${item.repo}]`);
         if (item.reason) console.log(`    └─ ${item.reason}`);
       });
@@ -76,7 +75,7 @@ export class StatusTracker {
 
     if (summary.unchanged > 0) {
       console.log('\n✓ Unchanged Items:');
-      this.getItemsByStatus('unchanged').forEach(item => {
+      this.getItemsByStatus('unchanged').forEach((item) => {
         console.log(`  • ${item.type} #${item.number} [${item.repo}]`);
         if (item.reason) console.log(`    └─ ${item.reason}`);
       });
@@ -84,7 +83,7 @@ export class StatusTracker {
 
     if (summary.skipped > 0) {
       console.log('\nℹ Skipped Items:');
-      this.getItemsByStatus('skipped').forEach(item => {
+      this.getItemsByStatus('skipped').forEach((item) => {
         console.log(`  • ${item.type} #${item.number} [${item.repo}]`);
         if (item.reason) console.log(`    └─ ${item.reason}`);
       });

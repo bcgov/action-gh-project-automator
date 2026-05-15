@@ -20,28 +20,28 @@ import { log } from '../../utils/log.js';
  * @returns {Array<{action: string, params: Object}>} Deduplicated actions
  */
 export function deduplicateActions(actions) {
-    const actionGroups = new Map();
+  const actionGroups = new Map();
 
-    for (const action of actions) {
-        const key = action.action;
-        if (!actionGroups.has(key)) {
-            actionGroups.set(key, []);
-        }
-        actionGroups.get(key).push(action);
+  for (const action of actions) {
+    const key = action.action;
+    if (!actionGroups.has(key)) {
+      actionGroups.set(key, []);
     }
+    actionGroups.get(key).push(action);
+  }
 
-    // For each action type, keep only the first occurrence
-    const deduplicated = [];
-    for (const [actionType, actionList] of actionGroups) {
-        deduplicated.push(actionList[0]);
+  // For each action type, keep only the first occurrence
+  const deduplicated = [];
+  for (const [actionType, actionList] of actionGroups) {
+    deduplicated.push(actionList[0]);
 
-        // Log if we're deduplicating actions
-        if (actionList.length > 1) {
-            log.info(`Deduplicated ${actionList.length} ${actionType} actions for item`);
-        }
+    // Log if we're deduplicating actions
+    if (actionList.length > 1) {
+      log.info(`Deduplicated ${actionList.length} ${actionType} actions for item`);
     }
+  }
 
-    return deduplicated;
+  return deduplicated;
 }
 
 /**
@@ -56,81 +56,80 @@ export function deduplicateActions(actions) {
  * @returns {Promise<Array<{action: string, params: Object}>>} List of actions to take
  */
 async function processRuleType(item, ruleType, overrides = {}) {
-    try {
-        const {
-            loadBoardRulesFn = loadBoardRules,
-            ruleValidator = validator
-        } = overrides;
+  try {
+    const { loadBoardRulesFn = loadBoardRules, ruleValidator = validator } = overrides;
 
-        const config = await loadBoardRulesFn();
-        const actions = [];
-        ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
+    const config = await loadBoardRulesFn();
+    const actions = [];
+    ruleValidator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
-        const rules = config.rules[ruleType] || [];
-        
-        for (const rule of rules) {
-            try {
-                // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
-                // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
-                // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
-                const skipCondition = rule.skip_if ?? rule.skipIf;
-                if (skipCondition && await ruleValidator.validateSkipRule?.(item, skipCondition)) {
-                    continue;
-                }
+    const rules = config.rules[ruleType] || [];
 
-                // Check trigger conditions
-                const conditionResult = await ruleValidator.validateItemCondition?.(item, rule.trigger);
-                if (conditionResult) {
-                    const action = formatAction(rule, ruleType);
-                    const params = { item };
+    for (const rule of rules) {
+      try {
+        // Skip rule if conditions not met (backward compatibility for skipIf/skip_if)
+        // Support both 'skip_if' (legacy) and 'skipIf' (preferred) for backward compatibility.
+        // TODO: Standardize on 'skipIf' in future releases and migrate existing configs.
+        const skipCondition = rule.skip_if ?? rule.skipIf;
+        if (skipCondition && (await ruleValidator.validateSkipRule?.(item, skipCondition))) {
+          continue;
+        }
 
-                    // Special handling for assignee rules
-                    if (ruleType === 'assignees') {
-                        params.assignee = rule.value;
-                    }
+        // Check trigger conditions
+        const conditionResult = await ruleValidator.validateItemCondition?.(item, rule.trigger);
+        if (conditionResult) {
+          const action = formatAction(rule, ruleType);
+          const params = { item };
 
-                    // Special handling for linked issues rules
-                    if (ruleType === 'linked_issues') {
-                        const ruleActions = Array.isArray(rule.action) ? rule.action : [rule.action];
-                        params.rule = rule.name;
-                        params.actions = ruleActions;
+          // Special handling for assignee rules
+          if (ruleType === 'assignees') {
+            params.assignee = rule.value;
+          }
 
-                        // Create separate action for each rule action
-                        for (const actionItem of ruleActions) {
-                            actions.push({
-                                action: actionItem,
-                                params
-                            });
-                        }
-                        continue; // Skip the default action push below
-                    }
+          // Special handling for linked issues rules
+          if (ruleType === 'linked_issues') {
+            const ruleActions = Array.isArray(rule.action) ? rule.action : [rule.action];
+            params.rule = rule.name;
+            params.actions = ruleActions;
 
-                    actions.push({
-                        action,
-                        params
-                    });
-                    log.info(`Rule ${rule.name} triggered for ${item.__typename} #${item.number}`);
-                }
-            } catch (error) {
-                log.error(`Error processing ${ruleType} rule: ${error.message}`, {
-                    rule: rule.name || 'unnamed',
-                    item: item.__typename + '#' + item.number
-                });
+            // Create separate action for each rule action
+            for (const actionItem of ruleActions) {
+              actions.push({
+                action: actionItem,
+                params,
+              });
             }
+            continue; // Skip the default action push below
+          }
+
+          actions.push({
+            action,
+            params,
+          });
+          log.info(`Rule ${rule.name} triggered for ${item.__typename} #${item.number}`);
         }
-
-        // Deduplicate actions to eliminate redundant processing
-        const deduplicatedActions = deduplicateActions(actions);
-
-        if (deduplicatedActions.length < actions.length) {
-            log.info(`Rule deduplication: ${actions.length} → ${deduplicatedActions.length} actions for ${ruleType}`);
-        }
-
-        return deduplicatedActions;
-    } catch (error) {
-        log.error(`Failed to process ${ruleType} rules: ${error.message}`);
-        throw error;
+      } catch (error) {
+        log.error(`Error processing ${ruleType} rule: ${error.message}`, {
+          rule: rule.name || 'unnamed',
+          item: item.__typename + '#' + item.number,
+        });
+      }
     }
+
+    // Deduplicate actions to eliminate redundant processing
+    const deduplicatedActions = deduplicateActions(actions);
+
+    if (deduplicatedActions.length < actions.length) {
+      log.info(
+        `Rule deduplication: ${actions.length} → ${deduplicatedActions.length} actions for ${ruleType}`
+      );
+    }
+
+    return deduplicatedActions;
+  } catch (error) {
+    log.error(`Failed to process ${ruleType} rules: ${error.message}`);
+    throw error;
+  }
 }
 
 /**
@@ -140,26 +139,26 @@ async function processRuleType(item, ruleType, overrides = {}) {
  * @returns {string} The formatted action string
  */
 function formatAction(rule, ruleType) {
-    switch (ruleType) {
-        case 'columns':
-            return `set_column: ${rule.value}`;
-        case 'sprints':
-            return `set_sprint: ${rule.value}`;
-        case 'board_items':
-            return 'add_to_board';
-        case 'assignees':
-            return `add_assignee: ${rule.value}`;
-        case 'linked_issues':
-            if (!rule.action) {
-                throw new Error(`No action specified for linked_issues rule: ${JSON.stringify(rule)}`);
-            }
-            return rule.action;
-        default:
-            if (!rule.action) {
-                throw new Error(`No action specified for rule type '${ruleType}': ${JSON.stringify(rule)}`);
-            }
-            return rule.action;
-    }
+  switch (ruleType) {
+    case 'columns':
+      return `set_column: ${rule.value}`;
+    case 'sprints':
+      return `set_sprint: ${rule.value}`;
+    case 'board_items':
+      return 'add_to_board';
+    case 'assignees':
+      return `add_assignee: ${rule.value}`;
+    case 'linked_issues':
+      if (!rule.action) {
+        throw new Error(`No action specified for linked_issues rule: ${JSON.stringify(rule)}`);
+      }
+      return rule.action;
+    default:
+      if (!rule.action) {
+        throw new Error(`No action specified for rule type '${ruleType}': ${JSON.stringify(rule)}`);
+      }
+      return rule.action;
+  }
 }
 
 /**
@@ -168,24 +167,24 @@ function formatAction(rule, ruleType) {
  * @returns {Promise<Array<{action: string, params: Object}>>} List of actions to take
  */
 async function processAllRules(item) {
-    try {
-        const actions = [];
-        validator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
+  try {
+    const actions = [];
+    validator.steps?.markStepComplete?.('RULE_CONFIG_LOADED');
 
-        // Process all rule types dynamically from configuration
-        const config = await loadBoardRules();
-        const ruleTypes = Object.keys(config.rules || {});
+    // Process all rule types dynamically from configuration
+    const config = await loadBoardRules();
+    const ruleTypes = Object.keys(config.rules || {});
 
-        for (const ruleType of ruleTypes) {
-            const ruleActions = await processRuleType(item, ruleType);
-            actions.push(...ruleActions);
-        }
-
-        return actions;
-    } catch (error) {
-        log.error(`Failed to process all rules: ${error.message}`);
-        throw error;
+    for (const ruleType of ruleTypes) {
+      const ruleActions = await processRuleType(item, ruleType);
+      actions.push(...ruleActions);
     }
+
+    return actions;
+  } catch (error) {
+    log.error(`Failed to process all rules: ${error.message}`);
+    throw error;
+  }
 }
 
 // Backward compatibility functions
@@ -196,7 +195,7 @@ async function processAllRules(item) {
  * @returns {Promise<Array<{action: string, params: Object}>>}
  */
 async function processBoardItemRules(item, overrides) {
-    return await processRuleType(item, 'board_items', overrides);
+  return await processRuleType(item, 'board_items', overrides);
 }
 
 /**
@@ -206,7 +205,7 @@ async function processBoardItemRules(item, overrides) {
  * @returns {Promise<Array<{action: string, params: Object}>>}
  */
 async function processColumnRules(item, overrides) {
-    return await processRuleType(item, 'columns', overrides);
+  return await processRuleType(item, 'columns', overrides);
 }
 
 /**
@@ -216,7 +215,7 @@ async function processColumnRules(item, overrides) {
  * @returns {Promise<Array<{action: string, params: Object}>>}
  */
 async function processSprintRules(item, overrides) {
-    return await processRuleType(item, 'sprints', overrides);
+  return await processRuleType(item, 'sprints', overrides);
 }
 
 /**
@@ -226,7 +225,7 @@ async function processSprintRules(item, overrides) {
  * @returns {Promise<Array<{action: string, params: Object}>>}
  */
 async function processAssigneeRules(item, overrides) {
-    return await processRuleType(item, 'assignees', overrides);
+  return await processRuleType(item, 'assignees', overrides);
 }
 
 /**
@@ -236,7 +235,15 @@ async function processAssigneeRules(item, overrides) {
  * @returns {Promise<Array<{action: string, params: Object}>>}
  */
 async function processLinkedIssueRules(item, overrides) {
-    return await processRuleType(item, 'linked_issues', overrides);
+  return await processRuleType(item, 'linked_issues', overrides);
 }
 
-export { processAllRules, processRuleType, processBoardItemRules, processColumnRules, processSprintRules, processAssigneeRules, processLinkedIssueRules };
+export {
+  processAllRules,
+  processRuleType,
+  processBoardItemRules,
+  processColumnRules,
+  processSprintRules,
+  processAssigneeRules,
+  processLinkedIssueRules,
+};

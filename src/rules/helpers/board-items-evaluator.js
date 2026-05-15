@@ -15,9 +15,7 @@ function getAssigneeLogins(item) {
   if (!Array.isArray(nodes)) {
     return [];
   }
-  return nodes
-    .map(node => node?.login)
-    .filter(Boolean);
+  return nodes.map((node) => node?.login).filter(Boolean);
 }
 
 /**
@@ -42,7 +40,7 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
         reason: 'PR is authored by monitored user',
         isMonitoredRepo,
         isAuthoredByUser,
-        isAssignedToUser
+        isAssignedToUser,
       };
     }
     if (isAssignedToUser) {
@@ -50,7 +48,7 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
         reason: 'PR is assigned to monitored user',
         isMonitoredRepo,
         isAuthoredByUser,
-        isAssignedToUser
+        isAssignedToUser,
       };
     }
     if (isMonitoredRepo) {
@@ -58,14 +56,14 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
         reason: 'PR is in a monitored repository',
         isMonitoredRepo,
         isAuthoredByUser,
-        isAssignedToUser
+        isAssignedToUser,
       };
     }
     return {
       reason: 'PR does not meet any criteria',
       isMonitoredRepo,
       isAuthoredByUser,
-      isAssignedToUser
+      isAssignedToUser,
     };
   }
 
@@ -75,7 +73,7 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
         reason: 'Issue is assigned to monitored user',
         isMonitoredRepo,
         isAuthoredByUser,
-        isAssignedToUser
+        isAssignedToUser,
       };
     }
     if (isMonitoredRepo) {
@@ -83,14 +81,14 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
         reason: 'Issue is in a monitored repository',
         isMonitoredRepo,
         isAuthoredByUser,
-        isAssignedToUser
+        isAssignedToUser,
       };
     }
     return {
       reason: 'Issue does not meet any criteria',
       isMonitoredRepo,
       isAuthoredByUser,
-      isAssignedToUser
+      isAssignedToUser,
     };
   }
 
@@ -98,7 +96,7 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
     reason: 'Unsupported item type',
     isMonitoredRepo,
     isAuthoredByUser,
-    isAssignedToUser
+    isAssignedToUser,
   };
 }
 
@@ -113,12 +111,7 @@ export function describeBoardItemReason({ item, monitoredUser, monitoredRepos })
  * @returns {Promise<{boardActions: Array, shouldProcess: boolean, reason: string, repoFullName: string, itemType: string, isMonitoredRepo: boolean, isAuthoredByUser: boolean, isAssignedToUser: boolean}>}
  */
 export async function analyzeBoardItem(item, options) {
-  const {
-    monitoredUser,
-    monitoredRepos,
-    processBoardItemRulesFn,
-    logger = log
-  } = options;
+  const { monitoredUser, monitoredRepos, processBoardItemRulesFn, logger = log } = options;
 
   if (!item) {
     return {
@@ -129,7 +122,7 @@ export async function analyzeBoardItem(item, options) {
       repoFullName: 'unknown/unknown',
       isMonitoredRepo: false,
       isAuthoredByUser: false,
-      isAssignedToUser: false
+      isAssignedToUser: false,
     };
   }
 
@@ -139,14 +132,16 @@ export async function analyzeBoardItem(item, options) {
   const classification = describeBoardItemReason({
     item,
     monitoredUser,
-    monitoredRepos
+    monitoredRepos,
   });
 
-  let boardActions = [];
+  let boardActions;
   try {
     boardActions = await processBoardItemRulesFn(item, { monitoredUser });
   } catch (error) {
-    logger.error(`Failed to evaluate board rules for ${itemType} #${item?.number || 'unknown'}: ${error.message}`);
+    logger.error(
+      `Failed to evaluate board rules for ${itemType} #${item?.number || 'unknown'}: ${error.message}`
+    );
     throw error;
   }
 
@@ -160,8 +155,6 @@ export async function analyzeBoardItem(item, options) {
     itemType,
     isMonitoredRepo: classification.isMonitoredRepo,
     isAuthoredByUser: classification.isAuthoredByUser,
-    isAssignedToUser: classification.isAssignedToUser
+    isAssignedToUser: classification.isAssignedToUser,
   };
 }
-
-

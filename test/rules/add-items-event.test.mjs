@@ -9,7 +9,7 @@ const seedPullRequest = {
   number: 101,
   repository: { nameWithOwner: 'org/repo' },
   author: { login: 'octocat' },
-  assignees: { nodes: [] }
+  assignees: { nodes: [] },
 };
 
 test('processAddItems always searches via API regardless of seedItems', async () => {
@@ -17,51 +17,51 @@ test('processAddItems always searches via API regardless of seedItems', async ()
   const { addedItems, skippedItems } = await processAddItems(
     {
       org: 'org',
-      repos: [ 'repo' ],
+      repos: ['repo'],
       monitoredUser: 'octocat',
       projectId: 'proj',
       windowHours: 1,
-      seedItems: [ seedPullRequest ]
+      seedItems: [seedPullRequest],
     },
     {
       getRecentItemsFn: async () => {
         calls.push('getRecentItems');
-        return [ seedPullRequest ];
+        return [seedPullRequest];
       },
-      processBoardItemRulesFn: async () => [ { action: 'add_to_board', params: {} } ],
+      processBoardItemRulesFn: async () => [{ action: 'add_to_board', params: {} }],
       isItemInProjectFn: async () => ({ isInProject: false }),
       addItemToProjectFn: async () => 'PROJECT_ITEM_ID',
-      delayFn: async () => { }
+      delayFn: async () => {},
     }
   );
 
   assert.equal(calls.length, 1, 'getRecentItems should always be called');
   assert.equal(addedItems.length, 1);
   assert.equal(skippedItems.length, 0);
-  assert.equal(addedItems[ 0 ].number, 101);
+  assert.equal(addedItems[0].number, 101);
 });
 
 test('processAddItems always searches for items via API', async () => {
   let getRecentItemsCalled = false;
   const logger = new Logger();
-  logger.info = () => { };
-  logger.warning = () => { };
+  logger.info = () => {};
+  logger.warning = () => {};
 
   const { addedItems, skippedItems } = await processAddItems(
     {
       org: 'org',
-      repos: [ 'repo' ],
+      repos: ['repo'],
       monitoredUser: 'octocat',
       projectId: 'proj',
       windowHours: 1,
-      seedItems: []
+      seedItems: [],
     },
     {
       getRecentItemsFn: async () => {
         getRecentItemsCalled = true;
         return [];
       },
-      logger
+      logger,
     }
   );
 
@@ -69,4 +69,3 @@ test('processAddItems always searches for items via API', async () => {
   assert.equal(addedItems.length, 0);
   assert.equal(skippedItems.length, 0);
 });
-
