@@ -510,22 +510,15 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     return `repo:${qualifiedName}${sinceClause} sort:updated-desc`;
   });
 
-  // Search for PRs authored by monitored user in allowed organizations only
+  // Search for PRs authored by monitored user globally
   // Author/assignee searches always use the date filter (only repo search is unlimited in backfill)
   const sinceFilter = ` updated:>=${sinceDateStr}`;
-  const orgsFilter =
-    allowedOrgs.length > 0 ? `(${allowedOrgs.map((o) => `org:${o}`).join(' OR ')})` : '';
+  const authorSearchQuery = `author:${monitoredUser}${sinceFilter} sort:updated-desc`;
 
-  const authorSearchQuery = orgsFilter
-    ? `${orgsFilter} author:${monitoredUser}${sinceFilter} sort:updated-desc`
-    : `author:${monitoredUser}${sinceFilter} sort:updated-desc`;
+  // Search for issues/PRs assigned to monitored user globally
+  const assigneeSearchQuery = `assignee:${monitoredUser}${sinceFilter} sort:updated-desc`;
 
-  // Search for issues/PRs assigned to monitored user in allowed organizations only
-  const assigneeSearchQuery = orgsFilter
-    ? `${orgsFilter} assignee:${monitoredUser}${sinceFilter} sort:updated-desc`
-    : `assignee:${monitoredUser}${sinceFilter} sort:updated-desc`;
-
-  logger.info(`User-scoped search limited to orgs: ${allowedOrgs.join(', ') || 'all'}`);
+  logger.info(`User-scoped search globally filtered by orgs: ${allowedOrgs.join(', ') || 'all'}`);
 
   // In backfill mode, paginate through all pages (up to 10 pages = 1000 items).
   // In normal mode, only fetch the first page (100 items).
@@ -569,6 +562,16 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
 
   const results = [];
 
+  // Helper to filter nodes by allowed organizations in JS
+  const filterByAllowedOrgs = (nodes) => {
+    if (!allowedOrgs || allowedOrgs.length === 0) return nodes;
+    return nodes.filter((item) => {
+      if (!item.repository?.nameWithOwner) return false;
+      const [itemOrg] = item.repository.nameWithOwner.split('/');
+      return allowedOrgs.includes(itemOrg);
+    });
+  };
+
   // Get items from monitored repositories — one search per repo
   // so each repo gets its own 1000-item cap (GitHub limit per query)
   for (const repoQuery of repoSearchQueries) {
@@ -588,7 +591,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
   }
   logger.info(`Repo search returned ${results.length} items`);
 
-  // Get PRs authored by monitored user in any repository
+  // Get PRs authored by monitored user in any repository, filtered by orgs in JS
   // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
   const authorNodes = await paginatedSearch(
     `
@@ -602,10 +605,11 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     authorSearchQuery,
     5
   );
-  results.push(...authorNodes);
-  logger.info(`Author search returned ${authorNodes.length} items`);
+  const filteredAuthorNodes = filterByAllowedOrgs(authorNodes);
+  results.push(...filteredAuthorNodes);
+  logger.info(`Author search returned ${filteredAuthorNodes.length} items (after allowed orgs filter; original was ${authorNodes.length})`);
 
-  // Get issues and PRs assigned to monitored user in any repository
+  // Get issues and PRs assigned to monitored user in any repository, filtered by orgs in JS
   // Fetch up to 5 pages (500 items) to ensure we don't miss items in active orgs
   const assigneeNodes = await paginatedSearch(
     `
@@ -619,8 +623,9 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = undefined
     assigneeSearchQuery,
     5
   );
-  results.push(...assigneeNodes);
-  logger.info(`Assignee search returned ${assigneeNodes.length} items`);
+  const filteredAssigneeNodes = filterByAllowedOrgs(assigneeNodes);
+  results.push(...filteredAssigneeNodes);
+  logger.info(`Assignee search returned ${filteredAssigneeNodes.length} items (after allowed orgs filter; original was ${assigneeNodes.length})`);
 
   // Remove duplicates based on item ID
   const seen = new Set();
