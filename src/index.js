@@ -1,538 +1,259 @@
-/**
- * @fileoverview Project Board Sync - Central Development Reference
- * @centralReference Source of truth for project conventions
- *
- * Development Conventions:
- * 1. Services and Major Components:
- *    - GitHub API integration (@see github/api.js)
- *    - Project Board State Management (@see utils/state-verifier.js)
- *    - Rules Processing (@see rules/*)
- *
- * 2. Code Organization:
- *    - Business Rules: src/rules/ - Core rule implementations
- *    - Utils: src/utils/ - Common utilities and helpers
- *    - Config: src/config/ - Configuration and schema
- *    - GitHub: src/github/ - API wrappers and types
- *
- * 3. Coding Standards:
- *    - Every rule module must implement state verification
- *    - Use state tracking for all board changes
- *    - Log all state changes via Logger class
- *    - Document public APIs with JSDoc
- *
- * Documentation Maintenance:
- * 1. Requirements Sources:
- *    - config/rules.yml: Core business rules
- *    - CONTRIBUTING.md: Development guidelines
- *    - TECHNICAL.md: Implementation details
- *    - FUTURE-IDEAS.md: Planned enhancements
- *
- * 2. Documentation Updates:
- *    - Update JSDoc when changing interfaces or behaviors
- *    - Keep module conventions in sync with implementations
- *    - Test cases must reflect documented requirements
- *    - Reference source requirements in major changes
- *
- * 3. Stability Practices:
- *    - Follow module-specific update guidelines
- *    - Maintain consistent error handling
- *    - Preserve state tracking behaviors
- *    - Test all documented scenarios
- *
- * @see rules.yml - Core business rules and configuration
- */
-
 import * as core from '@actions/core';
-import { getRecentItems, getProjectItems, getItemColumn } from './github/api.js';
-import { shouldProceed } from './utils/rate-limit.js';
-import { RatePriority } from './utils/rate-priority.js';
-import { Logger } from './utils/log.js';
-const log = new Logger();
-import { StateVerifier } from './utils/state-verifier.js';
-import { processAddItems } from './rules/add-items.js';
-import { processColumnAssignment } from './rules/columns.js';
-import {
-  processSprintAssignment,
-  processSprintRemoval,
-  determineSprintAction,
-  setItemSprintsBatch,
-  clearItemSprintsBatch,
-} from './rules/sprints.js';
-import { processAssignees, getItemDetails } from './rules/assignees.js';
-import { processLinkedIssues } from './rules/linked-issues-processor.js';
-import { StepVerification } from './utils/verification-steps.js';
-import { EnvironmentValidator } from './utils/environment-validator.js';
 import { loadBoardRules } from './config/board-rules.js';
-import { loadEventItems } from './utils/event-items.js';
-import { auditLog } from './utils/audit-logger.js';
-import { getWatermark, saveWatermark } from './utils/watermark.js';
+import * as api from './github/api.js';
 
-// Custom error classes for robust error handling
-class ItemNotAddedError extends Error {
-  constructor(message, itemType, itemNumber) {
-    super(message);
-    this.name = 'ItemNotAddedError';
-    this.code = 'ITEM_NOT_ADDED';
-    this.itemType = itemType;
-    this.itemNumber = itemNumber;
-  }
-}
-
-class CriticalError extends Error {
-  constructor(message, originalError) {
-    super(message);
-    this.name = 'CriticalError';
-    this.code = 'CRITICAL_ERROR';
-    this.originalError = originalError;
-  }
-}
-
-// Error classification helper
-function classifyError(error) {
-  // If it's already a typed error, use its classification
-  if (error instanceof ItemNotAddedError) {
-    return { isCritical: false, type: 'item_not_added' };
-  }
-  if (error instanceof CriticalError) {
-    return { isCritical: true, type: 'critical' };
-  }
-
-  // Use error.code property for classification if available
-  if (error && typeof error.code === 'string') {
-    if (error.code === 'ITEM_NOT_ADDED') {
-      return { isCritical: false, type: 'item_not_added' };
-    }
-    if (error.code === 'CRITICAL_ERROR') {
-      return { isCritical: true, type: 'critical' };
-    }
-  }
-
-  // Default to critical for unknown errors
-  return { isCritical: true, type: 'unknown' };
-}
-
-/**
- * Initialize environment from GitHub Action inputs if available
- */
-function initializeEnvironment() {
-  const mappings = {
-    github_token: 'GITHUB_TOKEN',
-    github_author: 'GITHUB_AUTHOR',
-    project_url: 'PROJECT_URL',
-    config_file: 'CONFIG_FILE',
-    window_hours: 'UPDATE_WINDOW_HOURS',
-    verbose: 'VERBOSE',
-    backfill: 'BACKFILL',
-  };
-
-  for (const [input, env] of Object.entries(mappings)) {
-    const val = core.getInput(input);
-    if (val) {
-      process.env[env] = val;
-    }
-  }
-}
-
-// Initialize environment validation steps
-const envValidator = new StepVerification([
-  'TOKEN_CONFIGURED',
-  'PROJECT_CONFIGURED',
-  'LABELS_CONFIGURED',
-]);
-
-envValidator.addStepDependencies('PROJECT_CONFIGURED', ['TOKEN_CONFIGURED']);
-envValidator.addStepDependencies('LABELS_CONFIGURED', ['PROJECT_CONFIGURED']);
-
-// Static reference to allow access from other modules
-StepVerification.envValidator = envValidator;
-
-/**
- * Validate required environment variables and return configuration
- *
- * @async
- * @returns {Promise<Object>} A configuration object containing validated environment settings
- * @throws {Error} If any required variables are missing or validation fails
- */
-async function validateEnvironment() {
-  // StateVerifier is already imported at the top
-
-  // Initialize base state tracking
-  StateVerifier.steps.markStepComplete('STATE_TRACKING_INITIALIZED');
-  StateVerifier.steps.markStepComplete('VERIFICATION_PROGRESS_SETUP');
-
-  // Initialize validator
-  StateVerifier.getTransitionValidator(); // This marks TRANSITION_VALIDATOR_CONFIGURED
-
+async function run() {
   try {
-    // Use centralized environment validation
-    const envConfig = await EnvironmentValidator.validateAll();
+    core.info("🚀 Starting Derek's Personal Project Automator Rebuild Engine...");
 
-    // Mark validation steps as complete
-    envValidator.markStepComplete('TOKEN_CONFIGURED');
-    StateVerifier.steps.markStepComplete('TOKEN_CONFIGURED');
+    // 1. Resolve and Load rules.yml
+    const monitoredUser = 'DerekRoberts';
+    const config = loadBoardRules({ monitoredUser });
 
-    envValidator.markStepComplete('PROJECT_CONFIGURED');
-    StateVerifier.steps.markStepComplete('PROJECT_CONFIGURED');
+    // Extract parameters
+    const projectUrl =
+      config.project?.url || process.env.GITHUB_PROJECT_URL || process.env.INPUT_PROJECT_URL;
+    const allowedOrgs = config.project?.allowedOrgs || ['bcgov', 'bcgov-c', 'bcgov-nr'];
+    const maintainerRepos = config.project?.repositories || [];
+    const windowHours = parseInt(process.env.UPDATE_WINDOW_HOURS || '2', 10);
 
-    envValidator.markStepComplete('LABELS_CONFIGURED');
-    StateVerifier.steps.markStepComplete('LABELS_CONFIGURED');
-
-    // Complete state validation setup after environment is confirmed valid
-    StateVerifier.steps.markStepComplete('RULES_INITIALIZED');
-    StateVerifier.steps.markStepComplete('DEPENDENCIES_VERIFIED');
-    StateVerifier.steps.markStepComplete('STATE_VALIDATED');
-    StateVerifier.steps.markStepComplete('STATE_VERIFIED');
-
-    return envConfig;
-  } catch (error) {
-    // Re-throw with enhanced context
-    throw new Error(
-      `Environment validation failed:\n${error.message}\n\n` +
-        `Please check your environment variables and try again.`
-    );
-  }
-}
-
-/**
- * Project Board Sync Main Function
- * Implements all five rule sets from rules.yml:
- * 1. Which Items are Added (Board Addition Rules)
- * 2. Which Columns Items Go To (Column Rules)
- * 3. Sprint Assignment Rules
- * 4. Linked Issue Rules
- * 5. Assignee Rules
- */
-async function main() {
-  const startTime = new Date();
-  let watermark = null;
-  let activeWindowHours = undefined;
-
-  // Map GHA inputs to environment variables
-  initializeEnvironment();
-
-  try {
-    // Validate environment and get configuration
-    const envConfig = await validateEnvironment();
-
-    // Load board rules configuration
-    const boardConfig = loadBoardRules({ monitoredUser: process.env.GITHUB_AUTHOR });
-
-    // Initialize transition rules for state validation
-    // StateVerifier is already imported at the top
-    StateVerifier.initializeTransitionRules(boardConfig);
-
-    // Initialize context with validated environment config
-    // Determine organization from the first monitored repository or use default
-    let org = 'bcgov'; // Default fallback
-    if (boardConfig.project?.organization) {
-      org = boardConfig.project.organization;
-    }
-    const allowedOrgs = boardConfig.project?.allowedOrgs || ['bcgov', 'bcgov-c', 'bcgov-nr'];
-    const context = {
-      org,
-      repos: process.env.OVERRIDE_REPOS
-        ? process.env.OVERRIDE_REPOS.split(',').map((r) => r.trim())
-        : boardConfig.project?.repositories || [],
-      monitoredUser: process.env.GITHUB_AUTHOR,
-      projectId: envConfig.projectId,
-      verbose: envConfig.verbose,
-      strictMode: envConfig.strictMode,
-      dryRun: process.env.DRY_RUN === 'true',
-      allowedOrgs,
-    };
-
-    log.info('Starting Project Board Sync...');
-    log.info(`User: ${context.monitoredUser}`);
-    log.info(`Project: ${context.projectId}`);
-
-    // Log concurrency context
-    const eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
-    const ref = process.env.GITHUB_REF || 'unknown';
-    const runId = process.env.GITHUB_RUN_ID || 'unknown';
-    log.info(`Concurrency Context: Event=${eventName}, Ref=${ref}, RunID=${runId}`);
-
-    if (process.env.OVERRIDE_REPOS) {
-      log.info(`Using OVERRIDE_REPOS: ${process.env.OVERRIDE_REPOS}`);
+    if (!projectUrl) {
+      throw new Error('Project URL is not configured. Please define it in rules.yml or inputs.');
     }
 
-    // Initialize state tracking
-    if (context.verbose) {
-      log.info('State tracking enabled');
+    core.info(`Configured Project URL: ${projectUrl}`);
+    core.info(`Allowed Orgs: ${allowedOrgs.join(', ')}`);
+    core.info(`Maintainer Repos: ${maintainerRepos.join(', ')}`);
+    core.info(`Monitored User: ${monitoredUser}`);
+
+    // 2. Resolve Project Board and Fields
+    core.info('Resolving Project Board ID...');
+    const projectId = await api.getProjectId(projectUrl);
+    if (!projectId) {
+      throw new Error(`Failed to resolve Project ID from URL: ${projectUrl}`);
     }
-    log.info(
-      'Monitored Repos: ' +
-        context.repos.map((r) => (r.includes('/') ? r : `${context.org}/${r}`)).join(', ')
-    );
+    core.info(`Resolved Project ID: ${projectId}`);
 
-    // Determine tighter search window (1h) in PR context unless overridden via env
-    activeWindowHours = process.env.GITHUB_EVENT_NAME === 'pull_request' ? 1 : undefined;
-
-    // Load gapless sync watermark from cache
-    watermark = await getWatermark(context.projectId);
-    if (watermark) {
-      log.info(`[SYNC] Using gapless watermark: ${watermark}`, true);
-      core.notice(`🏁 Syncing items updated since: ${watermark} (Gapless Mode)`);
-    } else {
-      activeWindowHours = activeWindowHours || process.env.UPDATE_WINDOW_HOURS || 24;
-      log.info(
-        `[SYNC] No watermark found. Falling back to ${activeWindowHours}h sliding window.`,
-        true
+    core.info('Fetching Project Metadata & Iterations...');
+    const meta = await api.getProjectMetadata(projectId);
+    core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
+    if (meta.currentSprintTitle) {
+      core.info(
+        `Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`
       );
-      core.notice(`⏱️ Syncing items updated in the last ${activeWindowHours}h (Sliding Window)`);
+    } else {
+      core.info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
 
-    // Process items according to our enhanced rules
-    const eventItems = await loadEventItems(eventName, process.env.GITHUB_EVENT_PATH);
-    if (eventItems.length > 0) {
-      log.info(`Loaded ${eventItems.length} item(s) from event payload (${eventName}).`);
-      log.incrementCounter('items.seeded', eventItems.length);
-    }
-    if (context.dryRun) {
-      log.info('DRY_RUN enabled – mutations will be skipped.');
-    }
+    // 3. Discover recent items
+    core.info('Querying recent items from search...');
+    const recentItems = await api.getRecentItems(
+      config.project?.organization || 'bcgov',
+      maintainerRepos,
+      monitoredUser,
+      windowHours,
+      { allowedOrgs }
+    );
+    core.info(`Discovered ${recentItems.length} recent items to evaluate.`);
 
-    const { addedItems, skippedItems } = await processAddItems({
-      org: context.org,
-      repos: context.repos,
-      monitoredUser: context.monitoredUser,
-      projectId: context.projectId,
-      windowHours: activeWindowHours,
-      seedItems: eventItems,
-      allowedOrgs: context.allowedOrgs,
-      since: watermark,
-    });
+    const summaryReport = [];
 
-    // Dry Run Safety Threshold: Fail if we would have modified a massive number of items
-    const DRY_RUN_SAFETY_THRESHOLD = 50;
-    if (context.dryRun && addedItems.length > DRY_RUN_SAFETY_THRESHOLD) {
-      const msg = `⚠️ DRY RUN SAFETY CHECK FAILED: This run would have modified ${addedItems.length} items, which exceeds the safety threshold of ${DRY_RUN_SAFETY_THRESHOLD}. Please review your rules.yml for overly broad filters.`;
-      log.error(msg);
-      core.setFailed(msg);
-      return;
-    }
-
-    // Process additional rules for added items
-    const errors = [];
-    for (const item of addedItems) {
+    // 4. Process each item sequentially
+    for (const item of recentItems) {
       try {
-        const itemRef = `${item.type} #${item.number}`;
+        const itemType = item.__typename; // "Issue" or "PullRequest"
+        const repoName = item.repository?.nameWithOwner;
+        const number = item.number;
+        const title = item.title;
+        const author = item.author?.login;
+        const assignees = (item.assignees?.nodes || []).map((a) => a.login);
+        const isClosed = item.state === 'CLOSED' || item.state === 'MERGED';
 
-        // First verify the item was added successfully
-        await StateVerifier.verifyAddition(item, context.projectId);
-        auditLog.logEvent({
-          type: item.type,
-          number: item.number,
-          repo: item.repo || item.repository?.nameWithOwner,
-          action: 'Add to Board',
-          from: 'None',
-          to: 'Project',
-          rule: 'Board Addition',
-          reason: 'Item matched auto-add criteria',
-        });
+        core.info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
-        // Set initial column
-        const columnResult = await processColumnAssignment(
-          item,
-          item.projectItemId,
-          context.projectId
-        );
-        if (columnResult.changed) {
-          log.info(`Set column for ${itemRef} to ${columnResult.newStatus}`);
-          await StateVerifier.verifyColumn(item, context.projectId, columnResult.newStatus);
+        // Check Triggers for Board Addition
+        const isMaintainerRepo = maintainerRepos.includes(repoName);
+        const isAuthored = author === monitoredUser;
+        const isAssigned = assignees.includes(monitoredUser);
+        const isReviewer =
+          itemType === 'PullRequest' &&
+          (item.reviewRequests?.nodes || []).some(
+            (req) => req.requestedReviewer?.login === monitoredUser
+          );
 
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Move Column',
-            from: columnResult.currentStatus || 'None',
-            to: columnResult.newStatus,
-            rule: columnResult.rule || 'Column Rule',
-            reason: columnResult.reason,
-          });
+        const shouldBeAdded = isMaintainerRepo || isAuthored || isAssigned || isReviewer;
+        let addReason = '';
+        if (isMaintainerRepo) addReason = 'Maintainer Repo';
+        else if (isAuthored) addReason = 'Authored by monitored user';
+        else if (isAssigned) addReason = 'Assigned to monitored user';
+        else if (isReviewer) addReason = 'Review request pending';
+
+        if (!shouldBeAdded) {
+          core.info(`Skipping: Item does not match any personal board addition trigger rules.`);
+          continue;
         }
 
-        // Process sprint assignment or removal based on column
-        const currentColumn = columnResult.newStatus || columnResult.currentStatus;
-        const eligibleColumns = ['Next', 'Active', 'Done', 'Waiting'];
+        core.info(`Match Found: item should be on board due to: "${addReason}"`);
+
+        // Get board item state
+        let { isInProject, projectItemId } = await api.isItemInProject(item.id, projectId);
+
+        if (!isInProject) {
+          core.info(`Adding item to project board...`);
+          projectItemId = await api.addItemToProject(item.id, projectId);
+          isInProject = true;
+          core.info(`Successfully added! Project Item ID: ${projectItemId}`);
+        } else {
+          core.info(`Item is already present on the board. Project Item ID: ${projectItemId}`);
+        }
+
+        // --- Column Assignment ---
+        const currentColumn = await api.getItemColumn(projectId, projectItemId);
+        core.info(`Current Column: ${currentColumn || 'None'}`);
+
+        let targetColumn = currentColumn;
+        if (isClosed) {
+          targetColumn = 'Done';
+        } else if (itemType === 'PullRequest') {
+          targetColumn = 'Active';
+        } else if (itemType === 'Issue') {
+          // Default issues to New
+          if (currentColumn === 'None' || !currentColumn) {
+            targetColumn = 'New';
+          }
+        }
+
+        if (targetColumn && targetColumn !== currentColumn) {
+          core.info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);
+          await api.updateItemColumn(projectId, projectItemId, targetColumn);
+          core.info(`Successfully moved column!`);
+        } else {
+          core.info(`Status column is already set correctly to: "${targetColumn || 'None'}"`);
+        }
+
+        // --- Sprint Assignment ---
+        const activeColumns = ['Active', 'Next', 'Waiting'];
         const inactiveColumns = ['New', 'Parked', 'Backlog'];
 
-        let sprintResult = null;
-        if (eligibleColumns.includes(currentColumn)) {
-          // Assign sprint for eligible columns
-          sprintResult = await processSprintAssignment(
-            item,
-            item.projectItemId,
-            context.projectId,
-            currentColumn
-          );
-          if (sprintResult.changed) {
-            log.info(`Set sprint for ${itemRef} to ${sprintResult.newSprint}`);
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Assign Sprint',
-              from: sprintResult.previousSprint || 'None',
-              to: sprintResult.newSprint,
-              rule: 'Sprint Assignment',
-              reason: sprintResult.reason,
-            });
+        const finalColumn = targetColumn || currentColumn;
+        const currentSprint = await api.getItemSprint(projectId, projectItemId);
+        core.info(
+          `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
+        );
+
+        if (activeColumns.includes(finalColumn)) {
+          if (
+            meta.currentSprintId &&
+            (!currentSprint || currentSprint.id !== meta.currentSprintId)
+          ) {
+            core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
+            await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
+            core.info('Sprint successfully associated!');
           }
-        } else if (inactiveColumns.includes(currentColumn)) {
-          // Remove sprint for inactive columns
-          const sprintRemovalResult = await processSprintRemoval(
-            item,
-            item.projectItemId,
-            context.projectId,
-            currentColumn
-          );
-          if (sprintRemovalResult.changed) {
-            log.info(`Removed sprint for ${itemRef} from inactive column`);
-            auditLog.logEvent({
-              type: item.type,
-              number: item.number,
-              repo: item.repo || item.repository?.nameWithOwner,
-              action: 'Remove Sprint',
-              from: sprintRemovalResult.previousSprint || 'Unknown',
-              to: 'None',
-              rule: 'Sprint Cleanup',
-              reason: sprintRemovalResult.reason,
-            });
+        } else if (inactiveColumns.includes(finalColumn)) {
+          if (currentSprint) {
+            core.info('Clearing sprint iteration (inactive status column)...');
+            await api.updateItemSprint(projectId, projectItemId, null);
+            core.info('Sprint cleared!');
           }
         }
 
-        // Handle assignees
-        const assigneeResult = await processAssignees(item, context.projectId, item.projectItemId);
-        if (assigneeResult.changed) {
-          log.info(`Updated assignees for ${itemRef}: ${assigneeResult.assignees.join(', ')}`);
-          await StateVerifier.verifyAssignees(item, context.projectId, assigneeResult.assignees);
-
-          auditLog.logEvent({
-            type: item.type,
-            number: item.number,
-            repo: item.repo || item.repository?.nameWithOwner,
-            action: 'Update Assignees',
-            from: assigneeResult.previousAssignees?.join(', ') || 'none',
-            to: assigneeResult.assignees.join(', '),
-            rule: 'Assignee Sync',
-            reason: assigneeResult.reason || 'Synchronizing project assignees',
-          });
+        // --- Assignee Check ---
+        if (isAuthored && !isAssigned) {
+          core.info(`Self-assigning authored item on GitHub...`);
+          await api.assignUserToItem(repoName, number, monitoredUser);
+          core.info('User successfully assigned!');
         }
 
-        // Process linked issues if it's a PR and has required properties
-        if (item.type === 'PullRequest' && item.repository && item.repository.nameWithOwner) {
-          log.info(
-            `[Main] Processing linked issues for ${item.type} #${item.number} [${item.repository.nameWithOwner}]`
-          );
-          const targetColumn = columnResult.newStatus || columnResult.currentStatus;
-          const targetSprint = sprintResult?.newSprint || null;
+        // --- Linked Issues Progression (Spec 3.2) ---
+        if (itemType === 'PullRequest') {
+          core.info('Checking for linked issues closing references...');
+          const linkedIssues = await api.fetchLinkedIssuesForPullRequest(item.id, projectId);
+          core.info(`Found ${linkedIssues.length} linked issues.`);
 
-          const linkedResult = await processLinkedIssues(
-            {
-              ...item,
-              __typename: 'PullRequest',
-              repository: {
-                nameWithOwner: item.repo || item.repository.nameWithOwner,
-              },
-              projectItemId: item.projectItemId,
-            },
-            context.projectId,
-            targetColumn,
-            targetSprint
-          );
+          for (const linked of linkedIssues) {
+            if (linked.projectItemId) {
+              core.info(
+                `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
+              );
 
-          if (linkedResult.processed > 0) {
-            log.info(
-              `[Main] Processed ${linkedResult.processed} linked issues for ${item.type} #${item.number}`
-            );
+              // PR active -> Issue Active; PR Done -> Issue Done
+              const linkedCurrentCol = await api.getItemColumn(projectId, linked.projectItemId);
+              const linkedTargetCol = targetColumn;
+
+              if (linkedTargetCol && linkedTargetCol !== linkedCurrentCol) {
+                core.info(
+                  `Updating linked issue status column from "${linkedCurrentCol || 'None'}" to "${linkedTargetCol}"...`
+                );
+                await api.updateItemColumn(projectId, linked.projectItemId, linkedTargetCol);
+              }
+
+              // Inherit Sprint
+              const linkedCurrentSprint = await api.getItemSprint(projectId, linked.projectItemId);
+              if (activeColumns.includes(linkedTargetCol)) {
+                if (
+                  meta.currentSprintId &&
+                  (!linkedCurrentSprint || linkedCurrentSprint.id !== meta.currentSprintId)
+                ) {
+                  core.info(`Updating linked issue sprint to current active iteration...`);
+                  await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
+                }
+              }
+
+              // Inherit Assignee
+              await api.assignUserToItem(
+                linked.repository?.nameWithOwner,
+                linked.number,
+                monitoredUser
+              );
+            }
           }
         }
 
-        // Finally verify the complete state of the item
-        await StateVerifier.verifyCompleteState(item, context.projectId, {
-          column: columnResult.newStatus || columnResult.currentStatus,
-          sprint: sprintResult?.changed ? undefined : sprintResult?.newSprint, // Skip sprint verification if assignment was successful
-          assignees: assigneeResult.changed ? assigneeResult.assignees : undefined,
+        summaryReport.push({
+          type: itemType,
+          number,
+          repo: repoName,
+          title,
+          status: 'Success',
+          action: `Synced to "${targetColumn || 'None'}"`,
         });
-      } catch (error) {
-        errors.push(error);
-        auditLog.logError(error, item);
+      } catch (itemErr) {
+        core.error(`Failed to process item: ${itemErr.message}`);
+        summaryReport.push({
+          type: item.__typename,
+          number: item.number,
+          repo: item.repository?.nameWithOwner,
+          title: item.title,
+          status: 'Failed',
+          action: itemErr.message,
+        });
       }
     }
 
-    // Final report logging
-    if (errors.length > 0) {
-      log.error(`Project Board Sync completed with ${errors.length} errors`);
-    } else {
-      log.info('Project Board Sync completed successfully');
+    // 5. Generate beautiful job summary
+    core.info('\n--- Generating Run Summary ---');
+    let summaryHtml = `### 🚀 Derek's Personal Project Automator Summary\n\n`;
+    summaryHtml += `| Item | Title | Status | Result |\n`;
+    summaryHtml += `| :--- | :--- | :--- | :--- |\n`;
 
-      // Save the new watermark only when the run completes without any errors.
-      // This ensures that any failed items (even non-critical) are re-processed in the next run.
-      // We use the start time of the run as the new watermark.
-      await saveWatermark(context.projectId, startTime.toISOString());
+    let hasFailure = false;
+    for (const s of summaryReport) {
+      const icon = s.status === 'Success' ? '✅' : '❌';
+      if (s.status === 'Failed') hasFailure = true;
+      summaryHtml += `| **${s.type} #${s.number}** (${s.repo}) | ${s.title} | ${icon} ${s.status} | ${s.action} |\n`;
     }
 
-    // Robust error classification
-    const errorClassifications = errors.map((error) => ({
-      error,
-      classification: classifyError(error),
-    }));
+    await core.summary.addRaw(summaryHtml).write();
 
-    const criticalErrors = errorClassifications
-      .filter(({ classification }) => classification.isCritical)
-      .map(({ error }) => error);
-
-    const nonCriticalErrors = errorClassifications
-      .filter(({ classification }) => !classification.isCritical)
-      .map(({ error }) => error);
-
-    if (criticalErrors.length > 0) {
-      const errorMsg = `Project Board Sync failed with ${criticalErrors.length} critical error(s).`;
-      core.setFailed(errorMsg);
-      criticalErrors.forEach((error) => {
-        log.error(`Critical error detail: ${error.message || error}`);
-      });
-    } else if (nonCriticalErrors.length > 0) {
-      log.info(
-        `Completed with ${nonCriticalErrors.length} non-critical errors (items not added to project)`
-      );
+    if (hasFailure) {
+      throw new Error('Some items failed to sync to the project board. Check logs for details.');
     }
+
+    core.info('🎉 All operations completed successfully.');
   } catch (error) {
-    // Handle rate limits as temporary failures
-    const msg =
-      error.message && error.message.includes('rate limit')
-        ? 'GitHub rate limit exceeded. This is a temporary failure.'
-        : `Global execution error: ${error.message}`;
-
-    auditLog.logError(error);
-    core.setFailed(msg);
-  } finally {
-    // Ensure summary and reports are printed even on failure
-    log.printSummary();
-
-    if (process.env.VERBOSE) {
-      log.printStateSummary();
-      StateVerifier.printReports();
-    }
-
-    // Push the audit summary to GitHub Actions Job Summary
-    // Capture final rate limit to report health
-    const finalRate = await shouldProceed(RatePriority.CRITICAL);
-    await auditLog.pushToGhaSummary({
-      health: finalRate.health,
-      watermark,
-      windowHours: activeWindowHours,
-    });
+    core.setFailed(`Engine execution crashed: ${error.message}`);
   }
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((err) => {
-    log.error('Unhandled error:', err);
-    process.exit(1);
-  });
-}
-
-export { main, validateEnvironment, ItemNotAddedError, CriticalError, classifyError };
+run();
