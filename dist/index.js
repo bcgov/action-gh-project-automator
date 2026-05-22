@@ -46649,9 +46649,15 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
   });
 
   // Build global user-scoped search queries
-  const authorQuery = `author:${monitoredUser}${sinceClause} sort:updated-desc`;
-  const assigneeQuery = `assignee:${monitoredUser}${sinceClause} sort:updated-desc`;
-  const reviewerQuery = `review-requested:${monitoredUser}${sinceClause} sort:updated-desc`;
+  // We fetch all active open items (independent of window) + recently updated items (to catch merges/closures)
+  const authorQueryOpen = `author:${monitoredUser} is:pr is:open sort:updated-desc`;
+  const authorQueryRecent = `author:${monitoredUser} is:pr ${sinceClause} sort:updated-desc`;
+
+  const assigneeQueryOpen = `assignee:${monitoredUser} is:open sort:updated-desc`;
+  const assigneeQueryRecent = `assignee:${monitoredUser} ${sinceClause} sort:updated-desc`;
+
+  const reviewerQueryOpen = `review-requested:${monitoredUser} is:open sort:updated-desc`;
+  const reviewerQueryRecent = `review-requested:${monitoredUser} ${sinceClause} sort:updated-desc`;
 
   const ITEM_FRAGMENT = `
     __typename
@@ -46719,17 +46725,23 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
     results.push(...repoNodes);
   }
 
-  // 2. Fetch User-scoped PRs
-  const authorNodes = await paginatedSearch(authorQuery);
-  results.push(...filterByAllowedOrgs(authorNodes));
+  // 2. Fetch User-scoped PRs (Open + Recent)
+  const authorNodesOpen = await paginatedSearch(authorQueryOpen);
+  const authorNodesRecent = await paginatedSearch(authorQueryRecent);
+  results.push(...filterByAllowedOrgs(authorNodesOpen));
+  results.push(...filterByAllowedOrgs(authorNodesRecent));
 
-  // 3. Fetch User-scoped Assigned Issues/PRs
-  const assigneeNodes = await paginatedSearch(assigneeQuery);
-  results.push(...filterByAllowedOrgs(assigneeNodes));
+  // 3. Fetch User-scoped Assigned Issues/PRs (Open + Recent)
+  const assigneeNodesOpen = await paginatedSearch(assigneeQueryOpen);
+  const assigneeNodesRecent = await paginatedSearch(assigneeQueryRecent);
+  results.push(...filterByAllowedOrgs(assigneeNodesOpen));
+  results.push(...filterByAllowedOrgs(assigneeNodesRecent));
 
-  // 4. Fetch User-scoped Review Requested PRs
-  const reviewerNodes = await paginatedSearch(reviewerQuery);
-  results.push(...filterByAllowedOrgs(reviewerNodes));
+  // 4. Fetch User-scoped Review Requested PRs (Open + Recent)
+  const reviewerNodesOpen = await paginatedSearch(reviewerQueryOpen);
+  const reviewerNodesRecent = await paginatedSearch(reviewerQueryRecent);
+  results.push(...filterByAllowedOrgs(reviewerNodesOpen));
+  results.push(...filterByAllowedOrgs(reviewerNodesRecent));
 
   // De-duplicate items by node ID
   const seen = new Set();
