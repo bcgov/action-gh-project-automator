@@ -46860,6 +46860,10 @@ async function isItemInProject(nodeId, projectId) {
  * Add an item to the project board
  */
 async function addItemToProject(nodeId, projectId) {
+  if (process.env.DRY_RUN === 'true') {
+    info(`[DRY RUN] Would add item ${nodeId} to project ${projectId}`);
+    return 'mock-project-item-id';
+  }
   const { graphql } = getClients();
   const mutation = `
     mutation($projectId: ID!, $contentId: ID!) {
@@ -46876,6 +46880,10 @@ async function addItemToProject(nodeId, projectId) {
  * Update an item's status column
  */
 async function updateItemColumn(projectId, projectItemId, columnName) {
+  if (process.env.DRY_RUN === 'true') {
+    info(`[DRY RUN] Would update item ${projectItemId} Status to "${columnName}"`);
+    return;
+  }
   const { graphql } = getClients();
   const meta = await getProjectMetadata(projectId);
   if (!meta.statusFieldId) {
@@ -46912,6 +46920,12 @@ async function updateItemColumn(projectId, projectItemId, columnName) {
  * Update an item's iteration (Sprint) field
  */
 async function updateItemSprint(projectId, projectItemId, sprintId) {
+  if (process.env.DRY_RUN === 'true') {
+    info(
+      `[DRY RUN] Would update item ${projectItemId} Sprint to ${sprintId ? `"${sprintId}"` : 'null (clear)'}`
+    );
+    return;
+  }
   const { graphql } = getClients();
   const meta = await getProjectMetadata(projectId);
   if (!meta.sprintFieldId) {
@@ -47051,6 +47065,10 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
  * Assign a user to an issue or PR
  */
 async function assignUserToItem(nameWithOwner, number, login) {
+  if (process.env.DRY_RUN === 'true') {
+    info(`[DRY RUN] Would assign user ${login} to item ${nameWithOwner}#${number}`);
+    return;
+  }
   const { octokit } = getClients();
   const [owner, repo] = nameWithOwner.split('/');
   await withRetry(() =>

@@ -54,7 +54,7 @@ jobs:
       issues: write
       pull-requests: write
     env:
-      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      DRY_RUN: false
     steps:
       - uses: actions/checkout@v6
 
