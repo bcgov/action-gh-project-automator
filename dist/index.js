@@ -46645,19 +46645,19 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
   const reposToSearch = repos || [];
   const repoQueries = reposToSearch.map((repo) => {
     const qualified = repo.includes('/') ? repo : `${org}/${repo}`;
-    return `repo:${qualified}${sinceClause} sort:updated-desc`;
+    return `repo:${qualified} archived:false ${sinceClause} sort:updated-desc`;
   });
 
   // Build global user-scoped search queries
   // We fetch all active open items (independent of window) + recently updated items (to catch merges/closures)
-  const authorQueryOpen = `author:${monitoredUser} is:pr is:open sort:updated-desc`;
-  const authorQueryRecent = `author:${monitoredUser} is:pr ${sinceClause} sort:updated-desc`;
+  const authorQueryOpen = `author:${monitoredUser} is:pr is:open archived:false sort:updated-desc`;
+  const authorQueryRecent = `author:${monitoredUser} is:pr archived:false ${sinceClause} sort:updated-desc`;
 
-  const assigneeQueryOpen = `assignee:${monitoredUser} is:open sort:updated-desc`;
-  const assigneeQueryRecent = `assignee:${monitoredUser} ${sinceClause} sort:updated-desc`;
+  const assigneeQueryOpen = `assignee:${monitoredUser} is:open archived:false sort:updated-desc`;
+  const assigneeQueryRecent = `assignee:${monitoredUser} archived:false ${sinceClause} sort:updated-desc`;
 
-  const reviewerQueryOpen = `review-requested:${monitoredUser} is:open sort:updated-desc`;
-  const reviewerQueryRecent = `review-requested:${monitoredUser} ${sinceClause} sort:updated-desc`;
+  const reviewerQueryOpen = `review-requested:${monitoredUser} is:open archived:false sort:updated-desc`;
+  const reviewerQueryRecent = `review-requested:${monitoredUser} archived:false ${sinceClause} sort:updated-desc`;
 
   const ITEM_FRAGMENT = `
     __typename
