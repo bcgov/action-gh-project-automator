@@ -46757,13 +46757,21 @@ async function getProjectMetadata(projectId) {
         ... on ProjectV2 {
           fields(first: 100) {
             nodes {
-              id
-              name
-              __typename
+              ... on ProjectV2Field {
+                id
+                name
+                __typename
+              }
               ... on ProjectV2SingleSelectField {
+                id
+                name
+                __typename
                 options { id name }
               }
               ... on ProjectV2IterationField {
+                id
+                name
+                __typename
                 configuration {
                   iterations { id title startDate duration }
                   completedIterations { id title startDate duration }
