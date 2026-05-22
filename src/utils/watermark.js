@@ -55,7 +55,7 @@ export async function getWatermark(projectId, overrides = {}) {
   } finally {
     try {
       await fsModule.rm(tmpDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch {
       // Ignore cleanup errors
     }
   }
@@ -104,7 +104,7 @@ export async function saveWatermark(projectId, timestamp, overrides = {}) {
   } finally {
     try {
       await fsModule.rm(tmpDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch {
       // Ignore cleanup errors
     }
   }

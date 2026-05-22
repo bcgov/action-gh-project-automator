@@ -51,19 +51,21 @@ async function getProjectId(projectUrl) {
   if (!match) {
     throw new Error(`Invalid GITHUB_PROJECT_URL format: ${projectUrl}`);
   }
-  const [_, type, owner, numberStr] = match;
+  const [, type, owner, numberStr] = match;
   const number = parseInt(numberStr, 10);
 
   if (type === 'orgs') {
     const result = await withRetry(() =>
       graphql(
         `
-        query($org: String!, $number: Int!) {
-          organization(login: $org) {
-            projectV2(number: $number) { id }
+          query ($org: String!, $number: Int!) {
+            organization(login: $org) {
+              projectV2(number: $number) {
+                id
+              }
+            }
           }
-        }
-      `,
+        `,
         { org: owner, number }
       )
     );
@@ -72,12 +74,14 @@ async function getProjectId(projectUrl) {
     const result = await withRetry(() =>
       graphql(
         `
-        query($user: String!, $number: Int!) {
-          user(login: $user) {
-            projectV2(number: $number) { id }
+          query ($user: String!, $number: Int!) {
+            user(login: $user) {
+              projectV2(number: $number) {
+                id
+              }
+            }
           }
-        }
-      `,
+        `,
         { user: owner, number }
       )
     );

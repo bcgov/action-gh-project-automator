@@ -46591,19 +46591,21 @@ async function getProjectId(projectUrl) {
   if (!match) {
     throw new Error(`Invalid GITHUB_PROJECT_URL format: ${projectUrl}`);
   }
-  const [_, type, owner, numberStr] = match;
+  const [, type, owner, numberStr] = match;
   const number = parseInt(numberStr, 10);
 
   if (type === 'orgs') {
     const result = await withRetry(() =>
       graphql(
         `
-        query($org: String!, $number: Int!) {
-          organization(login: $org) {
-            projectV2(number: $number) { id }
+          query ($org: String!, $number: Int!) {
+            organization(login: $org) {
+              projectV2(number: $number) {
+                id
+              }
+            }
           }
-        }
-      `,
+        `,
         { org: owner, number }
       )
     );
@@ -46612,12 +46614,14 @@ async function getProjectId(projectUrl) {
     const result = await withRetry(() =>
       graphql(
         `
-        query($user: String!, $number: Int!) {
-          user(login: $user) {
-            projectV2(number: $number) { id }
+          query ($user: String!, $number: Int!) {
+            user(login: $user) {
+              projectV2(number: $number) {
+                id
+              }
+            }
           }
-        }
-      `,
+        `,
         { user: owner, number }
       )
     );
@@ -47094,7 +47098,9 @@ async function run() {
     const meta = await getProjectMetadata(projectId);
     info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
     if (meta.currentSprintTitle) {
-      info(`Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`);
+      info(
+        `Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`
+      );
     } else {
       info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
@@ -47191,10 +47197,15 @@ async function run() {
 
         const finalColumn = targetColumn || currentColumn;
         const currentSprint = await getItemSprint(projectId, projectItemId);
-        info(`Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`);
+        info(
+          `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
+        );
 
         if (activeColumns.includes(finalColumn)) {
-          if (meta.currentSprintId && (!currentSprint || currentSprint.id !== meta.currentSprintId)) {
+          if (
+            meta.currentSprintId &&
+            (!currentSprint || currentSprint.id !== meta.currentSprintId)
+          ) {
             info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
             await updateItemSprint(projectId, projectItemId, meta.currentSprintId);
             info('Sprint successfully associated!');
@@ -47250,7 +47261,11 @@ async function run() {
               }
 
               // Inherit Assignee
-              await assignUserToItem(linked.repository?.nameWithOwner, linked.number, monitoredUser);
+              await assignUserToItem(
+                linked.repository?.nameWithOwner,
+                linked.number,
+                monitoredUser
+              );
             }
           }
         }

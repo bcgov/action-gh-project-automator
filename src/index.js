@@ -38,7 +38,9 @@ async function run() {
     const meta = await api.getProjectMetadata(projectId);
     core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
     if (meta.currentSprintTitle) {
-      core.info(`Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`);
+      core.info(
+        `Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`
+      );
     } else {
       core.info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
@@ -135,10 +137,15 @@ async function run() {
 
         const finalColumn = targetColumn || currentColumn;
         const currentSprint = await api.getItemSprint(projectId, projectItemId);
-        core.info(`Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`);
+        core.info(
+          `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
+        );
 
         if (activeColumns.includes(finalColumn)) {
-          if (meta.currentSprintId && (!currentSprint || currentSprint.id !== meta.currentSprintId)) {
+          if (
+            meta.currentSprintId &&
+            (!currentSprint || currentSprint.id !== meta.currentSprintId)
+          ) {
             core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
             await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
             core.info('Sprint successfully associated!');
@@ -194,7 +201,11 @@ async function run() {
               }
 
               // Inherit Assignee
-              await api.assignUserToItem(linked.repository?.nameWithOwner, linked.number, monitoredUser);
+              await api.assignUserToItem(
+                linked.repository?.nameWithOwner,
+                linked.number,
+                monitoredUser
+              );
             }
           }
         }
