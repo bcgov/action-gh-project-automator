@@ -46981,7 +46981,7 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
 async function getItemColumn(projectId, projectItemId) {
   const { graphql } = getClients();
   const query = `
-    query($projectId: ID!, $itemId: ID!) {
+    query($itemId: ID!) {
       node(id: $itemId) {
         ... on ProjectV2Item {
           fieldValueByName(name: "Status") {
@@ -46991,7 +46991,7 @@ async function getItemColumn(projectId, projectItemId) {
       }
     }
   `;
-  const result = await withRetry(() => graphql(query, { projectId, itemId: projectItemId }));
+  const result = await withRetry(() => graphql(query, { itemId: projectItemId }));
   return result.node?.fieldValueByName?.name || null;
 }
 
@@ -47001,7 +47001,7 @@ async function getItemColumn(projectId, projectItemId) {
 async function getItemSprint(projectId, projectItemId) {
   const { graphql } = getClients();
   const query = `
-    query($projectId: ID!, $itemId: ID!) {
+    query($itemId: ID!) {
       node(id: $itemId) {
         ... on ProjectV2Item {
           fieldValueByName(name: "Sprint") {
@@ -47014,7 +47014,7 @@ async function getItemSprint(projectId, projectItemId) {
       }
     }
   `;
-  const result = await withRetry(() => graphql(query, { projectId, itemId: projectItemId }));
+  const result = await withRetry(() => graphql(query, { itemId: projectItemId }));
   const val = result.node?.fieldValueByName;
   if (val && val.iterationId) {
     return { id: val.iterationId, title: val.title };
