@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { getProjectId } from '../src/github/api.js';
 import { determineTargetColumn } from '../src/utils/column-assignment.js';
+import { isTitleExcluded } from '../src/utils/exclusions.js';
 
 test('loadBoardRules resolves config and flattens scope', () => {
   const rules = loadBoardRules({ monitoredUser: 'DerekRoberts' });
@@ -43,4 +44,21 @@ test('determineTargetColumn maps columns correctly', () => {
   assert.strictEqual(determineTargetColumn('Issue', false, 'Active'), 'Active');
   assert.strictEqual(determineTargetColumn('Issue', false, 'Backlog'), 'Backlog');
   assert.strictEqual(determineTargetColumn('Issue', false, 'Waiting'), 'Waiting');
+});
+
+test('isTitleExcluded correctly identifies automated noise titles', () => {
+  // Excluded titles
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard'), true);
+  assert.strictEqual(isTitleExcluded('ZAP Security Report'), true);
+  assert.strictEqual(isTitleExcluded('OWASP ZAP Security Report - API Scan'), true);
+
+  // Non-excluded titles
+  assert.strictEqual(isTitleExcluded('Fix security bug in project board'), false);
+  assert.strictEqual(isTitleExcluded('Update README documentation'), false);
+  assert.strictEqual(isTitleExcluded(''), false);
+  assert.strictEqual(isTitleExcluded(null), false);
+  assert.strictEqual(isTitleExcluded(undefined), false);
+  assert.strictEqual(isTitleExcluded(12345), false);
+  assert.strictEqual(isTitleExcluded(true), false);
+  assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
 });
