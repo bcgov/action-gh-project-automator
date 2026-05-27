@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import { loadBoardRules } from './config/board-rules.js';
 import * as api from './github/api.js';
+import { determineTargetColumn } from './utils/column-assignment.js';
 
 async function run() {
   try {
@@ -111,17 +112,7 @@ async function run() {
         const currentColumn = await api.getItemColumn(projectId, projectItemId);
         core.info(`Current Column: ${currentColumn || 'None'}`);
 
-        let targetColumn = currentColumn;
-        if (isClosed) {
-          targetColumn = 'Done';
-        } else if (itemType === 'PullRequest') {
-          targetColumn = 'Active';
-        } else if (itemType === 'Issue') {
-          // Default issues to New
-          if (currentColumn === 'None' || !currentColumn) {
-            targetColumn = 'New';
-          }
-        }
+        const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn);
 
         if (targetColumn && targetColumn !== currentColumn) {
           core.info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);

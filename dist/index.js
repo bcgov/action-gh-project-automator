@@ -47095,7 +47095,31 @@ async function assignUserToItem(nameWithOwner, number, login) {
 
 
 
+;// CONCATENATED MODULE: ./src/utils/column-assignment.js
+/**
+ * Determines the target column for an item based on its type, state, and current column.
+ * @param {string} itemType - 'PullRequest' or 'Issue'
+ * @param {boolean} isClosed - Whether the item is closed or merged
+ * @param {string|null} currentColumn - The current column on the project board
+ * @returns {string|null} The resolved target column name
+ */
+function determineTargetColumn(itemType, isClosed, currentColumn) {
+  if (isClosed) {
+    return 'Done';
+  }
+  if (itemType === 'PullRequest') {
+    return currentColumn === 'Waiting' ? 'Waiting' : 'Active';
+  }
+  if (itemType === 'Issue') {
+    if (currentColumn === 'None' || !currentColumn) {
+      return 'New';
+    }
+  }
+  return currentColumn;
+}
+
 ;// CONCATENATED MODULE: ./src/index.js
+
 
 
 
@@ -47209,17 +47233,7 @@ async function run() {
         const currentColumn = await getItemColumn(projectId, projectItemId);
         info(`Current Column: ${currentColumn || 'None'}`);
 
-        let targetColumn = currentColumn;
-        if (isClosed) {
-          targetColumn = 'Done';
-        } else if (itemType === 'PullRequest') {
-          targetColumn = 'Active';
-        } else if (itemType === 'Issue') {
-          // Default issues to New
-          if (currentColumn === 'None' || !currentColumn) {
-            targetColumn = 'New';
-          }
-        }
+        const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn);
 
         if (targetColumn && targetColumn !== currentColumn) {
           info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);
