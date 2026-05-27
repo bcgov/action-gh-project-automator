@@ -47118,7 +47118,20 @@ function determineTargetColumn(itemType, isClosed, currentColumn) {
   return currentColumn;
 }
 
+;// CONCATENATED MODULE: ./src/utils/exclusions.js
+/**
+ * Checks if an item should be excluded based on its title.
+ * @param {string} title - The title of the issue or pull request
+ * @returns {boolean} True if the item should be excluded, false otherwise
+ */
+function isTitleExcluded(title) {
+  if (!title) return false;
+  const excludedTitles = ['Dependency Dashboard', 'ZAP Security Report'];
+  return excludedTitles.includes(title) || title.includes('ZAP Security Report');
+}
+
 ;// CONCATENATED MODULE: ./src/index.js
+
 
 
 
@@ -47193,6 +47206,12 @@ async function run() {
 
         info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
+        // Exclude specific automated noise by title
+        if (isTitleExcluded(title)) {
+          info(`Skipping: Automated item excluded based on title ("${title}").`);
+          continue;
+        }
+
         // Check Triggers for Board Addition
         const isMaintainerRepo = maintainerRepos.includes(repoName);
         const isAuthored = author === monitoredUser;
@@ -47234,13 +47253,16 @@ async function run() {
         info(`Current Column: ${currentColumn || 'None'}`);
 
         const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn);
+        let columnAction = '';
 
         if (targetColumn && targetColumn !== currentColumn) {
           info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);
           await updateItemColumn(projectId, projectItemId, targetColumn);
           info(`Successfully moved column!`);
+          columnAction = `Moved to "${targetColumn}"`;
         } else {
           info(`Status column is already set correctly to: "${targetColumn || 'None'}"`);
+          columnAction = `Retained in "${currentColumn || 'None'}"`;
         }
 
         // --- Sprint Assignment ---
@@ -47328,7 +47350,7 @@ async function run() {
           repo: repoName,
           title,
           status: 'Success',
-          action: `Synced to "${targetColumn || 'None'}"`,
+          action: columnAction,
         });
       } catch (itemErr) {
         error(`Failed to process item: ${itemErr.message}`);

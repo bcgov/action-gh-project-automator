@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import { loadBoardRules } from './config/board-rules.js';
 import * as api from './github/api.js';
 import { determineTargetColumn } from './utils/column-assignment.js';
+import { isTitleExcluded } from './utils/exclusions.js';
 
 async function run() {
   try {
@@ -72,6 +73,12 @@ async function run() {
 
         core.info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
+        // Exclude specific automated noise by title
+        if (isTitleExcluded(title)) {
+          core.info(`Skipping: Automated item excluded based on title ("${title}").`);
+          continue;
+        }
+
         // Check Triggers for Board Addition
         const isMaintainerRepo = maintainerRepos.includes(repoName);
         const isAuthored = author === monitoredUser;
@@ -113,13 +120,16 @@ async function run() {
         core.info(`Current Column: ${currentColumn || 'None'}`);
 
         const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn);
+        let columnAction = '';
 
         if (targetColumn && targetColumn !== currentColumn) {
           core.info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);
           await api.updateItemColumn(projectId, projectItemId, targetColumn);
           core.info(`Successfully moved column!`);
+          columnAction = `Moved to "${targetColumn}"`;
         } else {
           core.info(`Status column is already set correctly to: "${targetColumn || 'None'}"`);
+          columnAction = `Retained in "${currentColumn || 'None'}"`;
         }
 
         // --- Sprint Assignment ---
@@ -207,7 +217,7 @@ async function run() {
           repo: repoName,
           title,
           status: 'Success',
-          action: `Synced to "${targetColumn || 'None'}"`,
+          action: columnAction,
         });
       } catch (itemErr) {
         core.error(`Failed to process item: ${itemErr.message}`);
