@@ -59,14 +59,15 @@ automation:
   repository_scope:
     # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
+      - bcgov/actions
       - bcgov/action-builder-ghcr
       - bcgov/action-crunchy
       - bcgov/action-gh-project-automator
+      - bcgov/copilot-instructions
       - bcgov/nr-nerds
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
       - bcgov/quickstart-openshift-helpers
-      - bcgov-c/nr-mof-db
 
     rules:
       # Board addition rules
