@@ -16,6 +16,13 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 - **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
 - **Multi-Org Mastery**: Monitors activity across `bcgov`, `bcgov-c`, and `bcgov-nr` simultaneously.
 
+## Automated Noise Exclusions
+
+To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions:
+
+- **Dependency Dashboard** (Exact Match): Excludes Renovate or Dependabot organization-wide interactive dashboards.
+- **ZAP Security Report** (Substring Match): Excludes automated vulnerability and security scan reports.
+
 ## 🛡️ Stability & Predictability
 
 We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.

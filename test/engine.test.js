@@ -57,5 +57,8 @@ test('isTitleExcluded correctly identifies automated noise titles', () => {
   assert.strictEqual(isTitleExcluded('Update README documentation'), false);
   assert.strictEqual(isTitleExcluded(''), false);
   assert.strictEqual(isTitleExcluded(null), false);
+  assert.strictEqual(isTitleExcluded(undefined), false);
+  assert.strictEqual(isTitleExcluded(12345), false);
+  assert.strictEqual(isTitleExcluded(true), false);
+  assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
 });
-

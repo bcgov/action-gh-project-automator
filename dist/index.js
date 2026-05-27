@@ -47121,13 +47121,20 @@ function determineTargetColumn(itemType, isClosed, currentColumn) {
 ;// CONCATENATED MODULE: ./src/utils/exclusions.js
 /**
  * Checks if an item should be excluded based on its title.
- * @param {string} title - The title of the issue or pull request
+ * @param {string | null | undefined} title - The title of the issue or pull request
  * @returns {boolean} True if the item should be excluded, false otherwise
  */
+const EXCLUDED_EXACT_TITLES = new Set(['Dependency Dashboard']);
+const EXCLUDED_TITLE_SUBSTRINGS = ['ZAP Security Report'];
+
 function isTitleExcluded(title) {
-  if (!title) return false;
-  const excludedTitles = ['Dependency Dashboard', 'ZAP Security Report'];
-  return excludedTitles.includes(title) || title.includes('ZAP Security Report');
+  if (typeof title !== 'string' || title.length === 0) {
+    return false;
+  }
+  if (EXCLUDED_EXACT_TITLES.has(title)) {
+    return true;
+  }
+  return EXCLUDED_TITLE_SUBSTRINGS.some((substring) => title.includes(substring));
 }
 
 ;// CONCATENATED MODULE: ./src/index.js
