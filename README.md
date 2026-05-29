@@ -107,6 +107,3 @@ npm test -- test/processors/unified-rule-processor.test.js
 # Test the ludicrous validation matrix
 npm test -- test/processors/ludicrous-coverage.test.js
 ```
-
----
-*Built by the Advanced Project Automation Team.*
