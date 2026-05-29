@@ -74,7 +74,7 @@ async function run() {
         core.info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
         // Exclude specific automated noise by title
-        if (isTitleExcluded(title)) {
+        if (isTitleExcluded(title, config.exclusions)) {
           core.info(`Skipping: Automated item excluded based on title ("${title}").`);
           continue;
         }

@@ -18,10 +18,28 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 
 ## Automated Noise Exclusions
 
-To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions:
+To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions.
 
+### Default Exclusions
+By default, the engine excludes:
 - **Dependency Dashboard** (Exact Match): Excludes Renovate or Dependabot organization-wide interactive dashboards.
 - **ZAP Security Report** (Substring Match): Excludes automated vulnerability and security scan reports.
+
+### Custom Exclusions
+Teams can customize exclusions in their `rules.yml` to filter out specific automated noise:
+
+```yaml
+# Exclusion rules to filter out automated noise by title
+exclusions:
+  exact_titles:
+    - "Dependency Dashboard"
+    - "My Custom Noise Title"
+  title_substrings:
+    - "ZAP Security Report"
+    - "[Automated]"
+```
+
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring.
 
 ## 🛡️ Stability & Predictability
 

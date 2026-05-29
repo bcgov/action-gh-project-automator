@@ -232,6 +232,13 @@ automation:
           action: ["inherit_column", "inherit_assignees"]
           skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
 
+# Exclusion rules to filter out automated noise by title
+exclusions:
+  exact_titles:
+    - "Dependency Dashboard"
+  title_substrings:
+    - "ZAP Security Report"
+
 technical:
   batch_size: 10
   batch_delay_seconds: 1

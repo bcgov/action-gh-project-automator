@@ -80,6 +80,20 @@ const schema = {
         },
       },
     },
+    exclusions: {
+      type: 'object',
+      properties: {
+        exact_titles: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        title_substrings: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+      additionalProperties: false,
+    },
   },
   definitions: {
     ruleGroups: {

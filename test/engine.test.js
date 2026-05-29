@@ -67,3 +67,19 @@ test('isTitleExcluded correctly identifies automated noise titles', () => {
   assert.strictEqual(isTitleExcluded(true), false);
   assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
 });
+
+test('isTitleExcluded respects custom exclusions configuration', () => {
+  const customConfig = {
+    exact_titles: ['Custom Blocked Title'],
+    title_substrings: ['[Automated]'],
+  };
+
+  // Custom exclusions match
+  assert.strictEqual(isTitleExcluded('Custom Blocked Title', customConfig), true);
+  assert.strictEqual(isTitleExcluded('Custom Blocked Title ', customConfig), true);
+  assert.strictEqual(isTitleExcluded('This is [Automated] event', customConfig), true);
+
+  // Default exclusions should NOT match when custom config is provided
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard', customConfig), false);
+  assert.strictEqual(isTitleExcluded('ZAP Security Report', customConfig), false);
+});
