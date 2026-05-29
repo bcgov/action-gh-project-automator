@@ -41996,6 +41996,20 @@ const schema_schema = {
         },
       },
     },
+    exclusions: {
+      type: 'object',
+      properties: {
+        exact_titles: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        title_substrings: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+      additionalProperties: false,
+    },
   },
   definitions: {
     ruleGroups: {
@@ -47122,19 +47136,30 @@ function determineTargetColumn(itemType, isClosed, currentColumn) {
 /**
  * Checks if an item should be excluded based on its title.
  * @param {string | null | undefined} title - The title of the issue or pull request
+ * @param {object} [exclusionsConfig] - Optional exclusions configuration from rules.yml
  * @returns {boolean} True if the item should be excluded, false otherwise
  */
-const EXCLUDED_EXACT_TITLES = new Set(['Dependency Dashboard']);
-const EXCLUDED_TITLE_SUBSTRINGS = ['ZAP Security Report'];
+const DEFAULT_EXCLUDED_EXACT_TITLES = ['Dependency Dashboard'];
+const DEFAULT_EXCLUDED_TITLE_SUBSTRINGS = ['ZAP Security Report'];
 
-function isTitleExcluded(title) {
-  if (typeof title !== 'string' || title.length === 0) {
+function isTitleExcluded(title, exclusionsConfig) {
+  if (typeof title !== 'string') {
     return false;
   }
-  if (EXCLUDED_EXACT_TITLES.has(title)) {
+  const trimmedTitle = title.trim();
+  if (trimmedTitle.length === 0) {
+    return false;
+  }
+
+  const exactTitles = exclusionsConfig?.exact_titles || DEFAULT_EXCLUDED_EXACT_TITLES;
+  const titleSubstrings = exclusionsConfig?.title_substrings || DEFAULT_EXCLUDED_TITLE_SUBSTRINGS;
+
+  const exactSet = new Set(exactTitles);
+
+  if (exactSet.has(trimmedTitle)) {
     return true;
   }
-  return EXCLUDED_TITLE_SUBSTRINGS.some((substring) => title.includes(substring));
+  return titleSubstrings.some((substring) => trimmedTitle.includes(substring));
 }
 
 ;// CONCATENATED MODULE: ./src/index.js
@@ -47214,7 +47239,7 @@ async function run() {
         info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
         // Exclude specific automated noise by title
-        if (isTitleExcluded(title)) {
+        if (isTitleExcluded(title, config.exclusions)) {
           info(`Skipping: Automated item excluded based on title ("${title}").`);
           continue;
         }

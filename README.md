@@ -1,4 +1,4 @@
-# 🚀 Project Sync
+# Project Sync
 
 [![Node.js 24+](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![ES Modules](https://img.shields.io/badge/module-ESM-blue.svg)](https://nodejs.org/api/esm.html)
@@ -6,7 +6,7 @@
 
 **Project Sync** is a high-performance GitHub Projects v2 automation engine designed to synchronize issues and pull requests across complex, multi-repository organizations with 100% predictability.
 
-## ✨ Overview
+## Overview
 
 This tool transforms your GitHub Project into a self-driving productivity engine. It eliminates manual board maintenance by implementing a rule-based state machine for:
 
@@ -18,12 +18,30 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 
 ## Automated Noise Exclusions
 
-To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions:
+To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions.
 
+### Default Exclusions
+By default, the engine excludes:
 - **Dependency Dashboard** (Exact Match): Excludes Renovate or Dependabot organization-wide interactive dashboards.
 - **ZAP Security Report** (Substring Match): Excludes automated vulnerability and security scan reports.
 
-## 🛡️ Stability & Predictability
+### Custom Exclusions
+Teams can customize exclusions in their `rules.yml` to filter out specific automated noise:
+
+```yaml
+# Exclusion rules to filter out automated noise by title
+exclusions:
+  exact_titles:
+    - "Dependency Dashboard"
+    - "My Custom Noise Title"
+  title_substrings:
+    - "ZAP Security Report"
+    - "[Automated]"
+```
+
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring.
+
+## Stability & Predictability
 
 We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.
 
@@ -32,7 +50,7 @@ We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy 
 - **Zero-Network Tests**: Our 240+ count test suite runs in pure isolation, guaranteeing that the core logic is bulletproof without ever making a real API call.
 - **Strict Environments**: We enforce Node versions via `.npmrc` to ensure that every developer and CI runner is perfectly aligned.
 
-## 📋 Visibility & Auditing
+## Visibility & Auditing
 
 Designed for transparency. Every run provides:
 
@@ -40,7 +58,7 @@ Designed for transparency. Every run provides:
 - **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
 - **Precision Metrics**: Real-time counters for processed, added, and skipped items.
 
-## ⚙️ Configuration
+## Configuration
 
 Configure your entire workflow in a single, version-controlled `rules.yml` file.
 
@@ -64,7 +82,7 @@ project:
     - bcgov-nr
 ```
 
-## 🛠️ Development & Specs
+## Development & Specs
 
 This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
 
@@ -73,7 +91,7 @@ This project follows a **Spec-Driven Development** model using the [SpecKit](htt
 - **Project Constitution**: Review [memory/constitution.md](memory/constitution.md) for our core development principles and "Ludicrous Testing" standards.
 - **AI Pair Programming**: See [.github/copilot-instructions.md](.github/copilot-instructions.md) for guidance when working with AI coding assistants.
 
-## 🧪 Testing
+## Testing
 
 We value exhaustive verification. Run the full suite, including the ludicrous coverage matrix:
 
@@ -89,6 +107,3 @@ npm test -- test/processors/unified-rule-processor.test.js
 # Test the ludicrous validation matrix
 npm test -- test/processors/ludicrous-coverage.test.js
 ```
-
----
-*Built with ❤️ by the Advanced Project Automation Team.*

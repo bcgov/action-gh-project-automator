@@ -49,16 +49,37 @@ test('determineTargetColumn maps columns correctly', () => {
 test('isTitleExcluded correctly identifies automated noise titles', () => {
   // Excluded titles
   assert.strictEqual(isTitleExcluded('Dependency Dashboard'), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard '), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard\r'), true);
+  assert.strictEqual(isTitleExcluded(' Dependency Dashboard '), true);
   assert.strictEqual(isTitleExcluded('ZAP Security Report'), true);
+  assert.strictEqual(isTitleExcluded(' ZAP Security Report '), true);
   assert.strictEqual(isTitleExcluded('OWASP ZAP Security Report - API Scan'), true);
 
   // Non-excluded titles
   assert.strictEqual(isTitleExcluded('Fix security bug in project board'), false);
   assert.strictEqual(isTitleExcluded('Update README documentation'), false);
+  assert.strictEqual(isTitleExcluded('dependency dashboard'), false); // Case-sensitive check
   assert.strictEqual(isTitleExcluded(''), false);
   assert.strictEqual(isTitleExcluded(null), false);
   assert.strictEqual(isTitleExcluded(undefined), false);
   assert.strictEqual(isTitleExcluded(12345), false);
   assert.strictEqual(isTitleExcluded(true), false);
   assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
+});
+
+test('isTitleExcluded respects custom exclusions configuration', () => {
+  const customConfig = {
+    exact_titles: ['Custom Blocked Title'],
+    title_substrings: ['[Automated]'],
+  };
+
+  // Custom exclusions match
+  assert.strictEqual(isTitleExcluded('Custom Blocked Title', customConfig), true);
+  assert.strictEqual(isTitleExcluded('Custom Blocked Title ', customConfig), true);
+  assert.strictEqual(isTitleExcluded('This is [Automated] event', customConfig), true);
+
+  // Default exclusions should NOT match when custom config is provided
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard', customConfig), false);
+  assert.strictEqual(isTitleExcluded('ZAP Security Report', customConfig), false);
 });
