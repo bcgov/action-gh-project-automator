@@ -49,12 +49,17 @@ test('determineTargetColumn maps columns correctly', () => {
 test('isTitleExcluded correctly identifies automated noise titles', () => {
   // Excluded titles
   assert.strictEqual(isTitleExcluded('Dependency Dashboard'), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard '), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard\r'), true);
+  assert.strictEqual(isTitleExcluded(' Dependency Dashboard '), true);
   assert.strictEqual(isTitleExcluded('ZAP Security Report'), true);
+  assert.strictEqual(isTitleExcluded(' ZAP Security Report '), true);
   assert.strictEqual(isTitleExcluded('OWASP ZAP Security Report - API Scan'), true);
 
   // Non-excluded titles
   assert.strictEqual(isTitleExcluded('Fix security bug in project board'), false);
   assert.strictEqual(isTitleExcluded('Update README documentation'), false);
+  assert.strictEqual(isTitleExcluded('dependency dashboard'), false); // Case-sensitive check
   assert.strictEqual(isTitleExcluded(''), false);
   assert.strictEqual(isTitleExcluded(null), false);
   assert.strictEqual(isTitleExcluded(undefined), false);

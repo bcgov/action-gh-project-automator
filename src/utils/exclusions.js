@@ -7,11 +7,15 @@ const EXCLUDED_EXACT_TITLES = new Set(['Dependency Dashboard']);
 const EXCLUDED_TITLE_SUBSTRINGS = ['ZAP Security Report'];
 
 export function isTitleExcluded(title) {
-  if (typeof title !== 'string' || title.length === 0) {
+  if (typeof title !== 'string') {
     return false;
   }
-  if (EXCLUDED_EXACT_TITLES.has(title)) {
+  const trimmedTitle = title.trim();
+  if (trimmedTitle.length === 0) {
+    return false;
+  }
+  if (EXCLUDED_EXACT_TITLES.has(trimmedTitle)) {
     return true;
   }
-  return EXCLUDED_TITLE_SUBSTRINGS.some((substring) => title.includes(substring));
+  return EXCLUDED_TITLE_SUBSTRINGS.some((substring) => trimmedTitle.includes(substring));
 }
