@@ -95,6 +95,26 @@ npm run bundle
 - Use the `@actions/core` package for logging over `console` to ensure
   compatibility with GitHub Actions logging features
 
+### Core Domain Architecture & Common Misconceptions
+
+- **Monitored Repositories (`automation.repository_scope.repositories`)**: This list is strictly
+  used for **board addition (intake) rules** (auto-adding new items to the project board).
+  It must **NEVER** be used to restrict or gate column transitions, sprint updates,
+  or general synchronization rules for items that are already on the board. Do not
+  tell users that a repository must be in this list to receive sprint updates if
+  the item is already present on the board.
+
+### Anti-Lazy Debugging Protocols (No Configuration Scapegoating)
+
+- **Do Not Blame rules.yml Without Code Verification**: When analyzing why an issue/PR was missed,
+  never look at `rules.yml` and state that a repository or user must be added to a list
+  unless you have traced the JS/TS source code (`src/`) to confirm that list is actually used.
+- **Trace the Data Flow**: If an item is already on the board but missed an update (sprint,
+  column, etc.), verify if the engine fetched the item from the board API or if it filtered
+  it out in discovery. Do not guess.
+- **Provide Debug Evidence**: Always verify your assumptions using the search tool or terminal
+  commands to inspect how variables are evaluated at runtime before outputting analysis.
+
 ### Versioning
 
 GitHub Actions are versioned using branch and tag names. Please ensure the
