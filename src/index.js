@@ -133,7 +133,7 @@ async function run() {
         }
 
         // --- Sprint Assignment ---
-        const activeColumns = ['Active', 'Next', 'Waiting'];
+        const activeColumns = ['Active', 'Next', 'Waiting', 'Done'];
         const inactiveColumns = ['New', 'Parked', 'Backlog'];
 
         const finalColumn = targetColumn || currentColumn;
