@@ -62,6 +62,7 @@ automation:
       - bcgov/actions
       - bcgov/action-builder-ghcr
       - bcgov/action-crunchy
+      - bcgov/action-deployer-openshift
       - bcgov/action-gh-project-automator
       - bcgov/copilot-instructions
       - bcgov/nr-nerds
