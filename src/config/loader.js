@@ -15,7 +15,7 @@
  * - Environment variable fallbacks supported
  */
 
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import fs from 'fs';
 import Ajv from 'ajv';
 import schema from './schema.js';
