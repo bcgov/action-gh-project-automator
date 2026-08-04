@@ -14,7 +14,7 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 - **Dynamic Workflows**: Moves items between columns (e.g., `New` → `Active`) based on real-time state changes.
 - **Sprint Orchestration**: Seamlessly manages sprint assignments and rollovers.
 - **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
-- **Multi-Org Mastery**: Monitors activity across `bcgov`, `bcgov-c`, and `bcgov-nr` simultaneously.
+- **Multi-Org Mastery**: Monitors activity across `bcgov` and `bcgov-c` simultaneously.
 
 ## Automated Noise Exclusions
 
@@ -79,7 +79,6 @@ project:
   allowedOrgs:
     - bcgov
     - bcgov-c
-    - bcgov-nr
 ```
 
 ## Development & Specs
