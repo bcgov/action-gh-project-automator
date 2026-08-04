@@ -21,7 +21,7 @@ const schema = {
         allowedOrgs: {
           type: 'array',
           items: { type: 'string' },
-          default: ['bcgov', 'bcgov-c', 'bcgov-nr'],
+          default: ['bcgov', 'bcgov-c'],
         },
       },
       oneOf: [{ required: ['id'] }, { required: ['url'] }],
