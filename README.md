@@ -86,34 +86,25 @@ project:
 
 The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
 
-#### Recommended: Fine-Grained Personal Access Token (PAT)
+#### Fine-Grained Personal Access Token Setup (Least Privilege)
 
-Fine-Grained PATs provide least-privilege security and avoid broad scopes like `security_events`, `repo:invite`, or `repo_deployment`.
-
-1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → **Fine-grained tokens**.
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Fine-grained tokens**](https://github.com/settings/tokens?type=beta).
 2. Click **Generate new token**.
-3. Set **Resource Owner** to `bcgov` (or your account with access to monitored repos).
-4. Under **Repository Access**, select **All repositories** (or select the specific repos in `bcgov`, `bcgov-c`, `bcgov-nr`).
-5. Configure permissions:
+3. Set **Token Name** to `PROJECT_SYNC_TOKEN`.
+4. Set **Resource Owner** to `bcgov` (or your account with access to monitored repositories).
+5. Under **Repository Access**, select **Only select repositories** (or **All repositories** across monitored orgs `bcgov`, `bcgov-c`, `bcgov-nr`).
+6. Configure the minimum required permissions:
    * **Organization Permissions**:
-     * `Projects`: **Read and write** *(Required for GraphQL Project v2 management)*
+     * `Projects`: **Read and write** *(Required for GraphQL Project v2 board management)*
    * **Repository Permissions**:
      * `Issues`: **Read and write**
      * `Pull requests`: **Read and write**
      * `Metadata`: **Read-only** *(Automatically selected)*
-
-#### Fallback: Classic Personal Access Token (PAT)
-
-If Fine-Grained tokens are restricted by organization policy:
-
-| Setup Type | Required Classic Scopes | Application Context |
-| :--- | :--- | :--- |
-| **Classic PAT (Private & Public Repos)** | • `repo` (Full control of private repositories)<br>• `project` (Full control of org & user projects)<br>• `read:org` (Read org membership under `admin:org`) | Monitoring private repositories (e.g., `bcgov-c`). *Note: GitHub automatically locks child sub-scopes when `repo` is selected.* |
-| **Classic PAT (Public Repos Only)** | • `public_repo`<br>• `project`<br>• `read:org` | Monitoring public repositories only (`bcgov`). Private orgs like `bcgov-c` must be removed from `rules.yml`. |
+   * *Leave all other permissions set to **No access** (including Security events, Deployments, and Workflows).*
 
 #### Adding the Secret to GitHub Actions
 
-1. Generate your chosen token in GitHub **Settings** → **Developer Settings** → **Personal Access Tokens**.
+1. Copy the generated token string.
 2. Navigate to your repository's **Settings** → **Secrets and variables** → **Actions**.
 3. Click **New repository secret**.
 4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
