@@ -88,11 +88,10 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 #### Token Options & Required Scopes
 
-| Authentication Option | Required Scopes / Permissions | Best Used When |
+| Setup Type | Required Classic Scopes | Application Context |
 | :--- | :--- | :--- |
-| **Classic PAT (Private Repos)** | • `repo` (Full control of private repositories)<br>• `project` (Full control of org & user projects)<br>• `read:org` (Read org membership under `admin:org`) | Monitoring private repositories (e.g., `bcgov-c`). *Note: GitHub automatically locks child sub-scopes when `repo` is checked.* |
+| **Classic PAT (Private & Public Repos)** | • `repo` (Full control of private repositories)<br>• `project` (Full control of org & user projects)<br>• `read:org` (Read org membership under `admin:org`) | Monitoring private repositories (e.g., `bcgov-c`). *Note: GitHub automatically locks child sub-scopes when `repo` is selected.* |
 | **Classic PAT (Public Repos Only)** | • `public_repo`<br>• `project`<br>• `read:org` | Monitoring public repositories only (`bcgov`). Private orgs like `bcgov-c` must be removed from `rules.yml`. |
-| **Fine-Grained PAT / GitHub App** | • **Issues**: `Read & write`<br>• **Pull requests**: `Read & write`<br>• **Projects**: `Read & write` | Enterprise setups avoiding `security_events` entirely. Requires organization admin enablement or GitHub App installation. |
 
 #### Adding the Secret to GitHub Actions
 
