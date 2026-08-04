@@ -86,7 +86,25 @@ project:
 
 The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
 
-#### Token Options & Required Scopes
+#### Recommended: Fine-Grained Personal Access Token (PAT)
+
+Fine-Grained PATs provide least-privilege security and avoid broad scopes like `security_events`, `repo:invite`, or `repo_deployment`.
+
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → **Fine-grained tokens**.
+2. Click **Generate new token**.
+3. Set **Resource Owner** to `bcgov` (or your account with access to monitored repos).
+4. Under **Repository Access**, select **All repositories** (or select the specific repos in `bcgov`, `bcgov-c`, `bcgov-nr`).
+5. Configure permissions:
+   * **Organization Permissions**:
+     * `Projects`: **Read and write** *(Required for GraphQL Project v2 management)*
+   * **Repository Permissions**:
+     * `Issues`: **Read and write**
+     * `Pull requests`: **Read and write**
+     * `Metadata`: **Read-only** *(Automatically selected)*
+
+#### Fallback: Classic Personal Access Token (PAT)
+
+If Fine-Grained tokens are restricted by organization policy:
 
 | Setup Type | Required Classic Scopes | Application Context |
 | :--- | :--- | :--- |
@@ -95,7 +113,7 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 #### Adding the Secret to GitHub Actions
 
-1. Generate your token in GitHub **Settings** → **Developer Settings** → **Personal Access Tokens**.
+1. Generate your chosen token in GitHub **Settings** → **Developer Settings** → **Personal Access Tokens**.
 2. Navigate to your repository's **Settings** → **Secrets and variables** → **Actions**.
 3. Click **New repository secret**.
 4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
