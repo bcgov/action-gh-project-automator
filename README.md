@@ -82,6 +82,25 @@ project:
     - bcgov-nr
 ```
 
+### Authentication & Token Setup
+
+The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
+
+#### Token Options & Required Scopes
+
+| Authentication Option | Required Scopes / Permissions | Best Used When |
+| :--- | :--- | :--- |
+| **Classic PAT (Private Repos)** | • `repo` (Full control of private repositories)<br>• `project` (Full control of org & user projects)<br>• `read:org` (Read org membership under `admin:org`) | Monitoring private repositories (e.g., `bcgov-c`). *Note: GitHub automatically locks child sub-scopes when `repo` is checked.* |
+| **Classic PAT (Public Repos Only)** | • `public_repo`<br>• `project`<br>• `read:org` | Monitoring public repositories only (`bcgov`). Private orgs like `bcgov-c` must be removed from `rules.yml`. |
+| **Fine-Grained PAT / GitHub App** | • **Issues**: `Read & write`<br>• **Pull requests**: `Read & write`<br>• **Projects**: `Read & write` | Enterprise setups avoiding `security_events` entirely. Requires organization admin enablement or GitHub App installation. |
+
+#### Adding the Secret to GitHub Actions
+
+1. Generate your token in GitHub **Settings** → **Developer Settings** → **Personal Access Tokens**.
+2. Navigate to your repository's **Settings** → **Secrets and variables** → **Actions**.
+3. Click **New repository secret**.
+4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
+
 ## Development & Specs
 
 This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
