@@ -81,6 +81,28 @@ project:
     - bcgov-c
 ```
 
+### Authentication & Token Setup
+
+The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
+
+> **Note on Fine-Grained Tokens:** GitHub Fine-Grained PATs do not currently support `Projects` (v2) permissions under repository or account permissions. Therefore, a **Classic Personal Access Token (PAT)** is required to authenticate GitHub Projects v2 automation.
+
+#### Required Classic PAT Scopes
+
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new).
+2. Set **Note** to `PROJECT_SYNC_TOKEN`.
+3. Select the following required scopes:
+   * **`repo`** (Full control of private repositories - required to access issue and PR metadata across `bcgov` and `bcgov-c`. *Note: GitHub automatically locks child sub-scopes when `repo` is selected.*)
+   * **`project`** (Full control of organization and user projects - required for GraphQL `projectV2` access).
+   * **`read:org`** (Read org membership under `admin:org` - required for org identity resolution).
+
+#### Adding the Secret to GitHub Actions
+
+1. Copy the generated token string (`ghp_...`).
+2. Navigate to your repository's **Settings** → **Secrets and variables** → **Actions**.
+3. Click **New repository secret**.
+4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
+
 ## Development & Specs
 
 This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
