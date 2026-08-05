@@ -10,7 +10,6 @@ project:
   allowedOrgs: # Organizations to search for user-scoped items (author/assignee)
     - bcgov
     - bcgov-c
-    - bcgov-nr
 
 automation:
   # Rules that follow users across all repositories

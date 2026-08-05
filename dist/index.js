@@ -41343,7 +41343,7 @@ const schema = {
         allowedOrgs: {
           type: 'array',
           items: { type: 'string' },
-          default: ['bcgov', 'bcgov-c', 'bcgov-nr'],
+          default: ['bcgov', 'bcgov-c'],
         },
       },
       oneOf: [{ required: ['id'] }, { required: ['url'] }],
@@ -46586,7 +46586,7 @@ async function run() {
     // Extract parameters
     const projectUrl =
       config.project?.url || process.env.GITHUB_PROJECT_URL || process.env.INPUT_PROJECT_URL;
-    const allowedOrgs = config.project?.allowedOrgs || ['bcgov', 'bcgov-c', 'bcgov-nr'];
+    const allowedOrgs = config.project?.allowedOrgs || ['bcgov', 'bcgov-c'];
     const maintainerRepos = config.project?.repositories || [];
     const windowHours = parseInt(process.env.UPDATE_WINDOW_HOURS || '2', 10);
 

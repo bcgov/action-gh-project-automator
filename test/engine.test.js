@@ -10,7 +10,7 @@ test('loadBoardRules resolves config and flattens scope', () => {
   assert.ok(rules.project);
   assert.ok(rules.rules);
   assert.strictEqual(rules.monitoredUser, 'DerekRoberts');
-  assert.deepStrictEqual(rules.project.allowedOrgs, ['bcgov', 'bcgov-c', 'bcgov-nr']);
+  assert.deepStrictEqual(rules.project.allowedOrgs, ['bcgov', 'bcgov-c']);
 });
 
 test('getProjectId correctly rejects malformed project URLs', async () => {
