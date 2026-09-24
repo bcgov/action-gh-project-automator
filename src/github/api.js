@@ -534,23 +534,49 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
 }
 
 /**
- * Assign a user to an issue or PR
+ * GitHub requires admin on the target repository to add assignees.
+ * Repositories outside our control return this 403; it is not a sync failure.
+ */
+function isRepositoryAdminDenied(err) {
+  const status = err?.status ?? err?.response?.status;
+  return status === 403 && (err?.message || '').includes('Must have admin rights to Repository');
+}
+
+/**
+ * Assign a user to an issue or PR.
+ * @returns {'assigned'|'skipped'|'dry-run'}
  */
 async function assignUserToItem(nameWithOwner, number, login) {
   if (process.env.DRY_RUN === 'true') {
     core.info(`[DRY RUN] Would assign user ${login} to item ${nameWithOwner}#${number}`);
-    return;
+    return 'dry-run';
   }
   const { octokit } = getClients();
   const [owner, repo] = nameWithOwner.split('/');
-  await withRetry(() =>
-    octokit.rest.issues.addAssignees({
-      owner,
-      repo,
-      issue_number: number,
-      assignees: [login],
-    })
-  );
+  let skipped = false;
+  await withRetry(async () => {
+    try {
+      await octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: number,
+        assignees: [login],
+      });
+    } catch (err) {
+      if (isRepositoryAdminDenied(err)) {
+        skipped = true;
+        return;
+      }
+      throw err;
+    }
+  });
+  if (skipped) {
+    core.warning(
+      `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
+    );
+    return 'skipped';
+  }
+  return 'assigned';
 }
 
 export {

@@ -46494,23 +46494,48 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
 }
 
 /**
+ * GitHub requires admin on the target repository to add assignees.
+ * Repositories outside our control return this 403; it is not a sync failure.
+ */
+function isRepositoryAdminDenied(err) {
+  const status = err?.status ?? err?.response?.status;
+  return status === 403 && (err?.message || '').includes('Must have admin rights to Repository');
+}
+
+/**
  * Assign a user to an issue or PR
  */
 async function assignUserToItem(nameWithOwner, number, login) {
   if (process.env.DRY_RUN === 'true') {
     info(`[DRY RUN] Would assign user ${login} to item ${nameWithOwner}#${number}`);
-    return;
+    return 'dry-run';
   }
   const { octokit } = getClients();
   const [owner, repo] = nameWithOwner.split('/');
-  await withRetry(() =>
-    octokit.rest.issues.addAssignees({
-      owner,
-      repo,
-      issue_number: number,
-      assignees: [login],
-    })
-  );
+  let skipped = false;
+  await withRetry(async () => {
+    try {
+      await octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number: number,
+        assignees: [login],
+      });
+    } catch (err) {
+      if (isRepositoryAdminDenied(err)) {
+        skipped = true;
+        return;
+      }
+      throw err;
+    }
+  });
+  if (skipped) {
+    warning(
+      `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
+    );
+    return 'skipped';
+  }
+  return 'assigned';
 }
 
 
@@ -46731,10 +46756,16 @@ async function run() {
         }
 
         // --- Assignee Check ---
+        let assigneeAction = '';
         if (isAuthored && !isAssigned) {
           info(`Self-assigning authored item on GitHub...`);
-          await assignUserToItem(repoName, number, monitoredUser);
-          info('User successfully assigned!');
+          const assignment = await assignUserToItem(repoName, number, monitoredUser);
+          if (assignment === 'assigned') {
+            info('User successfully assigned!');
+            assigneeAction = 'Assignee added';
+          } else if (assignment === 'skipped') {
+            assigneeAction = 'Assignee skipped (no repository admin)';
+          }
         }
 
         // --- Linked Issues Progression (Spec 3.2) ---
@@ -46788,7 +46819,7 @@ async function run() {
           repo: repoName,
           title,
           status: 'Success',
-          action: columnAction,
+          action: [columnAction, assigneeAction].filter(Boolean).join('; '),
         });
       } catch (itemErr) {
         error(`Failed to process item: ${itemErr.message}`);

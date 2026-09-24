@@ -96,6 +96,8 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
    * **`project`** (Full control of organization and user projects - required for GraphQL `projectV2` access).
    * **`read:org`** (Read org membership under `admin:org` - required for org identity resolution).
 
+Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
+
 #### Adding the Secret to GitHub Actions
 
 1. Copy the generated token string (`ghp_...`).

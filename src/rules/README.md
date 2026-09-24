@@ -46,7 +46,7 @@ This ensures that related issues are properly tracked alongside their fixing PRs
 These rules govern how assignees are managed:
 
 1. PRs should have at least one assignee
-2. If no assignee is set, assign to PR author
+2. If no assignee is set, assign to PR author. If the token lacks admin on that repository, the assignee update is skipped and the board update still proceeds.
 3. Linked issues inherit assignees from their linked PRs
 
 ## Implementation Notes

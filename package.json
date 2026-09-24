@@ -1,6 +1,6 @@
 {
   "name": "project-board-sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "GitHub project board automation based on configurable rules",
   "main": "src/index.js",
   "type": "module",
