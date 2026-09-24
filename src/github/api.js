@@ -543,15 +543,17 @@ function isRepositoryAdminDenied(err) {
 }
 
 /**
- * Assign a user to an issue or PR
+ * Assign a user to an issue or PR.
+ * @returns {'assigned'|'skipped'|'dry-run'}
  */
 async function assignUserToItem(nameWithOwner, number, login) {
   if (process.env.DRY_RUN === 'true') {
     core.info(`[DRY RUN] Would assign user ${login} to item ${nameWithOwner}#${number}`);
-    return;
+    return 'dry-run';
   }
   const { octokit } = getClients();
   const [owner, repo] = nameWithOwner.split('/');
+  let skipped = false;
   await withRetry(async () => {
     try {
       await octokit.rest.issues.addAssignees({
@@ -562,14 +564,19 @@ async function assignUserToItem(nameWithOwner, number, login) {
       });
     } catch (err) {
       if (isRepositoryAdminDenied(err)) {
-        core.warning(
-          `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
-        );
+        skipped = true;
         return;
       }
       throw err;
     }
   });
+  if (skipped) {
+    core.warning(
+      `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
+    );
+    return 'skipped';
+  }
+  return 'assigned';
 }
 
 export {

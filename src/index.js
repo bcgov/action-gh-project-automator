@@ -160,10 +160,16 @@ async function run() {
         }
 
         // --- Assignee Check ---
+        let assigneeAction = '';
         if (isAuthored && !isAssigned) {
           core.info(`Self-assigning authored item on GitHub...`);
-          await api.assignUserToItem(repoName, number, monitoredUser);
-          core.info('User successfully assigned!');
+          const assignment = await api.assignUserToItem(repoName, number, monitoredUser);
+          if (assignment === 'assigned') {
+            core.info('User successfully assigned!');
+            assigneeAction = 'Assignee added';
+          } else if (assignment === 'skipped') {
+            assigneeAction = 'Assignee skipped (no repository admin)';
+          }
         }
 
         // --- Linked Issues Progression (Spec 3.2) ---
@@ -217,7 +223,7 @@ async function run() {
           repo: repoName,
           title,
           status: 'Success',
-          action: columnAction,
+          action: [columnAction, assigneeAction].filter(Boolean).join('; '),
         });
       } catch (itemErr) {
         core.error(`Failed to process item: ${itemErr.message}`);

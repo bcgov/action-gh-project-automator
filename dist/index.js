@@ -46508,10 +46508,11 @@ function isRepositoryAdminDenied(err) {
 async function assignUserToItem(nameWithOwner, number, login) {
   if (process.env.DRY_RUN === 'true') {
     info(`[DRY RUN] Would assign user ${login} to item ${nameWithOwner}#${number}`);
-    return;
+    return 'dry-run';
   }
   const { octokit } = getClients();
   const [owner, repo] = nameWithOwner.split('/');
+  let skipped = false;
   await withRetry(async () => {
     try {
       await octokit.rest.issues.addAssignees({
@@ -46522,14 +46523,19 @@ async function assignUserToItem(nameWithOwner, number, login) {
       });
     } catch (err) {
       if (isRepositoryAdminDenied(err)) {
-        warning(
-          `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
-        );
+        skipped = true;
         return;
       }
       throw err;
     }
   });
+  if (skipped) {
+    warning(
+      `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
+    );
+    return 'skipped';
+  }
+  return 'assigned';
 }
 
 
@@ -46750,10 +46756,16 @@ async function run() {
         }
 
         // --- Assignee Check ---
+        let assigneeAction = '';
         if (isAuthored && !isAssigned) {
           info(`Self-assigning authored item on GitHub...`);
-          await assignUserToItem(repoName, number, monitoredUser);
-          info('User successfully assigned!');
+          const assignment = await assignUserToItem(repoName, number, monitoredUser);
+          if (assignment === 'assigned') {
+            info('User successfully assigned!');
+            assigneeAction = 'Assignee added';
+          } else if (assignment === 'skipped') {
+            assigneeAction = 'Assignee skipped (no repository admin)';
+          }
         }
 
         // --- Linked Issues Progression (Spec 3.2) ---
@@ -46807,7 +46819,7 @@ async function run() {
           repo: repoName,
           title,
           status: 'Success',
-          action: columnAction,
+          action: [columnAction, assigneeAction].filter(Boolean).join('; '),
         });
       } catch (itemErr) {
         error(`Failed to process item: ${itemErr.message}`);

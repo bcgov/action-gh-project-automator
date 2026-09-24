@@ -21,7 +21,8 @@ test('assignUserToItem skips a repository-admin 403 without retrying', async () 
   };
 
   try {
-    await assignUserToItem('bcgov/devhub-templates', 28, 'DerekRoberts');
+    const outcome = await assignUserToItem('bcgov/devhub-templates', 28, 'DerekRoberts');
+    assert.strictEqual(outcome, 'skipped');
     assert.strictEqual(calls, 1);
   } finally {
     globalThis.fetch = originalFetch;
