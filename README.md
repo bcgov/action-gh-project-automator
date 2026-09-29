@@ -24,6 +24,7 @@ To prevent automated noise and metadata artifacts from cluttering the project bo
 By default, the engine excludes:
 - **Dependency Dashboard** (Exact Match): Excludes Renovate or Dependabot organization-wide interactive dashboards.
 - **ZAP Security Report** (Substring Match): Excludes automated vulnerability and security scan reports.
+- **ZAP Full Scan Report**, **ZAP Scan Baseline Report**, **ZAP API Scan Report** (Substring Match): Exclude issues opened by the ZAP GitHub Actions (`zaproxy/action-full-scan`, `action-baseline`, `action-api-scan`) under their default titles, and titles that extend them (e.g. `ZAP Full Scan Report: <url>` from `bcgov/actions/scan-url`).
 
 ### Custom Exclusions
 Teams can customize exclusions in their `rules.yml` to filter out specific automated noise:
@@ -36,10 +37,13 @@ exclusions:
     - "My Custom Noise Title"
   title_substrings:
     - "ZAP Security Report"
+    - "ZAP Full Scan Report"
+    - "ZAP Scan Baseline Report"
+    - "ZAP API Scan Report"
     - "[Automated]"
 ```
 
-Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring.
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring. Both matches are case-sensitive. When `rules.yml` sets `exact_titles` or `title_substrings`, that list replaces the built-in default instead of extending it.
 
 ## Stability & Predictability
 

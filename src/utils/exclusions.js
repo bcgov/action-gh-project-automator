@@ -5,7 +5,13 @@
  * @returns {boolean} True if the item should be excluded, false otherwise
  */
 const DEFAULT_EXCLUDED_EXACT_TITLES = ['Dependency Dashboard'];
-const DEFAULT_EXCLUDED_TITLE_SUBSTRINGS = ['ZAP Security Report'];
+// ZAP report titles: default issue_title of zaproxy/action-full-scan, action-baseline and action-api-scan
+const DEFAULT_EXCLUDED_TITLE_SUBSTRINGS = [
+  'ZAP Security Report',
+  'ZAP Full Scan Report',
+  'ZAP Scan Baseline Report',
+  'ZAP API Scan Report',
+];
 
 export function isTitleExcluded(title, exclusionsConfig) {
   if (typeof title !== 'string') {
