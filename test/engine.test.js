@@ -68,6 +68,30 @@ test('isTitleExcluded correctly identifies automated noise titles', () => {
   assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
 });
 
+test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items', () => {
+  const zapReports = [
+    'ZAP Full Scan Report', // zaproxy/action-full-scan default issue_title
+    'ZAP Scan Baseline Report', // zaproxy/action-baseline default issue_title
+    'ZAP API Scan Report', // zaproxy/action-api-scan default issue_title
+    'ZAP Full Scan Report: https://quickstart-openshift-test.apps.silver.devops.gov.bc.ca/', // bcgov/actions scan-url
+  ];
+  const zapWorkItems = [
+    'fix(frontend): clear ZAP header warnings from the TEST scan',
+    'feat: reusable DAST action for ZAP and Nuclei',
+    'feat(scan-url): action to scan URL with ZAP and Nuclei',
+  ];
+  // Built-in defaults and the shipped rules.yml (which replaces the defaults) must agree
+  const { exclusions } = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+  for (const config of [undefined, exclusions]) {
+    for (const title of zapReports) {
+      assert.strictEqual(isTitleExcluded(title, config), true, title);
+    }
+    for (const title of zapWorkItems) {
+      assert.strictEqual(isTitleExcluded(title, config), false, title);
+    }
+  }
+});
+
 test('isTitleExcluded respects custom exclusions configuration', () => {
   const customConfig = {
     exact_titles: ['Custom Blocked Title'],
