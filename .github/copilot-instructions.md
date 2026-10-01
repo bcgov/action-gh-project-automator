@@ -1,13 +1,7 @@
 # Copilot Instructions
 
-This GitHub Action is written in TypeScript and transpiled to JavaScript. Both
-the TypeScript sources and the **generated** JavaScript code are contained in
-this repository. The TypeScript sources are contained in the `src` directory and
-the JavaScript code is contained in the `dist` directory. A GitHub Actions
-workflow checks that the JavaScript code in `dist` is up-to-date. Therefore, you
-should not review any changes to the contents of the `dist` folder and it is
-expected that the JavaScript code in `dist` closely mirrors the TypeScript code
-it is generated from.
+Source lives in `src/`. The sync workflow runs `npm run build` (`ncc`) on each
+run and executes `dist/index.js`. `dist/` is gitignored. Do not commit it.
 
 ## Repository Structure
 
@@ -20,7 +14,7 @@ it is generated from.
 | `.licenses/`           | License Information                                      |
 | `.vscode/`             | Visual Studio Code Configuration                         |
 | `badges/`              | Badges for readme                                        |
-| `dist/`                | Generated JavaScript Code                                |
+| `dist/`                | Build output, gitignored, produced by the sync workflow  |
 | `src/`                 | TypeScript Source Code                                   |
 | `.env.example`         | Environment Variables Example for `@github/local-action` |
 | `.licensed.yml`        | Licensed Configuration                                   |
@@ -131,8 +125,7 @@ When creating a pull request (PR), please ensure that:
 - Formatting checks pass
 - Linting checks pass
 - Unit tests pass and coverage requirements are met
-- The action has been transpiled to JavaScript and the `dist` directory is
-  up-to-date with the latest changes in the `src` directory
+- `dist/` is not committed; the sync workflow builds it before the action runs
 - If necessary, the `README.md` file is updated to reflect any changes in
   functionality or usage
 

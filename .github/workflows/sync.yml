@@ -57,6 +57,15 @@ jobs:
       DRY_RUN: false
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Build action bundle
+        shell: bash
+        run: |
+          npm ci
+          npm run build
 
       - name: Run Sync Engine
         uses: ./.github/actions/sync-engine
