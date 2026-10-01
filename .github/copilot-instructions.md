@@ -55,12 +55,13 @@ Unit tests should exist in the `__tests__` directory. They are powered by
 
 ## Bundling
 
-Any time files in the `src` directory are changed, you should run the following
-command to bundle the TypeScript code into JavaScript:
+`dist/` is gitignored. The sync workflow builds it with:
 
 ```bash
-npm run bundle
+npm run build
 ```
+
+Run that locally only to inspect the bundle. Do not commit the output.
 
 ## General Coding Guidelines
 
