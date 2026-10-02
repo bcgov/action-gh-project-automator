@@ -8,6 +8,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "build": "ncc build src/index.js -o dist",
     "validate": "node scripts/validate.js",
     "test": "node --test test/*.test.* test/*/*.test.*",
     "start": "node src/index.js",
