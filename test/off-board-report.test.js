@@ -19,7 +19,7 @@ const issue = (repository, number, title, extra = {}) => ({
 });
 
 test('off_board_report is configured and its issue is kept off the board', () => {
-  assert.strictEqual(settings.repository, 'bcgov/action-gh-project-automator');
+  assert.strictEqual(settings.repository, 'bcgov/project-automator');
   assert.ok(settings.label);
   assert.ok(config.exclusions.exact_titles.includes(settings.title));
 });
@@ -31,7 +31,7 @@ test('findOffBoardIssues keeps only issues missing from the project', () => {
     issue('bcgov/actions', 7, 'On another board', { projectIds: ['PVT_other'] }),
     issue('bcgov/actions', 8, 'Dependency Dashboard'),
     issue('bcgov/quickstart-openshift', 9, 'ZAP Security Report'),
-    issue('bcgov/action-gh-project-automator', 10, settings.title, { labels: [settings.label] }),
+    issue('bcgov/project-automator', 10, settings.title, { labels: [settings.label] }),
   ];
   const { offBoard, excluded } = findOffBoardIssues(issues, {
     projectId: PROJECT,

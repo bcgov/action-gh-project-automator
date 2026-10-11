@@ -14,7 +14,7 @@ project:
 # Scheduled report of open Core repo issues (repository_scope) that aren't on the board.
 # One pinned issue, found by its label, is edited in place on every run (src/report).
 off_board_report:
-  repository: "bcgov/action-gh-project-automator"
+  repository: "bcgov/project-automator"
   label: "off-board-report"
   title: "Off-board report: Core repo issues not on the board"
 
