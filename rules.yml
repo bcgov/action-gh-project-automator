@@ -66,8 +66,6 @@ automation:
       - bcgov/devops-scripts
       - bcgov/project-automator
       - bcgov/quickstart-openshift
-      - bcgov/quickstart-openshift-backends
-      - bcgov/quickstart-openshift-helpers
       - bcgov/quickstart-openshift-modules
       - bcgov/renovate-config
 
