@@ -17,9 +17,14 @@ async function run() {
 
     const issues = [];
     for (const repo of repositories) {
-      const repoIssues = await listOpenIssues(repo);
-      core.info(`${repo}: ${repoIssues.length} open issue(s)`);
-      issues.push(...repoIssues);
+      try {
+        const repoIssues = await listOpenIssues(repo);
+        core.info(`${repo}: ${repoIssues.length} open issue(s)`);
+        issues.push(...repoIssues);
+      } catch (err) {
+        // A renamed or deleted repo shouldn't stop the report for the rest
+        core.warning(`Skipping ${repo}: ${err.message}`);
+      }
     }
 
     const { offBoard, excluded } = findOffBoardIssues(issues, {
