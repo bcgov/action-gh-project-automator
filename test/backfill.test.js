@@ -11,7 +11,7 @@ import { buildSearchQueries, resolveSince } from '../src/github/queries.js';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { isTitleExcluded } from '../src/utils/exclusions.js';
 
-const config = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+const config = loadBoardRules();
 const repos = config.project.repositories;
 const P16 = 'PVT_project16';
 const now = new Date('2026-10-11T12:00:00Z');
@@ -40,7 +40,7 @@ test('backfill window ignores the watermark and reaches the search', () => {
   const days = buildSearchQueries({
     org: 'bcgov',
     repos,
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since: backfillSince({ days: 30 }, now),
     openOnly: true,
   });
@@ -51,7 +51,7 @@ test('backfill window ignores the watermark and reaches the search', () => {
   const all = buildSearchQueries({
     org: 'bcgov',
     repos,
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since: backfillSince({ all: true }, now),
     openOnly: true,
   });
@@ -64,7 +64,7 @@ test('backfill searches open items only; normal runs keep closed-unmerged PRs', 
   const backfill = buildSearchQueries({
     org: 'bcgov',
     repos,
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since: null,
     openOnly: true,
   });
@@ -77,7 +77,7 @@ test('backfill searches open items only; normal runs keep closed-unmerged PRs', 
   const normal = buildSearchQueries({
     org: 'bcgov',
     repos,
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since: resolveSince(null, 2, now),
   });
   assert.ok(normal.repoQueries.some((q) => q.includes('is:pr is:closed is:unmerged')));

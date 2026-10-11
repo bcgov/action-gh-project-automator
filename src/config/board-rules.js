@@ -4,42 +4,25 @@ import { fileURLToPath } from 'url';
 import ConfigLoader from './loader.js';
 
 /**
- * Load the board rules configuration and normalize it for backward compatibility.
- * @param {object} context Optional context for loading
+ * Load and validate rules.yml, the only source of settings, and flatten its scopes.
+ * @param {string} [configPath] - Defaults to CONFIG_FILE or the nearest rules.yml
  * @returns {object} The parsed and validated configuration
  */
 
-function loadBoardRules(context = {}) {
+function loadBoardRules(configPath = resolveConfigPath()) {
   const loader = new ConfigLoader();
-
-  // Resolve config path with flattening preference for repo-level config
-  const resolvedPath = resolveConfigPath();
-  const config = loader.load(resolvedPath);
-
-  // Pass through monitored user from context
-  if (context.monitoredUser) {
-    config.monitoredUser = context.monitoredUser;
-  }
+  const config = loader.load(configPath);
 
   // Normalize the new scope-based structure to the old flat structure for backward compatibility
   if (config.automation) {
     config.rules = mergeRuleScopes(config.automation);
     config.project = {
       ...config.project,
-      organization: config.automation.repository_scope.organization,
       repositories: config.automation.repository_scope.repositories,
     };
 
-    // Extract monitored users from structured format for backward compatibility
-    const monitoredUsers = getMonitoredUsers(config.automation);
-    if (monitoredUsers && monitoredUsers.length > 0) {
-      // For backward compatibility, use the first user as the primary monitored user
-      config.monitoredUser = monitoredUsers[0];
-      // Store the full array for new functionality
-      config.monitoredUsers = monitoredUsers;
-    }
-    // Note: If no monitored users are configured, config.monitoredUser will be undefined
-    // This is handled gracefully by the rule processors
+    // Every listed user is monitored (the schema requires at least one)
+    config.monitoredUsers = config.automation.user_scope.monitored_users;
   }
 
   return config;
@@ -110,21 +93,7 @@ function getMonitoredUsers(automation) {
   }
 
   const monitoredUsers = automation.user_scope.monitored_users;
-
-  // If it's an array of strings, use it directly
-  if (Array.isArray(monitoredUsers) && monitoredUsers.every((user) => typeof user === 'string')) {
-    return monitoredUsers;
-  }
-
-  // Legacy support for single user object format (with warning)
-  if (typeof monitoredUsers === 'object' && monitoredUsers.type === 'static') {
-    console.warn(
-      '⚠️  Legacy monitored_user object format detected. Consider using monitored_users array format.'
-    );
-    return [monitoredUsers.name];
-  }
-
-  return null;
+  return Array.isArray(monitoredUsers) ? monitoredUsers : null;
 }
 
 /**

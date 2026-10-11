@@ -1,38 +1,15 @@
 /**
- * Board column policy. `rules.yml` `board_columns` overrides these defaults.
+ * Board column moves come only from `rules.yml` `board_columns` (required by the schema).
  * `keep` leaves the item in its current column.
+ * Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
  */
 export const KEEP = 'keep';
 
-export const DEFAULT_COLUMN_POLICY = {
-  // Items in these columns are never moved
-  locked: ['Waiting', 'Parked'],
-  pull_request: {
-    ready: 'Active',
-    // A draft PR is the lock on its issue, so it stays put
-    draft: KEEP,
-    draft_no_status: 'New',
-  },
-  linked_issue: {
-    ready: 'Active',
-    draft: KEEP,
-    // PR closed without merging returns its issue to Next
-    closed: 'Next',
-  },
-  issue: {
-    no_status: 'New',
-  },
-};
-// Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
-
 function resolvePolicy(policy) {
-  if (!policy) return DEFAULT_COLUMN_POLICY;
-  return {
-    locked: policy.locked || DEFAULT_COLUMN_POLICY.locked,
-    pull_request: { ...DEFAULT_COLUMN_POLICY.pull_request, ...policy.pull_request },
-    linked_issue: { ...DEFAULT_COLUMN_POLICY.linked_issue, ...policy.linked_issue },
-    issue: { ...DEFAULT_COLUMN_POLICY.issue, ...policy.issue },
-  };
+  if (!policy?.locked || !policy.pull_request || !policy.linked_issue || !policy.issue) {
+    throw new Error('board_columns from rules.yml is required');
+  }
+  return policy;
 }
 
 function normalizeColumn(column) {
@@ -57,10 +34,10 @@ function pullRequestState({ isClosed, merged, draft }) {
  * @param {object} [options]
  * @param {boolean} [options.merged] - PR was merged
  * @param {boolean} [options.draft] - PR is a draft
- * @param {object} [options.policy] - `board_columns` from rules.yml
+ * @param {object} options.policy - `board_columns` from rules.yml
  * @returns {string|null} The resolved target column name
  */
-export function determineTargetColumn(itemType, isClosed, currentColumn, options = {}) {
+export function determineTargetColumn(itemType, isClosed, currentColumn, options) {
   const policy = resolvePolicy(options.policy);
   const current = normalizeColumn(currentColumn);
 
@@ -91,7 +68,7 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
  * @param {boolean} pr.merged - PR was merged
  * @param {boolean} pr.draft - PR is a draft
  * @param {string|null} currentColumn - The issue's current column
- * @param {object} [policy] - `board_columns` from rules.yml
+ * @param {object} policy - `board_columns` from rules.yml
  * @returns {string|null} The resolved target column name
  */
 export function determineLinkedIssueColumn(pr, currentColumn, policy) {

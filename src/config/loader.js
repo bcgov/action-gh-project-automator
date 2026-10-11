@@ -12,7 +12,6 @@
  * - YAML-based configuration in rules.yml
  * - Schema validation enforced for all configs
  * - Config validation errors provide detailed feedback
- * - Environment variable fallbacks supported
  */
 
 import * as yaml from 'js-yaml';
@@ -20,9 +19,31 @@ import fs from 'fs';
 import Ajv from 'ajv';
 import schema from './schema.js';
 
+/**
+ * Turn AJV errors into one line each, naming the key, e.g. "missing required key project.fields".
+ * @param {Array<object>} errors
+ * @returns {string}
+ */
+export function formatErrors(errors = []) {
+  return errors
+    .map((e) => {
+      const at = (e.instancePath || '').replace(/^\//, '').replace(/\//g, '.');
+      if (e.keyword === 'required') {
+        const key = at ? `${at}.${e.params.missingProperty}` : e.params.missingProperty;
+        return `- missing required key ${key}`;
+      }
+      if (e.keyword === 'additionalProperties') {
+        const key = at ? `${at}.${e.params.additionalProperty}` : e.params.additionalProperty;
+        return `- unknown key ${key}`;
+      }
+      return `- ${at || '(root)'} ${e.message}`;
+    })
+    .join('\n');
+}
+
 class ConfigLoader {
   constructor() {
-    this.ajv = new Ajv();
+    this.ajv = new Ajv({ allErrors: true });
     this.validate = this.ajv.compile(schema);
   }
 
@@ -32,8 +53,9 @@ class ConfigLoader {
       const config = yaml.load(fileContents);
 
       if (!this.validate(config)) {
-        const errors = this.validate.errors;
-        throw new Error(`Invalid configuration: ${JSON.stringify(errors, null, 2)}`);
+        throw new Error(
+          `Invalid configuration in ${configPath}:\n${formatErrors(this.validate.errors)}`
+        );
       }
 
       return config;
