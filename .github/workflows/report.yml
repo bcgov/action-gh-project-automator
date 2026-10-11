@@ -1,0 +1,40 @@
+name: Off-board Report
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/report.yml'
+      - 'rules.yml'
+      - 'src/**'
+  schedule:
+    - cron: '17 14 * * *' # daily, 07:17 PT
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Report
+    if: (! github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+      # Pull requests only render the report to the job summary
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Update off-board report issue
+        shell: bash
+        run: |
+          npm ci
+          node src/report/index.js

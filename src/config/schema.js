@@ -26,6 +26,16 @@ const schema = {
       },
       oneOf: [{ required: ['id'] }, { required: ['url'] }],
     },
+    off_board_report: {
+      type: 'object',
+      required: ['repository', 'label', 'title'],
+      properties: {
+        repository: { type: 'string', pattern: '^[^/]+/[^/]+$' },
+        label: { type: 'string', minLength: 1 },
+        title: { type: 'string', minLength: 1 },
+      },
+      additionalProperties: false,
+    },
     automation: {
       type: 'object',
       required: ['user_scope', 'repository_scope'],

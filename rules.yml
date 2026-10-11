@@ -11,6 +11,13 @@ project:
     - bcgov
     - bcgov-c
 
+# Scheduled report of open Core repo issues (repository_scope) that aren't on the board.
+# One pinned issue, found by its label, is edited in place on every run (src/report).
+off_board_report:
+  repository: "bcgov/action-gh-project-automator"
+  label: "off-board-report"
+  title: "Off-board report: Core repo issues not on the board"
+
 automation:
   # Rules that follow users across all repositories
   user_scope:
@@ -236,6 +243,7 @@ automation:
 exclusions:
   exact_titles:
     - "Dependency Dashboard"
+    - "Off-board report: Core repo issues not on the board" # off_board_report.title
   title_substrings:
     - "ZAP Security Report"
     # Default issue_title of zaproxy/action-full-scan, action-baseline and action-api-scan
