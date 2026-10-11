@@ -7,6 +7,12 @@ import { resolveSince } from './github/queries.js';
 import { boardState } from './utils/board-state.js';
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
+import {
+  backfillSince,
+  parseBackfill,
+  planBackfillItem,
+  shouldSaveWatermark,
+} from './utils/backfill.js';
 
 async function run() {
   try {
@@ -22,6 +28,8 @@ async function run() {
     const allowedOrgs = config.project?.allowedOrgs || ['bcgov', 'bcgov-c'];
     const maintainerRepos = config.project?.repositories || [];
     const windowHours = parseInt(process.env.UPDATE_WINDOW_HOURS || '2', 10);
+    // Manual catch-up: '30d' or 'all' (empty = normal run)
+    const backfill = parseBackfill(core.getInput('backfill'));
 
     if (!projectUrl) {
       throw new Error('Project URL is not configured. Please define it in rules.yml or inputs.');
@@ -51,21 +59,30 @@ async function run() {
       core.info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
 
-    // 3. Discover recent items since the last successful run (or the fallback window)
+    // 3. Discover items: since the last successful run (or the fallback window),
+    //    or, for a backfill, open items over the requested window, ignoring the watermark
     const runStartedAt = new Date().toISOString();
-    const watermark = await getWatermark(projectId);
-    const since = resolveSince(watermark, windowHours);
-    core.info(
-      watermark
-        ? `Searching since last successful run: ${since}`
-        : `No watermark; searching the last ${windowHours}h (since ${since})`
-    );
+    let since;
+    if (backfill) {
+      since = backfillSince(backfill);
+      core.info(
+        `Backfill: open items ${since ? `updated since ${since}` : 'of any age'}; watermark ignored and not saved`
+      );
+    } else {
+      const watermark = await getWatermark(projectId);
+      since = resolveSince(watermark, windowHours);
+      core.info(
+        watermark
+          ? `Searching since last successful run: ${since}`
+          : `No watermark; searching the last ${windowHours}h (since ${since})`
+      );
+    }
     const recentItems = await api.getRecentItems(
       config.project?.organization || 'bcgov',
       maintainerRepos,
       monitoredUser,
       since,
-      { allowedOrgs }
+      { allowedOrgs, openOnly: Boolean(backfill) }
     );
     core.info(`Discovered ${recentItems.length} recent items to evaluate.`);
 
@@ -115,6 +132,27 @@ async function run() {
         }
 
         core.info(`Match Found: item should be on board due to: "${addReason}"`);
+
+        // Backfill only adds missing items; items already on the board aren't re-added or moved
+        if (backfill) {
+          const plan = planBackfillItem(item, projectId, config.board_columns);
+          if (plan.action === 'skip') {
+            core.info(`Already on the board (${plan.projectItemId}); leaving it alone.`);
+            continue;
+          }
+          core.info(`Backfill: adding to the board in "${plan.column}"...`);
+          const newItemId = await api.addItemToProject(item.id, projectId);
+          await api.updateItemColumn(projectId, newItemId, plan.column);
+          summaryReport.push({
+            type: itemType,
+            number,
+            repo: repoName,
+            title,
+            status: 'Success',
+            action: `Backfill: added to "${plan.column}"`,
+          });
+          continue;
+        }
 
         // Board state comes from the search result: no per-item lookups
         const board = boardState(item, projectId);
@@ -280,8 +318,8 @@ async function run() {
     summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
     await core.summary.addRaw(summaryHtml).write();
 
-    // Only a fully successful run moves the watermark forward, so failed items are retried
-    if (!hasFailure) {
+    // Only a fully successful normal run moves the watermark forward, so failed items are retried
+    if (shouldSaveWatermark({ backfill, hasFailure })) {
       await saveWatermark(projectId, runStartedAt);
     }
 

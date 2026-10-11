@@ -107,14 +107,21 @@ async function getProjectId(projectUrl) {
  * @param {string} org - Default organization for unqualified repos
  * @param {Array<string>} repos - Monitored repositories
  * @param {string} monitoredUser
- * @param {string} since - ISO cutoff (watermark or fallback window)
+ * @param {string|null} since - ISO cutoff (watermark, fallback window or backfill), null for none
  * @param {object} [options]
  * @param {Array<string>} [options.allowedOrgs]
+ * @param {boolean} [options.openOnly] - Open items only (backfill runs)
  */
 async function getRecentItems(org, repos, monitoredUser, since, options = {}) {
   const { graphql } = getClients();
   const allowedOrgs = options.allowedOrgs || [];
-  const { repoQueries, userQueries } = buildSearchQueries({ org, repos, monitoredUser, since });
+  const { repoQueries, userQueries } = buildSearchQueries({
+    org,
+    repos,
+    monitoredUser,
+    since,
+    openOnly: options.openOnly === true,
+  });
 
   const ITEM_FRAGMENT = `
     __typename

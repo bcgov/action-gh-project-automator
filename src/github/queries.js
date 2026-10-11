@@ -53,7 +53,8 @@ export function chunkQualifiers(qualifiers, reserved, maxLength = MAX_QUERY_LENG
  * @param {string} options.org - Default organization for unqualified repos
  * @param {Array<string>} options.repos - Monitored repositories
  * @param {string} options.monitoredUser
- * @param {string} options.since - ISO cutoff
+ * @param {string|null} options.since - ISO cutoff, or null for no updated-since filter (backfill all)
+ * @param {boolean} [options.openOnly] - Backfill runs: open items only, no closed-unmerged PR queries
  * @param {number} [options.maxLength]
  * @returns {{ repoQueries: Array<string>, userQueries: Array<string> }}
  */
@@ -62,9 +63,12 @@ export function buildSearchQueries({
   repos,
   monitoredUser,
   since,
+  openOnly = false,
   maxLength = MAX_QUERY_LENGTH,
 }) {
-  const window = `archived:false updated:>=${since} sort:updated-desc`;
+  const window = since
+    ? `archived:false updated:>=${since} sort:updated-desc`
+    : 'archived:false sort:updated-desc';
   const openSuffix = `is:open ${window}`;
   const closedPrSuffix = `is:pr is:closed is:unmerged ${window}`;
 
@@ -75,7 +79,8 @@ export function buildSearchQueries({
   const repoQueries = [];
   for (const chunk of chunkQualifiers(qualifiers, reserved, maxLength)) {
     const repoPart = chunk.join(' ');
-    repoQueries.push(`${repoPart} ${openSuffix}`, `${repoPart} ${closedPrSuffix}`);
+    repoQueries.push(`${repoPart} ${openSuffix}`);
+    if (!openOnly) repoQueries.push(`${repoPart} ${closedPrSuffix}`);
   }
 
   const user = monitoredUser;
@@ -85,6 +90,6 @@ export function buildSearchQueries({
     `assignee:${user} ${openSuffix}`,
     `assignee:${user} ${closedPrSuffix}`,
     `review-requested:${user} is:pr ${openSuffix}`,
-  ];
+  ].filter((q) => !(openOnly && q.includes('is:closed')));
   return { repoQueries, userQueries };
 }
