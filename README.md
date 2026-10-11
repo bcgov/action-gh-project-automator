@@ -125,6 +125,16 @@ This project follows a **Spec-Driven Development** model using the [SpecKit](htt
 
 Each run searches open issues and PRs, plus PRs closed without merging, updated since the last successful run (the watermark, minus a 10-minute overlap). Without a watermark it falls back to the last 2 hours. Closed and merged items are left to GitHub's built-in project workflows, which move them to Done. Board membership, Status and Sprint come back with the search results, so there are no per-item board lookups, and the monitored repos are combined into as few searches as fit. Each run's job summary shows the API call count and the remaining rate limit.
 
+## On-demand Backfill
+
+Normal runs only see items updated since the last successful run. To catch up on older open items (for example after adding repos to `repository_scope`), run the Sync workflow by hand with `backfill` set to a window like `30d`, or `all`:
+
+```bash
+gh workflow run sync.yml -R bcgov/project-automator -f backfill=all
+```
+
+A backfill searches open issues and PRs in the monitored repos (and Derek's authored, assigned and review-requested items) over that window, ignoring the watermark. It applies the same exclusions and adds only the missing items, in the `board_columns.issue.no_status` column (New). Items already on the board aren't re-added or moved, and the run doesn't save the watermark. Leave `backfill` empty for a normal run. There's no schedule for it.
+
 ## Testing
 
 We value exhaustive verification. Run the full suite, including the ludicrous coverage matrix:

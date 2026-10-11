@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       backfill:
-        description: 'Backfill repo (org/repo) — searches only that repo without date filter'
+        description: 'Catch-up for open items: a window like 30d, or all (empty = normal run)'
         required: false
         default: ''
         type: string
