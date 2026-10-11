@@ -314,7 +314,41 @@ async function getProjectMetadata(projectId) {
 /**
  * Add an item to the project board
  */
-async function addItemToProject(nodeId, projectId) {
+/**
+ * The project item id from an addProjectV2ItemById response. A missing item is a failed add,
+ * so it throws instead of letting the caller treat it as success.
+ * @param {object} result - GraphQL response data
+ * @param {string} label - Item named in the error, e.g. bcgov/repo#12
+ * @returns {string}
+ */
+function requireAddedItemId(result, label) {
+  const id = result?.addProjectV2ItemById?.item?.id;
+  if (!id) {
+    throw new Error(`Adding ${label} to the project returned no project item`);
+  }
+  return id;
+}
+
+/**
+ * Confirm a field-value mutation returned the project item it changed.
+ * @param {object} result - GraphQL response data
+ * @param {string} mutationName - e.g. updateProjectV2ItemFieldValue
+ * @param {string} label - What was being set, named in the error
+ */
+function requireUpdatedItem(result, mutationName, label) {
+  if (!result?.[mutationName]?.projectV2Item?.id) {
+    throw new Error(`${label} returned no project item from ${mutationName}`);
+  }
+}
+
+/**
+ * Add an issue or PR to the project. Throws when the add fails or returns no item.
+ * @param {string} nodeId - Issue or PR node id
+ * @param {string} projectId
+ * @param {string} [label] - Item named in errors, e.g. bcgov/repo#12
+ * @returns {Promise<string>} Project item id
+ */
+async function addItemToProject(nodeId, projectId, label = nodeId) {
   if (process.env.DRY_RUN === 'true') {
     core.info(`[DRY RUN] Would add item ${nodeId} to project ${projectId}`);
     return 'mock-project-item-id';
@@ -328,7 +362,7 @@ async function addItemToProject(nodeId, projectId) {
     }
   `;
   const result = await withRetry(() => graphql(mutation, { projectId, contentId: nodeId }));
-  return result.addProjectV2ItemById?.item?.id;
+  return requireAddedItemId(result, label);
 }
 
 /**
@@ -361,13 +395,18 @@ async function updateItemColumn(projectId, projectItemId, columnName) {
       }
     }
   `;
-  await withRetry(() =>
+  const result = await withRetry(() =>
     graphql(mutation, {
       projectId,
       itemId: projectItemId,
       fieldId: meta.statusFieldId,
       optionId: option.id,
     })
+  );
+  requireUpdatedItem(
+    result,
+    'updateProjectV2ItemFieldValue',
+    `Setting ${projectItemId} Status to "${columnName}"`
   );
 }
 
@@ -399,13 +438,14 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
         }
       }
     `;
-    await withRetry(() =>
+    const result = await withRetry(() =>
       graphql(mutation, {
         projectId,
         itemId: projectItemId,
         fieldId: meta.sprintFieldId,
       })
     );
+    requireUpdatedItem(result, 'clearProjectV2ItemFieldValue', `Clearing ${projectItemId} Sprint`);
   } else {
     const mutation = `
       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
@@ -419,13 +459,18 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
         }
       }
     `;
-    await withRetry(() =>
+    const result = await withRetry(() =>
       graphql(mutation, {
         projectId,
         itemId: projectItemId,
         fieldId: meta.sprintFieldId,
         iterationId: sprintId,
       })
+    );
+    requireUpdatedItem(
+      result,
+      'updateProjectV2ItemFieldValue',
+      `Setting ${projectItemId} Sprint to ${sprintId}`
     );
   }
 }
@@ -529,6 +574,8 @@ async function getRateLimit() {
 }
 
 export {
+  requireAddedItemId,
+  requireUpdatedItem,
   setProjectFields,
   getClients,
   getProjectId,

@@ -8,6 +8,7 @@ import { boardState } from './utils/board-state.js';
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
 import { sprintAction } from './utils/sprint.js';
+import { formatResultCounts } from './utils/summary.js';
 import {
   backfillSince,
   parseBackfill,
@@ -138,7 +139,7 @@ async function run() {
             continue;
           }
           core.info(`Backfill: adding to the board in "${plan.column}"...`);
-          const newItemId = await api.addItemToProject(item.id, projectId);
+          const newItemId = await api.addItemToProject(item.id, projectId, `${repoName}#${number}`);
           await api.updateItemColumn(projectId, newItemId, plan.column);
           summaryReport.push({
             type: itemType,
@@ -164,7 +165,7 @@ async function run() {
           core.info('Closed item is not on the board; not adding it.');
         } else {
           core.info(`Adding item to project board...`);
-          projectItemId = await api.addItemToProject(item.id, projectId);
+          projectItemId = await api.addItemToProject(item.id, projectId, `${repoName}#${number}`);
           core.info(`Successfully added! Project Item ID: ${projectItemId}`);
         }
 
@@ -279,7 +280,9 @@ async function run() {
           action: [columnAction, assigneeAction].filter(Boolean).join('; '),
         });
       } catch (itemErr) {
-        core.error(`Failed to process item: ${itemErr.message}`);
+        core.error(
+          `Failed to process ${item.__typename} ${item.repository?.nameWithOwner}#${item.number}: ${itemErr.message}`
+        );
         summaryReport.push({
           type: item.__typename,
           number: item.number,
@@ -304,6 +307,7 @@ async function run() {
       summaryHtml += `| **${s.type} #${s.number}** (${s.repo}) | ${s.title} | ${icon} ${s.status} | ${s.action} |\n`;
     }
 
+    summaryHtml += formatResultCounts(summaryReport);
     summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
     await core.summary.addRaw(summaryHtml).write();
 
@@ -313,7 +317,10 @@ async function run() {
     }
 
     if (hasFailure) {
-      throw new Error('Some items failed to sync to the project board. Check logs for details.');
+      const failed = summaryReport.filter((s) => s.status === 'Failed').length;
+      throw new Error(
+        `${failed} item(s) failed to sync to the project board; the rest were processed. See the summary.`
+      );
     }
 
     core.info('🎉 All operations completed successfully.');
