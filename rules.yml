@@ -58,6 +58,7 @@ automation:
   repository_scope:
     # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
+      # Core
       - bcgov/actions
       - bcgov/actions-openshift
       - bcgov/devops-scripts
@@ -65,6 +66,12 @@ automation:
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-modules
       - bcgov/renovate-config
+      # FSD
+      - bcgov/action-repo-reporter
+      - bcgov/nr-fom
+      - bcgov/nr-hydrometric-rating-curve
+      - bcgov/nr-results-exam
+      - bcgov/nr-seedtransfer-map
 
     rules:
       # Board addition rules
