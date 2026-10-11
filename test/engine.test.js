@@ -22,10 +22,10 @@ test('getProjectId correctly rejects malformed project URLs', async () => {
 });
 
 test('determineTargetColumn maps columns correctly', () => {
-  // Closed items (PRs and Issues) go to Done
-  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Active'), 'Done');
-  assert.strictEqual(determineTargetColumn('Issue', true, 'New'), 'Done');
-  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting'), 'Done');
+  // Closed and merged items aren't moved (GitHub's built-in workflows move them to Done)
+  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Active'), 'Active');
+  assert.strictEqual(determineTargetColumn('Issue', true, 'New'), 'New');
+  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting'), 'Waiting');
 
   // Pull Requests already in Waiting stay in Waiting
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting'), 'Waiting');

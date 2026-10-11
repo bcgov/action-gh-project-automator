@@ -56,6 +56,38 @@ const schema = {
         },
       },
     },
+    board_columns: {
+      type: 'object',
+      properties: {
+        locked: { type: 'array', items: { type: 'string' } },
+        pull_request: {
+          type: 'object',
+          properties: {
+            ready: { type: 'string' },
+            draft: { type: 'string' },
+            draft_no_status: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        linked_issue: {
+          type: 'object',
+          properties: {
+            ready: { type: 'string' },
+            draft: { type: 'string' },
+            closed: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        issue: {
+          type: 'object',
+          properties: {
+            no_status: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
     technical: {
       type: 'object',
       required: ['batch_size', 'batch_delay_seconds', 'update_window_hours', 'optimization'],

@@ -133,7 +133,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
-      state updatedAt
+      state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
     }
   `;
