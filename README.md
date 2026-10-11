@@ -25,6 +25,7 @@ By default, the engine excludes:
 - **Dependency Dashboard** (Exact Match): Excludes Renovate or Dependabot organization-wide interactive dashboards.
 - **ZAP Security Report** (Substring Match): Excludes automated vulnerability and security scan reports.
 - **ZAP Full Scan Report**, **ZAP Scan Baseline Report**, **ZAP API Scan Report** (Substring Match): Exclude issues opened by the ZAP GitHub Actions (`zaproxy/action-full-scan`, `action-baseline`, `action-api-scan`) under their default titles, and titles that extend them (e.g. `ZAP Full Scan Report: <url>` from `bcgov/actions/scan-url`).
+- **ZAP: ** (Prefix Match): Excludes ZAP reports opened with a custom `issue_title` such as `ZAP: <name>` (e.g. `ZAP: backendPy` from `bcgov/quickstart-openshift-modules`).
 
 ### Custom Exclusions
 Teams can customize exclusions in their `rules.yml` to filter out specific automated noise:
@@ -41,9 +42,11 @@ exclusions:
     - "ZAP Scan Baseline Report"
     - "ZAP API Scan Report"
     - "[Automated]"
+  title_prefixes:
+    - "ZAP: "
 ```
 
-Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring. Both matches are case-sensitive. When `rules.yml` sets `exact_titles` or `title_substrings`, that list replaces the built-in default instead of extending it.
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. All matches are case-sensitive. When `rules.yml` sets `exact_titles`, `title_substrings` or `title_prefixes`, that list replaces the built-in default instead of extending it.
 
 ## Stability & Predictability
 

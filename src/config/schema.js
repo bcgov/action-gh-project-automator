@@ -91,6 +91,10 @@ const schema = {
           type: 'array',
           items: { type: 'string' },
         },
+        title_prefixes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
       },
       additionalProperties: false,
     },

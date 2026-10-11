@@ -244,6 +244,9 @@ exclusions:
     - "ZAP Full Scan Report"
     - "ZAP Scan Baseline Report"
     - "ZAP API Scan Report"
+  title_prefixes:
+    # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
+    - "ZAP: "
 
 technical:
   batch_size: 10
