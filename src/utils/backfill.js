@@ -1,5 +1,3 @@
-import { boardState } from './board-state.js';
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -31,13 +29,11 @@ export function backfillSince(backfill, now = new Date()) {
 /**
  * What a backfill run does with one item: items already on the board are left alone
  * (not re-added or moved); missing items are added in the policy's no-Status column.
- * @param {object} item - Search result with projectItems
- * @param {string} projectId
+ * @param {object|null} board - The item's board state (null when it isn't on the board)
  * @param {object} policy - `board_columns` from rules.yml
  * @returns {{ action: 'skip', projectItemId: string } | { action: 'add', column: string }}
  */
-export function planBackfillItem(item, projectId, policy) {
-  const board = boardState(item, projectId);
+export function planBackfillItem(board, policy) {
   if (board) return { action: 'skip', projectItemId: board.projectItemId };
   return { action: 'add', column: policy?.issue?.no_status || 'New' };
 }
