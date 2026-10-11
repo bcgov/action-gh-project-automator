@@ -12,6 +12,8 @@ const DEFAULT_EXCLUDED_TITLE_SUBSTRINGS = [
   'ZAP Scan Baseline Report',
   'ZAP API Scan Report',
 ];
+// ZAP report titles set with a custom issue_title, e.g. "ZAP: backendPy" in quickstart-openshift-modules
+const DEFAULT_EXCLUDED_TITLE_PREFIXES = ['ZAP: '];
 
 export function isTitleExcluded(title, exclusionsConfig) {
   if (typeof title !== 'string') {
@@ -24,10 +26,14 @@ export function isTitleExcluded(title, exclusionsConfig) {
 
   const exactTitles = exclusionsConfig?.exact_titles || DEFAULT_EXCLUDED_EXACT_TITLES;
   const titleSubstrings = exclusionsConfig?.title_substrings || DEFAULT_EXCLUDED_TITLE_SUBSTRINGS;
+  const titlePrefixes = exclusionsConfig?.title_prefixes || DEFAULT_EXCLUDED_TITLE_PREFIXES;
 
   const exactSet = new Set(exactTitles);
 
   if (exactSet.has(trimmedTitle)) {
+    return true;
+  }
+  if (titlePrefixes.some((prefix) => trimmedTitle.startsWith(prefix))) {
     return true;
   }
   return titleSubstrings.some((substring) => trimmedTitle.includes(substring));

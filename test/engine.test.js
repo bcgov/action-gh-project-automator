@@ -74,6 +74,7 @@ test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items',
     'ZAP Scan Baseline Report', // zaproxy/action-baseline default issue_title
     'ZAP API Scan Report', // zaproxy/action-api-scan default issue_title
     'ZAP Full Scan Report: https://quickstart-openshift-test.apps.silver.devops.gov.bc.ca/', // bcgov/actions scan-url
+    'ZAP: backendPy', // bcgov/quickstart-openshift-modules custom issue_title
   ];
   const zapWorkItems = [
     'fix(frontend): clear ZAP header warnings from the TEST scan',
@@ -90,6 +91,25 @@ test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items',
       assert.strictEqual(isTitleExcluded(title, config), false, title);
     }
   }
+});
+
+test('ZAP reports from newly added Core repos are in scope but skipped', () => {
+  const { project, exclusions } = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+  const zapTitlesByRepo = {
+    'bcgov/actions-openshift': ['ZAP Full Scan Report', 'ZAP: frontend'],
+    'bcgov/devops-scripts': ['ZAP Scan Baseline Report', 'ZAP: backend'],
+    'bcgov/quickstart-openshift-modules': ['ZAP: backendPy', 'ZAP: backendJava', 'ZAP: backendGo'],
+    'bcgov/renovate-config': ['ZAP API Scan Report', 'ZAP Security Report: backend'],
+  };
+  for (const [repo, titles] of Object.entries(zapTitlesByRepo)) {
+    assert.ok(project.repositories.includes(repo), `${repo} should be in repository scope`);
+    for (const title of titles) {
+      assert.strictEqual(isTitleExcluded(title, exclusions), true, `${repo}: ${title}`);
+    }
+  }
+  // Work items that mention ZAP, or put it after a type prefix, stay on the board
+  assert.strictEqual(isTitleExcluded('fix: ZAP: tune scan rules', exclusions), false);
+  assert.strictEqual(isTitleExcluded('ZAP scan tuning for modules', exclusions), false);
 });
 
 test('isTitleExcluded respects custom exclusions configuration', () => {

@@ -58,16 +58,20 @@ automation:
   repository_scope:
     # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
+      # Core
       - bcgov/actions
-      - bcgov/action-builder-ghcr
-      - bcgov/action-crunchy
-      - bcgov/action-deployer-openshift
-      - bcgov/action-gh-project-automator
-      - bcgov/copilot-instructions
-      - bcgov/nr-nerds
+      - bcgov/actions-openshift
+      - bcgov/devops-scripts
+      - bcgov/project-automator
       - bcgov/quickstart-openshift
-      - bcgov/quickstart-openshift-backends
-      - bcgov/quickstart-openshift-helpers
+      - bcgov/quickstart-openshift-modules
+      - bcgov/renovate-config
+      # FSD
+      - bcgov/action-repo-reporter
+      - bcgov/nr-fom
+      - bcgov/nr-hydrometric-rating-curve
+      - bcgov/nr-results-exam
+      - bcgov/nr-seedtransfer-map
 
     rules:
       # Board addition rules
@@ -242,6 +246,9 @@ exclusions:
     - "ZAP Full Scan Report"
     - "ZAP Scan Baseline Report"
     - "ZAP API Scan Report"
+  title_prefixes:
+    # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
+    - "ZAP: "
 
 technical:
   batch_size: 10
