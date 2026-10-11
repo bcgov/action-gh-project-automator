@@ -88,98 +88,7 @@ automation:
           action: "add_to_board"
           skip_if: "item.inProject"
 
-      # Column assignment rules
-      columns:
-        - name: "new_pull_requests_to_active"
-          description: "Move pull requests from New to Active"
-          trigger:
-            type: "PullRequest"
-            condition: "item.column === 'New'"
-          action: "set_column"
-          value: "Active"
-          skip_if: "item.column !== 'New'"
-          validTransitions:
-            - from: "New"
-              to: "Active"
-              conditions: []
-
-        - name: "pull_requests_no_column"
-          description: "Set new pull requests to Active"
-          trigger:
-            type: "PullRequest"
-            condition: "!item.column"
-          action: "set_column"
-          value: "Active"
-          skip_if: "item.column"
-          validTransitions:
-            - from: "None"
-              to: "Active"
-              conditions: []
-
-        - name: "parked_pull_requests_to_active"
-          description: "Move pull requests from Parked to Active"
-          trigger:
-            type: "PullRequest"
-            condition: "item.column === 'Parked'"
-          action: "set_column"
-          value: "Active"
-          skip_if: "item.column !== 'Parked'"
-          validTransitions:
-            - from: "Parked"
-              to: "Active"
-              conditions: []
-
-        - name: "backlog_pull_requests_to_active"
-          description: "Move pull requests from Backlog to Active"
-          trigger:
-            type: "PullRequest"
-            condition: "item.column === 'Backlog'"
-          action: "set_column"
-          value: "Active"
-          skip_if: "item.column !== 'Backlog'"
-          validTransitions:
-            - from: "Backlog"
-              to: "Active"
-              conditions: []
-
-        - name: "next_pull_requests_to_active"
-          description: "Move pull requests from Next to Active"
-          trigger:
-            type: "PullRequest"
-            condition: "item.column === 'Next'"
-          action: "set_column"
-          value: "Active"
-          skip_if: "item.column !== 'Next'"
-          validTransitions:
-            - from: "Next"
-              to: "Active"
-              conditions: []
-
-        - name: "issues_no_column"
-          description: "Set new issues to New"
-          trigger:
-            type: "Issue"
-            condition: "!item.column"
-          action: "set_column"
-          value: "New"
-          skip_if: "item.column"
-          validTransitions:
-            - from: "None"
-              to: "New"
-              conditions: []
-
-        - name: "parked_issues_to_new"
-          description: "Move issues from Parked to New"
-          trigger:
-            type: "Issue"
-            condition: "item.column === 'Parked'"
-          action: "set_column"
-          value: "New"
-          skip_if: "item.column !== 'Parked'"
-          validTransitions:
-            - from: "Parked"
-              to: "New"
-              conditions: []
+      # Column moves are set in board_columns below
 
       # Sprint assignment rules
       # Note: Edge cases are handled automatically:
@@ -222,16 +131,6 @@ automation:
           action: "remove_sprint"
           skip_if: "item.sprint == null"
 
-      # Linked issue rules
-      linked_issues:
-        - name: "linked_issue_inheritance"
-          description: "Sync linked issues with PR state"
-          trigger:
-            type: "LinkedIssue"
-            condition: "!item.pr.closed || item.pr.merged"
-          action: ["inherit_column", "inherit_assignees"]
-          skip_if: "item.column === item.pr.column && item.assignees === item.pr.assignees"
-
 # Exclusion rules to filter out automated noise by title
 exclusions:
   exact_titles:
@@ -253,3 +152,25 @@ technical:
   optimization:
     skip_unchanged: true
     dedup_by_id: true
+
+# Board column moves, applied by src/utils/column-assignment.js
+# "keep" leaves the item in its current column.
+board_columns:
+  # Items in these columns are never moved, even when closed or merged
+  locked:
+    - Waiting
+    - Parked
+  pull_request:
+    ready: Active # Open and ready for review
+    draft: keep # A draft PR is the lock on its issue, so it stays put
+    draft_no_status: New # A new draft with no Status yet
+    merged: Done
+    closed: Done # Closed without merging
+  linked_issue: # Issues the PR closes, following the PR's state
+    ready: Active
+    draft: keep
+    merged: Done
+    closed: Next # PR closed without merging returns the issue to Next
+  issue:
+    no_status: New
+    closed: Done

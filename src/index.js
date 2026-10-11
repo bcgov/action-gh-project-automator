@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { loadBoardRules } from './config/board-rules.js';
 import * as api from './github/api.js';
-import { determineTargetColumn } from './utils/column-assignment.js';
+import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
 
 async function run() {
@@ -70,6 +70,8 @@ async function run() {
         const author = item.author?.login;
         const assignees = (item.assignees?.nodes || []).map((a) => a.login);
         const isClosed = item.state === 'CLOSED' || item.state === 'MERGED';
+        const isMerged = item.state === 'MERGED';
+        const isDraft = itemType === 'PullRequest' && item.isDraft === true;
 
         core.info(`\n--- Evaluating ${itemType} #${number} inside ${repoName}: "${title}" ---`);
 
@@ -119,7 +121,11 @@ async function run() {
         const currentColumn = await api.getItemColumn(projectId, projectItemId);
         core.info(`Current Column: ${currentColumn || 'None'}`);
 
-        const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn);
+        const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn, {
+          merged: isMerged,
+          draft: isDraft,
+          policy: config.board_columns,
+        });
         let columnAction = '';
 
         if (targetColumn && targetColumn !== currentColumn) {
@@ -184,9 +190,13 @@ async function run() {
                 `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
               );
 
-              // PR active -> Issue Active; PR Done -> Issue Done
+              // Ready PR -> Active, draft PR -> stays put, merged -> Done, closed unmerged -> Next
               const linkedCurrentCol = await api.getItemColumn(projectId, linked.projectItemId);
-              const linkedTargetCol = targetColumn;
+              const linkedTargetCol = determineLinkedIssueColumn(
+                { isClosed, merged: isMerged, draft: isDraft },
+                linkedCurrentCol,
+                config.board_columns
+              );
 
               if (linkedTargetCol && linkedTargetCol !== linkedCurrentCol) {
                 core.info(

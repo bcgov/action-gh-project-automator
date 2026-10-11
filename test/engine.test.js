@@ -25,7 +25,8 @@ test('determineTargetColumn maps columns correctly', () => {
   // Closed items (PRs and Issues) go to Done
   assert.strictEqual(determineTargetColumn('PullRequest', true, 'Active'), 'Done');
   assert.strictEqual(determineTargetColumn('Issue', true, 'New'), 'Done');
-  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting'), 'Done');
+  // Waiting is locked: nothing moves out of it, even when closed
+  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting'), 'Waiting');
 
   // Pull Requests already in Waiting stay in Waiting
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting'), 'Waiting');
