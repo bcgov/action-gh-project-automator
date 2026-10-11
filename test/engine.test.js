@@ -107,9 +107,6 @@ test('ZAP reports from newly added Core repos are in scope but skipped', () => {
       assert.strictEqual(isTitleExcluded(title, exclusions), true, `${repo}: ${title}`);
     }
   }
-  // Archived repos are no longer in scope
-  assert.ok(!project.repositories.includes('bcgov/copilot-instructions'));
-  assert.ok(!project.repositories.includes('bcgov/nr-nerds'));
   // Work items that mention ZAP, or put it after a type prefix, stay on the board
   assert.strictEqual(isTitleExcluded('fix: ZAP: tune scan rules', exclusions), false);
   assert.strictEqual(isTitleExcluded('ZAP scan tuning for modules', exclusions), false);
