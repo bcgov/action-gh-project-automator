@@ -18,18 +18,27 @@ export function boardState(item, projectId) {
   };
 }
 
-// GraphQL selection for an item's project items with Status and Sprint, used by search and linked issues
-export const PROJECT_ITEMS_FRAGMENT = `
+/**
+ * GraphQL selection for an item's project items with status and sprint, used by search and linked issues.
+ * @param {{ status: string, sprint: string }} fields - `project.fields` from rules.yml
+ * @returns {string}
+ */
+export function projectItemsFragment(fields) {
+  if (!fields?.status || !fields?.sprint) {
+    throw new Error('project.fields.status and project.fields.sprint from rules.yml are required');
+  }
+  return `
   projectItems(first: 20, includeArchived: true) {
     nodes {
       id
       project { id }
-      status: fieldValueByName(name: "Status") {
+      status: fieldValueByName(name: ${JSON.stringify(fields.status)}) {
         ... on ProjectV2ItemFieldSingleSelectValue { name }
       }
-      sprint: fieldValueByName(name: "Sprint") {
+      sprint: fieldValueByName(name: ${JSON.stringify(fields.sprint)}) {
         ... on ProjectV2ItemFieldIterationValue { iterationId title }
       }
     }
   }
 `;
+}

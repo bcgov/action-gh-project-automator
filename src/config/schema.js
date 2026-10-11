@@ -10,21 +10,26 @@
 
 const schema = {
   type: 'object',
-  required: ['project', 'automation', 'technical'],
+  required: ['project', 'automation', 'technical', 'board_columns', 'sprints', 'exclusions'],
   properties: {
     project: {
       type: 'object',
+      required: ['url', 'organization', 'allowedOrgs', 'fields'],
       properties: {
-        id: { type: 'string' },
-        url: { type: 'string' },
-        organization: { type: 'string' },
-        allowedOrgs: {
-          type: 'array',
-          items: { type: 'string' },
-          default: ['bcgov', 'bcgov-c'],
+        url: { type: 'string', pattern: '^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$' },
+        organization: { type: 'string', minLength: 1 },
+        allowedOrgs: { type: 'array', items: { type: 'string' }, minItems: 1 },
+        fields: {
+          type: 'object',
+          required: ['status', 'sprint'],
+          properties: {
+            status: { type: 'string', minLength: 1 },
+            sprint: { type: 'string', minLength: 1 },
+          },
+          additionalProperties: false,
         },
       },
-      oneOf: [{ required: ['id'] }, { required: ['url'] }],
+      additionalProperties: false,
     },
     automation: {
       type: 'object',
@@ -36,7 +41,7 @@ const schema = {
           properties: {
             monitored_users: {
               type: 'array',
-              items: { type: 'string' },
+              items: { type: 'string', minLength: 1 },
               minItems: 1,
             },
             rules: { $ref: '#/definitions/ruleGroups' },
@@ -46,10 +51,10 @@ const schema = {
           type: 'object',
           required: ['repositories', 'rules'],
           properties: {
-            organization: { type: 'string' },
             repositories: {
               type: 'array',
-              items: { type: 'string' },
+              items: { type: 'string', minLength: 1 },
+              minItems: 1,
             },
             rules: { $ref: '#/definitions/ruleGroups' },
           },
@@ -58,10 +63,12 @@ const schema = {
     },
     board_columns: {
       type: 'object',
+      required: ['locked', 'pull_request', 'linked_issue', 'issue'],
       properties: {
         locked: { type: 'array', items: { type: 'string' } },
         pull_request: {
           type: 'object',
+          required: ['ready', 'draft', 'draft_no_status'],
           properties: {
             ready: { type: 'string' },
             draft: { type: 'string' },
@@ -71,6 +78,7 @@ const schema = {
         },
         linked_issue: {
           type: 'object',
+          required: ['ready', 'draft', 'closed'],
           properties: {
             ready: { type: 'string' },
             draft: { type: 'string' },
@@ -80,6 +88,7 @@ const schema = {
         },
         issue: {
           type: 'object',
+          required: ['no_status'],
           properties: {
             no_status: { type: 'string' },
           },
@@ -90,30 +99,25 @@ const schema = {
     },
     technical: {
       type: 'object',
-      required: ['batch_size', 'batch_delay_seconds', 'update_window_hours', 'optimization'],
+      required: ['update_window_hours'],
       properties: {
-        batch_size: { type: 'integer', minimum: 1 },
-        batch_delay_seconds: { type: 'integer', minimum: 0 },
         update_window_hours: { type: 'integer', minimum: 1 },
-        existing_items: {
-          type: 'object',
-          properties: {
-            sweep_enabled: { type: 'boolean' },
-            min_rate_limit_remaining: { type: 'integer', minimum: 0 },
-          },
-        },
-        optimization: {
-          type: 'object',
-          required: ['skip_unchanged', 'dedup_by_id'],
-          properties: {
-            skip_unchanged: { type: 'boolean' },
-            dedup_by_id: { type: 'boolean' },
-          },
-        },
       },
+      additionalProperties: false,
+    },
+    sprints: {
+      type: 'object',
+      required: ['assign_current', 'assign_current_if_empty', 'clear'],
+      properties: {
+        assign_current: { type: 'array', items: { type: 'string' } },
+        assign_current_if_empty: { type: 'array', items: { type: 'string' } },
+        clear: { type: 'array', items: { type: 'string' } },
+      },
+      additionalProperties: false,
     },
     exclusions: {
       type: 'object',
+      required: ['exact_titles', 'title_substrings', 'title_prefixes'],
       properties: {
         exact_titles: {
           type: 'array',
@@ -165,10 +169,6 @@ const schema = {
               },
             ],
           },
-        },
-        sprints: {
-          type: 'array',
-          items: { $ref: '#/definitions/rule' },
         },
         linked_issues: {
           type: 'array',

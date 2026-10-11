@@ -7,6 +7,7 @@ import { resolveSince } from './github/queries.js';
 import { boardState } from './utils/board-state.js';
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
+import { sprintAction } from './utils/sprint.js';
 import {
   backfillSince,
   parseBackfill,
@@ -16,29 +17,23 @@ import {
 
 async function run() {
   try {
-    core.info("🚀 Starting Derek's Personal Project Automator Rebuild Engine...");
+    core.info('🚀 Starting Project Automator...');
 
-    // 1. Resolve and Load rules.yml
-    const monitoredUser = 'DerekRoberts';
-    const config = loadBoardRules({ monitoredUser });
-
-    // Extract parameters
-    const projectUrl =
-      config.project?.url || process.env.GITHUB_PROJECT_URL || process.env.INPUT_PROJECT_URL;
-    const allowedOrgs = config.project?.allowedOrgs || ['bcgov', 'bcgov-c'];
-    const maintainerRepos = config.project?.repositories || [];
-    const windowHours = parseInt(process.env.UPDATE_WINDOW_HOURS || '2', 10);
+    // 1. Load rules.yml: the schema requires every setting read below
+    const config = loadBoardRules();
+    const projectUrl = config.project.url;
+    const { allowedOrgs, organization } = config.project;
+    const maintainerRepos = config.project.repositories;
+    const monitoredUsers = config.monitoredUsers;
+    const windowHours = config.technical.update_window_hours;
+    api.setProjectFields(config.project.fields);
     // Manual catch-up: '30d' or 'all' (empty = normal run)
     const backfill = parseBackfill(core.getInput('backfill'));
-
-    if (!projectUrl) {
-      throw new Error('Project URL is not configured. Please define it in rules.yml or inputs.');
-    }
 
     core.info(`Configured Project URL: ${projectUrl}`);
     core.info(`Allowed Orgs: ${allowedOrgs.join(', ')}`);
     core.info(`Maintainer Repos: ${maintainerRepos.join(', ')}`);
-    core.info(`Monitored User: ${monitoredUser}`);
+    core.info(`Monitored Users: ${monitoredUsers.join(', ')}`);
 
     // 2. Resolve Project Board and Fields
     core.info('Resolving Project Board ID...');
@@ -78,9 +73,9 @@ async function run() {
       );
     }
     const recentItems = await api.getRecentItems(
-      config.project?.organization || 'bcgov',
+      organization,
       maintainerRepos,
-      monitoredUser,
+      monitoredUsers,
       since,
       { allowedOrgs, openOnly: Boolean(backfill) }
     );
@@ -111,13 +106,15 @@ async function run() {
 
         // Check Triggers for Board Addition
         const isMaintainerRepo = maintainerRepos.includes(repoName);
-        const isAuthored = author === monitoredUser;
-        const isAssigned = assignees.includes(monitoredUser);
+        const isAuthored = monitoredUsers.includes(author);
+        const isAssigned = assignees.some((login) => monitoredUsers.includes(login));
         const isReviewer =
           itemType === 'PullRequest' &&
-          (item.reviewRequests?.nodes || []).some(
-            (req) => req.requestedReviewer?.login === monitoredUser
+          (item.reviewRequests?.nodes || []).some((req) =>
+            monitoredUsers.includes(req.requestedReviewer?.login)
           );
+        // The monitored user to assign: the author when monitored, otherwise the first listed
+        const assignee = isAuthored ? author : monitoredUsers[0];
 
         const shouldBeAdded = isMaintainerRepo || isAuthored || isAssigned || isReviewer;
         let addReason = '';
@@ -193,37 +190,33 @@ async function run() {
           columnAction = `Retained in "${currentColumn || 'None'}"`;
         }
 
-        // --- Sprint Assignment ---
-        const activeColumns = ['Active', 'Next', 'Waiting', 'Done'];
-        const inactiveColumns = ['New', 'Parked', 'Backlog'];
-
+        // --- Sprint Assignment (rules.yml sprints) ---
         const finalColumn = projectItemId ? targetColumn || currentColumn : null;
         core.info(
           `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
         );
 
-        if (activeColumns.includes(finalColumn)) {
-          if (
-            meta.currentSprintId &&
-            (!currentSprint || currentSprint.id !== meta.currentSprintId)
-          ) {
-            core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
-            await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
-            core.info('Sprint successfully associated!');
-          }
-        } else if (inactiveColumns.includes(finalColumn)) {
-          if (currentSprint) {
-            core.info('Clearing sprint iteration (inactive status column)...');
-            await api.updateItemSprint(projectId, projectItemId, null);
-            core.info('Sprint cleared!');
-          }
+        const sprintChange = sprintAction(
+          finalColumn,
+          currentSprint,
+          meta.currentSprintId,
+          config.sprints
+        );
+        if (sprintChange === 'assign') {
+          core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
+          await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
+          core.info('Sprint successfully associated!');
+        } else if (sprintChange === 'clear') {
+          core.info(`Clearing sprint iteration (column "${finalColumn}")...`);
+          await api.updateItemSprint(projectId, projectItemId, null);
+          core.info('Sprint cleared!');
         }
 
         // --- Assignee Check ---
         let assigneeAction = '';
         if (isAuthored && !isAssigned) {
           core.info(`Self-assigning authored item on GitHub...`);
-          const assignment = await api.assignUserToItem(repoName, number, monitoredUser);
+          const assignment = await api.assignUserToItem(repoName, number, author);
           if (assignment === 'assigned') {
             core.info('User successfully assigned!');
             assigneeAction = 'Assignee added';
@@ -259,24 +252,20 @@ async function run() {
                 await api.updateItemColumn(projectId, linked.projectItemId, linkedTargetCol);
               }
 
-              // Inherit Sprint
-              const linkedCurrentSprint = linked.sprint;
-              if (activeColumns.includes(linkedTargetCol)) {
-                if (
-                  meta.currentSprintId &&
-                  (!linkedCurrentSprint || linkedCurrentSprint.id !== meta.currentSprintId)
-                ) {
-                  core.info(`Updating linked issue sprint to current active iteration...`);
-                  await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
-                }
+              // Inherit Sprint (only assigned here, as before; never cleared)
+              const linkedSprintChange = sprintAction(
+                linkedTargetCol,
+                linked.sprint,
+                meta.currentSprintId,
+                config.sprints
+              );
+              if (linkedSprintChange === 'assign') {
+                core.info(`Updating linked issue sprint to current active iteration...`);
+                await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
               }
 
               // Inherit Assignee
-              await api.assignUserToItem(
-                linked.repository?.nameWithOwner,
-                linked.number,
-                monitoredUser
-              );
+              await api.assignUserToItem(linked.repository?.nameWithOwner, linked.number, assignee);
             }
           }
         }
@@ -304,7 +293,7 @@ async function run() {
 
     // 5. Generate beautiful job summary
     core.info('\n--- Generating Run Summary ---');
-    let summaryHtml = `### 🚀 Derek's Personal Project Automator Summary\n\n`;
+    let summaryHtml = `### 🚀 Project Automator Summary\n\n`;
     summaryHtml += `| Item | Title | Status | Result |\n`;
     summaryHtml += `| :--- | :--- | :--- | :--- |\n`;
 

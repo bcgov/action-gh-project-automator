@@ -2,7 +2,27 @@ import { Octokit } from '@octokit/rest';
 import { graphql as graphqlClient } from '@octokit/graphql';
 import * as core from '@actions/core';
 import { apiUsage, countCalls } from '../utils/api-usage.js';
-import { boardState, PROJECT_ITEMS_FRAGMENT } from '../utils/board-state.js';
+import { boardState, projectItemsFragment } from '../utils/board-state.js';
+
+// Project field names from rules.yml `project.fields`; set once by the engine before any board call
+let projectFields = null;
+
+/**
+ * @param {{ status: string, sprint: string }} fields - `project.fields` from rules.yml
+ */
+function setProjectFields(fields) {
+  projectItemsFragment(fields); // validates
+  projectFields = fields;
+}
+
+function getProjectFields() {
+  if (!projectFields) {
+    throw new Error(
+      'Project field names are not set; call setProjectFields(config.project.fields)'
+    );
+  }
+  return projectFields;
+}
 import { buildSearchQueries } from './queries.js';
 
 let _octokit = null;
@@ -61,7 +81,7 @@ async function getProjectId(projectUrl) {
   const { graphql } = getClients();
   const match = projectUrl.match(/github\.com\/(orgs|users)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
-    throw new Error(`Invalid GITHUB_PROJECT_URL format: ${projectUrl}`);
+    throw new Error(`Invalid project.url format: ${projectUrl}`);
   }
   const [, type, owner, numberStr] = match;
   const number = parseInt(numberStr, 10);
@@ -106,19 +126,20 @@ async function getProjectId(projectUrl) {
  * Each result carries its project items (with Status and Sprint), so no per-item board lookups are needed.
  * @param {string} org - Default organization for unqualified repos
  * @param {Array<string>} repos - Monitored repositories
- * @param {string} monitoredUser
+ * @param {Array<string>} monitoredUsers
  * @param {string|null} since - ISO cutoff (watermark, fallback window or backfill), null for none
  * @param {object} [options]
  * @param {Array<string>} [options.allowedOrgs]
  * @param {boolean} [options.openOnly] - Open items only (backfill runs)
  */
-async function getRecentItems(org, repos, monitoredUser, since, options = {}) {
+async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
   const { graphql } = getClients();
   const allowedOrgs = options.allowedOrgs || [];
+  const PROJECT_ITEMS_FRAGMENT = projectItemsFragment(getProjectFields());
   const { repoQueries, userQueries } = buildSearchQueries({
     org,
     repos,
-    monitoredUser,
+    monitoredUsers,
     since,
     openOnly: options.openOnly === true,
   });
@@ -249,12 +270,13 @@ async function getProjectMetadata(projectId) {
   `;
   const result = await withRetry(() => graphql(query, { projectId }));
   const fields = result.node?.fields?.nodes || [];
+  const names = getProjectFields();
 
   const statusField = fields.find(
-    (f) => f.name === 'Status' && f.__typename === 'ProjectV2SingleSelectField'
+    (f) => f.name === names.status && f.__typename === 'ProjectV2SingleSelectField'
   );
   const sprintField = fields.find(
-    (f) => f.name === 'Sprint' && f.__typename === 'ProjectV2IterationField'
+    (f) => f.name === names.sprint && f.__typename === 'ProjectV2IterationField'
   );
 
   let currentSprintId = null;
@@ -413,6 +435,7 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
  */
 async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
   const { graphql } = getClients();
+  const PROJECT_ITEMS_FRAGMENT = projectItemsFragment(getProjectFields());
   const query = `
     query($pullRequestId: ID!) {
       node(id: $pullRequestId) {
@@ -506,6 +529,7 @@ async function getRateLimit() {
 }
 
 export {
+  setProjectFields,
   getClients,
   getProjectId,
   getRecentItems,

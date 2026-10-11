@@ -52,7 +52,7 @@ export function chunkQualifiers(qualifiers, reserved, maxLength = MAX_QUERY_LENG
  * @param {object} options
  * @param {string} options.org - Default organization for unqualified repos
  * @param {Array<string>} options.repos - Monitored repositories
- * @param {string} options.monitoredUser
+ * @param {Array<string>} options.monitoredUsers
  * @param {string|null} options.since - ISO cutoff, or null for no updated-since filter (backfill all)
  * @param {boolean} [options.openOnly] - Backfill runs: open items only, no closed-unmerged PR queries
  * @param {number} [options.maxLength]
@@ -61,7 +61,7 @@ export function chunkQualifiers(qualifiers, reserved, maxLength = MAX_QUERY_LENG
 export function buildSearchQueries({
   org,
   repos,
-  monitoredUser,
+  monitoredUsers,
   since,
   openOnly = false,
   maxLength = MAX_QUERY_LENGTH,
@@ -83,13 +83,14 @@ export function buildSearchQueries({
     if (!openOnly) repoQueries.push(`${repoPart} ${closedPrSuffix}`);
   }
 
-  const user = monitoredUser;
-  const userQueries = [
-    `author:${user} is:pr ${openSuffix}`,
-    `author:${user} ${closedPrSuffix}`,
-    `assignee:${user} ${openSuffix}`,
-    `assignee:${user} ${closedPrSuffix}`,
-    `review-requested:${user} is:pr ${openSuffix}`,
-  ].filter((q) => !(openOnly && q.includes('is:closed')));
+  const userQueries = (monitoredUsers || [])
+    .flatMap((user) => [
+      `author:${user} is:pr ${openSuffix}`,
+      `author:${user} ${closedPrSuffix}`,
+      `assignee:${user} ${openSuffix}`,
+      `assignee:${user} ${closedPrSuffix}`,
+      `review-requested:${user} is:pr ${openSuffix}`,
+    ])
+    .filter((q) => !(openOnly && q.includes('is:closed')));
   return { repoQueries, userQueries };
 }

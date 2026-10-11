@@ -46,7 +46,7 @@ exclusions:
     - "ZAP: "
 ```
 
-Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. All matches are case-sensitive. When `rules.yml` sets `exact_titles`, `title_substrings` or `title_prefixes`, that list replaces the built-in default instead of extending it.
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. All matches are case-sensitive. All three lists are required in `rules.yml`; there are no built-in defaults.
 
 ## Stability & Predictability
 

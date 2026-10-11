@@ -4,12 +4,16 @@
 # For developer documentation and feature specifications, see the specs/ directory.
 # Changes here will be applied on the next sync run.
 
+# Every key the engine reads is required here; there are no built-in defaults.
 project:
-  url: "https://github.com/orgs/bcgov/projects/16" # Project URL for dynamic resolution
-  organization: "bcgov" # Default organization for repository-scoped rules
+  url: "https://github.com/orgs/bcgov/projects/16" # Project board
+  organization: "bcgov" # Default organization for unqualified repository names
   allowedOrgs: # Organizations to search for user-scoped items (author/assignee)
     - bcgov
     - bcgov-c
+  fields: # Project field names
+    status: "Status"
+    sprint: "Sprint"
 
 automation:
   # Rules that follow users across all repositories
@@ -56,7 +60,6 @@ automation:
 
   # Rules limited to specific repositories
   repository_scope:
-    # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
       # Core
       - bcgov/actions
@@ -94,47 +97,6 @@ automation:
 
       # Column moves are set in board_columns below
 
-      # Sprint assignment rules
-      # Note: Edge cases are handled automatically:
-      # - Items completed during sprint gaps are assigned to next available sprint
-      # - Both active and completed iterations are queried from GitHub API
-      # - Graceful handling when no future sprint exists
-      sprints:
-        - name: "active_sprint_assignment"
-          description: "Assign current sprint in Next/Active columns"
-          trigger:
-            type: ["PullRequest", "Issue"]
-            condition: "item.column === 'Next' || item.column === 'Active'"
-          action: "set_sprint"
-          value: "current"
-          skip_if: "item.sprint === 'current'"
-
-        - name: "waiting_sprint_assignment"
-          description: "Assign current sprint to items in Waiting column (only if no sprint set)"
-          trigger:
-            type: ["PullRequest", "Issue"]
-            condition: "item.column === 'Waiting'"
-          action: "set_sprint"
-          value: "current"
-          skip_if: "item.sprint != null"
-
-        - name: "done_sprint_assignment"
-          description: "Assign sprint in Done column"
-          trigger:
-            type: ["PullRequest", "Issue"]
-            condition: "item.column === 'Done'"
-          action: "set_sprint"
-          value: "current"
-          skip_if: "item.sprint === 'current'"
-
-        - name: "remove_sprint_inactive_columns"
-          description: "Remove sprint from items in inactive columns (New, Parked, Backlog)"
-          trigger:
-            type: ["PullRequest", "Issue"]
-            condition: "item.column === 'New' || item.column === 'Parked' || item.column === 'Backlog'"
-          action: "remove_sprint"
-          skip_if: "item.sprint == null"
-
 # Exclusion rules to filter out automated noise by title
 exclusions:
   exact_titles:
@@ -150,15 +112,20 @@ exclusions:
     - "ZAP: "
 
 technical:
-  batch_size: 10
-  batch_delay_seconds: 1
-  update_window_hours: 2
-  existing_items:
-    sweep_enabled: false
-    min_rate_limit_remaining: 250
-  optimization:
-    skip_unchanged: true
-    dedup_by_id: true
+  update_window_hours: 2 # Search window when there's no watermark from a previous run
+
+# Sprint field, applied by src/utils/sprint.js after the column is set
+sprints:
+  assign_current: # Set the current sprint
+    - Active
+    - Next
+    - Done
+  assign_current_if_empty: # Set the current sprint only when the item has none
+    - Waiting
+  clear: # Remove the sprint
+    - New
+    - Parked
+    - Backlog
 
 # Board column moves, applied by src/utils/column-assignment.js
 # "keep" leaves the item in its current column.
