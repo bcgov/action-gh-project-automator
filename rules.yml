@@ -59,15 +59,17 @@ automation:
     # organization: "bcgov"  # Deprecated - now uses fully qualified repo names
     repositories:
       - bcgov/actions
+      - bcgov/actions-openshift
       - bcgov/action-builder-ghcr
       - bcgov/action-crunchy
       - bcgov/action-deployer-openshift
       - bcgov/action-gh-project-automator
-      - bcgov/copilot-instructions
-      - bcgov/nr-nerds
+      - bcgov/devops-scripts
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
       - bcgov/quickstart-openshift-helpers
+      - bcgov/quickstart-openshift-modules
+      - bcgov/renovate-config
 
     rules:
       # Board addition rules
