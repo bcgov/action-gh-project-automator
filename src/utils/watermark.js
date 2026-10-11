@@ -7,6 +7,25 @@ import { log } from './log.js';
 const CACHE_KEY_PREFIX = 'project-sync-watermark-';
 const WATERMARK_FILE = 'last_sync_timestamp.txt';
 
+function safeId(projectId) {
+  return projectId.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/**
+ * Fixed folder for the watermark file. The cache only matches when save and restore use the
+ * same path, so this must not change between runs (a random temp folder never matches).
+ * @param {string} projectId
+ * @returns {string}
+ */
+export function watermarkDir(projectId) {
+  return path.join(os.tmpdir(), `project-sync-watermark-${safeId(projectId)}`);
+}
+
+async function freshDir(fsModule, dir) {
+  await fsModule.rm(dir, { recursive: true, force: true });
+  await fsModule.mkdir(dir, { recursive: true });
+}
+
 /**
  * Get the last successful sync timestamp from GitHub Actions cache.
  * Uses the project ID to scope the cache.
@@ -22,18 +41,16 @@ export async function getWatermark(projectId, overrides = {}) {
     return null;
   }
 
-  // Use a sanitised project ID for the cache key
-  const safeProjectId = projectId.replace(/[^a-zA-Z0-9]/g, '_');
-  const primaryKey = `${CACHE_KEY_PREFIX}${safeProjectId}-`; // We use restore keys to find latest
-
-  const tmpDir = await fsModule.mkdtemp(path.join(os.tmpdir(), 'watermark-'));
+  // Keys are `<prefix><project>-<timestamp>`; the prefix restore key picks the newest one
+  const keyPrefix = `${CACHE_KEY_PREFIX}${safeId(projectId)}-`;
+  const tmpDir = watermarkDir(projectId);
   const filePath = path.join(tmpDir, WATERMARK_FILE);
 
   try {
+    await freshDir(fsModule, tmpDir);
     logger.info(`Attempting to restore watermark for project ${projectId}...`);
-    // restoreCache will find the most recent cache entry starting with this prefix
-    const restoredKey = await cacheModule.restoreCache([tmpDir], `${primaryKey}${Date.now()}`, [
-      primaryKey,
+    const restoredKey = await cacheModule.restoreCache([tmpDir], `${keyPrefix}${Date.now()}`, [
+      keyPrefix,
     ]);
 
     if (restoredKey) {
@@ -81,13 +98,12 @@ export async function saveWatermark(projectId, timestamp, overrides = {}) {
     return;
   }
 
-  const safeProjectId = projectId.replace(/[^a-zA-Z0-9]/g, '_');
-  const cacheKey = `${CACHE_KEY_PREFIX}${safeProjectId}-${Date.now()}`;
-
-  const tmpDir = await fsModule.mkdtemp(path.join(os.tmpdir(), 'watermark-'));
+  const cacheKey = `${CACHE_KEY_PREFIX}${safeId(projectId)}-${Date.now()}`;
+  const tmpDir = watermarkDir(projectId);
   const filePath = path.join(tmpDir, WATERMARK_FILE);
 
   try {
+    await freshDir(fsModule, tmpDir);
     await fsModule.writeFile(filePath, timestamp);
     logger.info(`Saving watermark ${timestamp} to cache with key ${cacheKey}...`);
 
