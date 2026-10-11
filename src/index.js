@@ -4,7 +4,12 @@ import * as api from './github/api.js';
 import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
-import { boardState } from './utils/board-state.js';
+import {
+  columnAfterAdd,
+  createBoardLookup,
+  formatBoardFetch,
+  projectOwnerFromUrl,
+} from './utils/board-lookup.js';
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
 import { sprintAction } from './utils/sprint.js';
@@ -54,6 +59,13 @@ async function run() {
     } else {
       core.info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
+
+    // Membership, column and sprint: from search results, or the board's item list for cross-org items
+    const board = createBoardLookup({
+      projectId,
+      projectOwner: projectOwnerFromUrl(projectUrl),
+      fetchBoardItems: () => api.getProjectBoardItems(projectId),
+    });
 
     // 3. Discover items: since the last successful run (or the fallback window),
     //    or, for a backfill, open items over the requested window, ignoring the watermark
@@ -133,30 +145,36 @@ async function run() {
 
         // Backfill only adds missing items; items already on the board aren't re-added or moved
         if (backfill) {
-          const plan = planBackfillItem(item, projectId, config.board_columns);
+          const plan = planBackfillItem(await board.stateFor(item, repoName), config.board_columns);
           if (plan.action === 'skip') {
             core.info(`Already on the board (${plan.projectItemId}); leaving it alone.`);
             continue;
           }
-          core.info(`Backfill: adding to the board in "${plan.column}"...`);
+          core.info(`Backfill: adding to the board...`);
           const newItemId = await api.addItemToProject(item.id, projectId, `${repoName}#${number}`);
-          await api.updateItemColumn(projectId, newItemId, plan.column);
+          // The add returns the existing item if it was already there: never overwrite its Status
+          const existing = await api.getProjectItemState(newItemId);
+          const column = columnAfterAdd(existing, plan.column);
+          if (column) await api.updateItemColumn(projectId, newItemId, column);
+          else core.info(`Already had Status "${existing.column}"; leaving it alone.`);
           summaryReport.push({
             type: itemType,
             number,
             repo: repoName,
             title,
             status: 'Success',
-            action: `Backfill: added to "${plan.column}"`,
+            action: column
+              ? `Backfill: added to "${column}"`
+              : `Backfill: already in "${existing.column}"`,
           });
           continue;
         }
 
-        // Board state comes from the search result: no per-item lookups
-        const board = boardState(item, projectId);
-        let projectItemId = board?.projectItemId || null;
-        const currentColumn = board?.column || null;
-        const currentSprint = board?.sprint || null;
+        // Board state from the search result, or the board's item list for cross-org items
+        const state = await board.stateFor(item, repoName);
+        let projectItemId = state?.projectItemId || null;
+        let currentColumn = state?.column || null;
+        let currentSprint = state?.sprint || null;
 
         if (projectItemId) {
           core.info(`Item is already present on the board. Project Item ID: ${projectItemId}`);
@@ -167,6 +185,10 @@ async function run() {
           core.info(`Adding item to project board...`);
           projectItemId = await api.addItemToProject(item.id, projectId, `${repoName}#${number}`);
           core.info(`Successfully added! Project Item ID: ${projectItemId}`);
+          // The add returns the existing item if it was already there: use its real Status and Sprint
+          const existing = await api.getProjectItemState(projectItemId);
+          currentColumn = existing.column;
+          currentSprint = existing.sprint;
         }
 
         // --- Column Assignment ---
@@ -233,6 +255,15 @@ async function run() {
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {
+            // Cross-org linked issues aren't in their own projectItems: use the board's item list
+            if (board.isCrossOrg(linked.repository?.nameWithOwner)) {
+              Object.assign(linked, {
+                projectItemId: null,
+                column: null,
+                sprint: null,
+                ...(await board.stateFor(linked, linked.repository?.nameWithOwner)),
+              });
+            }
             if (linked.projectItemId) {
               core.info(
                 `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
@@ -308,6 +339,7 @@ async function run() {
     }
 
     summaryHtml += formatResultCounts(summaryReport);
+    summaryHtml += formatBoardFetch(board.stats);
     summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
     await core.summary.addRaw(summaryHtml).write();
 

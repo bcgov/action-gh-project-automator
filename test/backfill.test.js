@@ -13,7 +13,6 @@ import { isTitleExcluded } from '../src/utils/exclusions.js';
 
 const config = loadBoardRules();
 const repos = config.project.repositories;
-const P16 = 'PVT_project16';
 const now = new Date('2026-10-11T12:00:00Z');
 
 test('parseBackfill: empty means a normal run', () => {
@@ -85,15 +84,12 @@ test('backfill searches open items only; normal runs keep closed-unmerged PRs', 
 });
 
 test('backfill adds missing items to New and leaves existing items alone', () => {
-  const missing = { projectItems: { nodes: [{ id: 'x', project: { id: 'PVT_other' } }] } };
-  assert.deepStrictEqual(planBackfillItem(missing, P16, config.board_columns), {
+  assert.deepStrictEqual(planBackfillItem(null, config.board_columns), {
     action: 'add',
     column: 'New',
   });
-  const existing = {
-    projectItems: { nodes: [{ id: 'PVTI_1', project: { id: P16 }, status: { name: 'Waiting' } }] },
-  };
-  assert.deepStrictEqual(planBackfillItem(existing, P16, config.board_columns), {
+  const existing = { projectItemId: 'PVTI_1', column: 'Waiting', sprint: null };
+  assert.deepStrictEqual(planBackfillItem(existing, config.board_columns), {
     action: 'skip',
     projectItemId: 'PVTI_1',
   });

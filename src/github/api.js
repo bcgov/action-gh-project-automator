@@ -478,6 +478,87 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
 /**
  * Fetch linked issues for a PR that reside within this project
  */
+function readItemState(node) {
+  const sprint = node?.sprint?.iterationId
+    ? { id: node.sprint.iterationId, title: node.sprint.title }
+    : null;
+  return { projectItemId: node.id, column: node?.status?.name || null, sprint };
+}
+
+function itemStateFields() {
+  const names = getProjectFields();
+  return `
+    status: fieldValueByName(name: ${JSON.stringify(names.status)}) {
+      ... on ProjectV2ItemFieldSingleSelectValue { name }
+    }
+    sprint: fieldValueByName(name: ${JSON.stringify(names.sprint)}) {
+      ... on ProjectV2ItemFieldIterationValue { iterationId title }
+    }
+  `;
+}
+
+/**
+ * Every item on the board, read from the project side (paginated, 100 per call).
+ * @param {string} projectId
+ * @returns {Promise<{ items: Map<string, {projectItemId: string, column: string|null, sprint: object|null}>, calls: number }>}
+ *   Keyed by the issue or PR node id
+ */
+async function getProjectBoardItems(projectId) {
+  const { graphql } = getClients();
+  const query = `
+    query($projectId: ID!, $cursor: String) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          items(first: 100, after: $cursor) {
+            nodes {
+              id
+              content { ... on Issue { id } ... on PullRequest { id } }
+              ${itemStateFields()}
+            }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+      }
+    }
+  `;
+  const items = new Map();
+  let cursor = null;
+  let calls = 0;
+  do {
+    const result = await withRetry(() => graphql(query, { projectId, cursor }));
+    calls++;
+    const page = result?.node?.items;
+    if (!page) throw new Error(`Could not read the item list of project ${projectId}`);
+    for (const node of page.nodes || []) {
+      if (node?.content?.id) items.set(node.content.id, readItemState(node));
+    }
+    cursor = page.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+  } while (cursor);
+  return { items, calls };
+}
+
+/**
+ * Status and Sprint of one project item.
+ * @param {string} projectItemId
+ * @returns {Promise<{projectItemId: string, column: string|null, sprint: object|null}>}
+ */
+async function getProjectItemState(projectItemId) {
+  if (process.env.DRY_RUN === 'true') {
+    return { projectItemId, column: null, sprint: null };
+  }
+  const { graphql } = getClients();
+  const query = `
+    query($itemId: ID!) {
+      node(id: $itemId) {
+        ... on ProjectV2Item { id ${itemStateFields()} }
+      }
+    }
+  `;
+  const result = await withRetry(() => graphql(query, { itemId: projectItemId }));
+  if (!result?.node?.id) throw new Error(`Could not read project item ${projectItemId}`);
+  return readItemState(result.node);
+}
+
 async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
   const { graphql } = getClients();
   const PROJECT_ITEMS_FRAGMENT = projectItemsFragment(getProjectFields());
@@ -574,6 +655,8 @@ async function getRateLimit() {
 }
 
 export {
+  getProjectBoardItems,
+  getProjectItemState,
   requireAddedItemId,
   requireUpdatedItem,
   setProjectFields,
