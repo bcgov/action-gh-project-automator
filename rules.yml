@@ -63,8 +63,8 @@ automation:
       - bcgov/action-builder-ghcr
       - bcgov/action-crunchy
       - bcgov/action-deployer-openshift
-      - bcgov/action-gh-project-automator
       - bcgov/devops-scripts
+      - bcgov/project-automator
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-backends
       - bcgov/quickstart-openshift-helpers
