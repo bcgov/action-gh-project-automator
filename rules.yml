@@ -60,9 +60,6 @@ automation:
     repositories:
       - bcgov/actions
       - bcgov/actions-openshift
-      - bcgov/action-builder-ghcr
-      - bcgov/action-crunchy
-      - bcgov/action-deployer-openshift
       - bcgov/devops-scripts
       - bcgov/project-automator
       - bcgov/quickstart-openshift
