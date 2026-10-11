@@ -121,6 +121,10 @@ This project follows a **Spec-Driven Development** model using the [SpecKit](htt
 - **Project Constitution**: Review [memory/constitution.md](memory/constitution.md) for our core development principles and "Ludicrous Testing" standards.
 - **AI Pair Programming**: See [.github/copilot-instructions.md](.github/copilot-instructions.md) for guidance when working with AI coding assistants.
 
+## Search Window & API Usage
+
+Each run searches open issues and PRs, plus PRs closed without merging, updated since the last successful run (the watermark, minus a 10-minute overlap). Without a watermark it falls back to the last 2 hours. Closed and merged items are left to GitHub's built-in project workflows, which move them to Done. Board membership, Status and Sprint come back with the search results, so there are no per-item board lookups, and the monitored repos are combined into as few searches as fit. Each run's job summary shows the API call count and the remaining rate limit.
+
 ## Testing
 
 We value exhaustive verification. Run the full suite, including the ludicrous coverage matrix:

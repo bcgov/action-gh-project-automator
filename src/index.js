@@ -3,6 +3,10 @@ import { loadBoardRules } from './config/board-rules.js';
 import * as api from './github/api.js';
 import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
+import { resolveSince } from './github/queries.js';
+import { boardState } from './utils/board-state.js';
+import { apiUsage, formatApiUsage } from './utils/api-usage.js';
+import { getWatermark, saveWatermark } from './utils/watermark.js';
 
 async function run() {
   try {
@@ -47,13 +51,20 @@ async function run() {
       core.info('⚠️ No active Iteration (Sprint) resolved for today.');
     }
 
-    // 3. Discover recent items
-    core.info('Querying recent items from search...');
+    // 3. Discover recent items since the last successful run (or the fallback window)
+    const runStartedAt = new Date().toISOString();
+    const watermark = await getWatermark(projectId);
+    const since = resolveSince(watermark, windowHours);
+    core.info(
+      watermark
+        ? `Searching since last successful run: ${since}`
+        : `No watermark; searching the last ${windowHours}h (since ${since})`
+    );
     const recentItems = await api.getRecentItems(
       config.project?.organization || 'bcgov',
       maintainerRepos,
       monitoredUser,
-      windowHours,
+      since,
       { allowedOrgs }
     );
     core.info(`Discovered ${recentItems.length} recent items to evaluate.`);
@@ -105,20 +116,24 @@ async function run() {
 
         core.info(`Match Found: item should be on board due to: "${addReason}"`);
 
-        // Get board item state
-        let { isInProject, projectItemId } = await api.isItemInProject(item.id, projectId);
+        // Board state comes from the search result: no per-item lookups
+        const board = boardState(item, projectId);
+        let projectItemId = board?.projectItemId || null;
+        const currentColumn = board?.column || null;
+        const currentSprint = board?.sprint || null;
 
-        if (!isInProject) {
+        if (projectItemId) {
+          core.info(`Item is already present on the board. Project Item ID: ${projectItemId}`);
+        } else if (isClosed) {
+          // A PR closed without merging isn't added; only its linked issues are updated below
+          core.info('Closed item is not on the board; not adding it.');
+        } else {
           core.info(`Adding item to project board...`);
           projectItemId = await api.addItemToProject(item.id, projectId);
-          isInProject = true;
           core.info(`Successfully added! Project Item ID: ${projectItemId}`);
-        } else {
-          core.info(`Item is already present on the board. Project Item ID: ${projectItemId}`);
         }
 
         // --- Column Assignment ---
-        const currentColumn = await api.getItemColumn(projectId, projectItemId);
         core.info(`Current Column: ${currentColumn || 'None'}`);
 
         const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn, {
@@ -128,7 +143,9 @@ async function run() {
         });
         let columnAction = '';
 
-        if (targetColumn && targetColumn !== currentColumn) {
+        if (!projectItemId) {
+          columnAction = 'Not on board';
+        } else if (targetColumn && targetColumn !== currentColumn) {
           core.info(`Moving Status from "${currentColumn || 'None'}" to "${targetColumn}"...`);
           await api.updateItemColumn(projectId, projectItemId, targetColumn);
           core.info(`Successfully moved column!`);
@@ -142,8 +159,7 @@ async function run() {
         const activeColumns = ['Active', 'Next', 'Waiting', 'Done'];
         const inactiveColumns = ['New', 'Parked', 'Backlog'];
 
-        const finalColumn = targetColumn || currentColumn;
-        const currentSprint = await api.getItemSprint(projectId, projectItemId);
+        const finalColumn = projectItemId ? targetColumn || currentColumn : null;
         core.info(
           `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
         );
@@ -190,8 +206,8 @@ async function run() {
                 `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
               );
 
-              // Ready PR -> Active, draft PR -> stays put, merged -> Done, closed unmerged -> Next
-              const linkedCurrentCol = await api.getItemColumn(projectId, linked.projectItemId);
+              // Ready PR -> Active, draft PR -> stays put, closed unmerged -> Next
+              const linkedCurrentCol = linked.column;
               const linkedTargetCol = determineLinkedIssueColumn(
                 { isClosed, merged: isMerged, draft: isDraft },
                 linkedCurrentCol,
@@ -206,7 +222,7 @@ async function run() {
               }
 
               // Inherit Sprint
-              const linkedCurrentSprint = await api.getItemSprint(projectId, linked.projectItemId);
+              const linkedCurrentSprint = linked.sprint;
               if (activeColumns.includes(linkedTargetCol)) {
                 if (
                   meta.currentSprintId &&
@@ -261,7 +277,13 @@ async function run() {
       summaryHtml += `| **${s.type} #${s.number}** (${s.repo}) | ${s.title} | ${icon} ${s.status} | ${s.action} |\n`;
     }
 
+    summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
     await core.summary.addRaw(summaryHtml).write();
+
+    // Only a fully successful run moves the watermark forward, so failed items are retried
+    if (!hasFailure) {
+      await saveWatermark(projectId, runStartedAt);
+    }
 
     if (hasFailure) {
       throw new Error('Some items failed to sync to the project board. Check logs for details.');

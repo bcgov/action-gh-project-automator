@@ -1,6 +1,9 @@
 import { Octokit } from '@octokit/rest';
 import { graphql as graphqlClient } from '@octokit/graphql';
 import * as core from '@actions/core';
+import { apiUsage, countCalls } from '../utils/api-usage.js';
+import { boardState, PROJECT_ITEMS_FRAGMENT } from '../utils/board-state.js';
+import { buildSearchQueries } from './queries.js';
 
 let _octokit = null;
 let _graphql = null;
@@ -15,11 +18,20 @@ function getClients() {
       throw new Error('GITHUB_TOKEN environment variable is not configured.');
     }
     _octokit = new Octokit({ auth: token });
-    _graphql = graphqlClient.defaults({
-      headers: {
-        authorization: `bearer ${token}`,
-      },
+    // Count every call for the job summary
+    _octokit.hook.wrap('request', (request, options) => {
+      apiUsage.rest++;
+      return request(options);
     });
+    _graphql = countCalls(
+      graphqlClient.defaults({
+        headers: {
+          authorization: `bearer ${token}`,
+        },
+      }),
+      apiUsage,
+      'graphql'
+    );
   }
   return { octokit: _octokit, graphql: _graphql };
 }
@@ -90,34 +102,19 @@ async function getProjectId(projectUrl) {
 }
 
 /**
- * Get recent items (PRs and Issues) updated in the lookback window
+ * Get open items, and PRs closed without merging, updated since `since`.
+ * Each result carries its project items (with Status and Sprint), so no per-item board lookups are needed.
+ * @param {string} org - Default organization for unqualified repos
+ * @param {Array<string>} repos - Monitored repositories
+ * @param {string} monitoredUser
+ * @param {string} since - ISO cutoff (watermark or fallback window)
+ * @param {object} [options]
+ * @param {Array<string>} [options.allowedOrgs]
  */
-async function getRecentItems(org, repos, monitoredUser, windowHours = 2, options = {}) {
+async function getRecentItems(org, repos, monitoredUser, since, options = {}) {
   const { graphql } = getClients();
   const allowedOrgs = options.allowedOrgs || [];
-
-  // Determine time window
-  const hours = windowHours || 2;
-  const sinceDateStr = options.since || new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const sinceClause = ` updated:>=${sinceDateStr}`;
-
-  // Build repository-scoped search queries
-  const reposToSearch = repos || [];
-  const repoQueries = reposToSearch.map((repo) => {
-    const qualified = repo.includes('/') ? repo : `${org}/${repo}`;
-    return `repo:${qualified} archived:false ${sinceClause} sort:updated-desc`;
-  });
-
-  // Build global user-scoped search queries
-  // We fetch all active open items (independent of window) + recently updated items (to catch merges/closures)
-  const authorQueryOpen = `author:${monitoredUser} is:pr is:open archived:false sort:updated-desc`;
-  const authorQueryRecent = `author:${monitoredUser} is:pr archived:false ${sinceClause} sort:updated-desc`;
-
-  const assigneeQueryOpen = `assignee:${monitoredUser} is:open archived:false sort:updated-desc`;
-  const assigneeQueryRecent = `assignee:${monitoredUser} archived:false ${sinceClause} sort:updated-desc`;
-
-  const reviewerQueryOpen = `review-requested:${monitoredUser} is:open archived:false sort:updated-desc`;
-  const reviewerQueryRecent = `review-requested:${monitoredUser} archived:false ${sinceClause} sort:updated-desc`;
+  const { repoQueries, userQueries } = buildSearchQueries({ org, repos, monitoredUser, since });
 
   const ITEM_FRAGMENT = `
     __typename
@@ -127,6 +124,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
       author { login }
       assignees(first: 5) { nodes { login } }
       state updatedAt
+      ${PROJECT_ITEMS_FRAGMENT}
     }
     ... on PullRequest {
       id number title
@@ -135,6 +133,7 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
       assignees(first: 5) { nodes { login } }
       state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
+      ${PROJECT_ITEMS_FRAGMENT}
     }
   `;
 
@@ -179,29 +178,15 @@ async function getRecentItems(org, repos, monitoredUser, windowHours = 2, option
 
   const results = [];
 
-  // 1. Fetch Repository-scoped items
+  // 1. Repository-scoped items (several repos per query)
   for (const q of repoQueries) {
-    const repoNodes = await paginatedSearch(q);
-    results.push(...repoNodes);
+    results.push(...(await paginatedSearch(q)));
   }
 
-  // 2. Fetch User-scoped PRs (Open + Recent)
-  const authorNodesOpen = await paginatedSearch(authorQueryOpen);
-  const authorNodesRecent = await paginatedSearch(authorQueryRecent);
-  results.push(...filterByAllowedOrgs(authorNodesOpen));
-  results.push(...filterByAllowedOrgs(authorNodesRecent));
-
-  // 3. Fetch User-scoped Assigned Issues/PRs (Open + Recent)
-  const assigneeNodesOpen = await paginatedSearch(assigneeQueryOpen);
-  const assigneeNodesRecent = await paginatedSearch(assigneeQueryRecent);
-  results.push(...filterByAllowedOrgs(assigneeNodesOpen));
-  results.push(...filterByAllowedOrgs(assigneeNodesRecent));
-
-  // 4. Fetch User-scoped Review Requested PRs (Open + Recent)
-  const reviewerNodesOpen = await paginatedSearch(reviewerQueryOpen);
-  const reviewerNodesRecent = await paginatedSearch(reviewerQueryRecent);
-  results.push(...filterByAllowedOrgs(reviewerNodesOpen));
-  results.push(...filterByAllowedOrgs(reviewerNodesRecent));
+  // 2. User-scoped items: authored, assigned and review-requested, inside the window
+  for (const q of userQueries) {
+    results.push(...filterByAllowedOrgs(await paginatedSearch(q)));
+  }
 
   // De-duplicate items by node ID
   const seen = new Set();
@@ -295,37 +280,6 @@ async function getProjectMetadata(projectId) {
 
   projectMetadataCache.set(projectId, metadata);
   return metadata;
-}
-
-/**
- * Check if item is already in the project
- */
-async function isItemInProject(nodeId, projectId) {
-  const { graphql } = getClients();
-  const query = `
-    query($projectId: ID!) {
-      node(id: $projectId) {
-        ... on ProjectV2 {
-          items(first: 100) {
-            nodes {
-              id
-              content {
-                ... on Issue { id }
-                ... on PullRequest { id }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-  const result = await withRetry(() => graphql(query, { projectId }));
-  const items = result.node?.items?.nodes || [];
-  const found = items.find((item) => item.content?.id === nodeId);
-  if (found) {
-    return { isInProject: true, projectItemId: found.id };
-  }
-  return { isInProject: false };
 }
 
 /**
@@ -448,53 +402,6 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
 }
 
 /**
- * Get current column Status of project item
- */
-async function getItemColumn(projectId, projectItemId) {
-  const { graphql } = getClients();
-  const query = `
-    query($itemId: ID!) {
-      node(id: $itemId) {
-        ... on ProjectV2Item {
-          fieldValueByName(name: "Status") {
-            ... on ProjectV2ItemFieldSingleSelectValue { name }
-          }
-        }
-      }
-    }
-  `;
-  const result = await withRetry(() => graphql(query, { itemId: projectItemId }));
-  return result.node?.fieldValueByName?.name || null;
-}
-
-/**
- * Get current Sprint of project item
- */
-async function getItemSprint(projectId, projectItemId) {
-  const { graphql } = getClients();
-  const query = `
-    query($itemId: ID!) {
-      node(id: $itemId) {
-        ... on ProjectV2Item {
-          fieldValueByName(name: "Sprint") {
-            ... on ProjectV2ItemFieldIterationValue {
-              iterationId
-              title
-            }
-          }
-        }
-      }
-    }
-  `;
-  const result = await withRetry(() => graphql(query, { itemId: projectItemId }));
-  const val = result.node?.fieldValueByName;
-  if (val && val.iterationId) {
-    return { id: val.iterationId, title: val.title };
-  }
-  return null;
-}
-
-/**
  * Fetch linked issues for a PR that reside within this project
  */
 async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
@@ -508,12 +415,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
               id
               number
               repository { nameWithOwner }
-              projectItems(first: 20) {
-                nodes {
-                  id
-                  project { id }
-                }
-              }
+              ${PROJECT_ITEMS_FRAGMENT}
             }
           }
         }
@@ -523,12 +425,14 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
   const result = await withRetry(() => graphql(query, { pullRequestId }));
   const nodes = result?.node?.closingIssuesReferences?.nodes || [];
   return nodes.map((node) => {
-    const projItem = node.projectItems?.nodes?.find((item) => item.project?.id === projectId);
+    const board = boardState(node, projectId);
     return {
       id: node.id,
       number: node.number,
       repository: node.repository,
-      projectItemId: projItem?.id || null,
+      projectItemId: board?.projectItemId || null,
+      column: board?.column || null,
+      sprint: board?.sprint || null,
     };
   });
 }
@@ -579,17 +483,30 @@ async function assignUserToItem(nameWithOwner, number, login) {
   return 'assigned';
 }
 
+/**
+ * Current rate limits from GET /rate_limit (this call doesn't count against them).
+ * @returns {Promise<object|null>}
+ */
+async function getRateLimit() {
+  try {
+    const { octokit } = getClients();
+    const { data } = await octokit.rest.rateLimit.get();
+    return { graphql: data.resources?.graphql, core: data.resources?.core };
+  } catch (err) {
+    core.warning(`Could not read rate limit: ${err.message}`);
+    return null;
+  }
+}
+
 export {
   getClients,
   getProjectId,
   getRecentItems,
   getProjectMetadata,
-  isItemInProject,
   addItemToProject,
   updateItemColumn,
   updateItemSprint,
-  getItemColumn,
-  getItemSprint,
   fetchLinkedIssuesForPullRequest,
   assignUserToItem,
+  getRateLimit,
 };
