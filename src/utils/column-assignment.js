@@ -12,20 +12,18 @@ export const DEFAULT_COLUMN_POLICY = {
     // A draft PR is the lock on its issue, so it stays put
     draft: KEEP,
     draft_no_status: 'New',
-    merged: 'Done',
-    closed: 'Done',
   },
   linked_issue: {
     ready: 'Active',
     draft: KEEP,
-    merged: 'Done',
+    // PR closed without merging returns its issue to Next
     closed: 'Next',
   },
   issue: {
     no_status: 'New',
-    closed: 'Done',
   },
 };
+// Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
 
 function resolvePolicy(policy) {
   if (!policy) return DEFAULT_COLUMN_POLICY;
@@ -42,7 +40,7 @@ function normalizeColumn(column) {
 }
 
 function apply(target, currentColumn) {
-  return target === KEEP ? currentColumn : target;
+  return target === undefined || target === KEEP ? currentColumn : target;
 }
 
 function pullRequestState({ isClosed, merged, draft }) {
@@ -79,7 +77,7 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
   }
 
   if (itemType === 'Issue') {
-    if (isClosed) return policy.issue.closed;
+    if (isClosed) return current;
     return current || policy.issue.no_status;
   }
 

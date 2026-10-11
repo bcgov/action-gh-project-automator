@@ -66,8 +66,6 @@ const schema = {
             ready: { type: 'string' },
             draft: { type: 'string' },
             draft_no_status: { type: 'string' },
-            merged: { type: 'string' },
-            closed: { type: 'string' },
           },
           additionalProperties: false,
         },
@@ -76,7 +74,6 @@ const schema = {
           properties: {
             ready: { type: 'string' },
             draft: { type: 'string' },
-            merged: { type: 'string' },
             closed: { type: 'string' },
           },
           additionalProperties: false,
@@ -85,7 +82,6 @@ const schema = {
           type: 'object',
           properties: {
             no_status: { type: 'string' },
-            closed: { type: 'string' },
           },
           additionalProperties: false,
         },

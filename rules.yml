@@ -155,8 +155,9 @@ technical:
 
 # Board column moves, applied by src/utils/column-assignment.js
 # "keep" leaves the item in its current column.
+# Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
 board_columns:
-  # Items in these columns are never moved, even when closed or merged
+  # Items in these columns are never moved
   locked:
     - Waiting
     - Parked
@@ -164,13 +165,9 @@ board_columns:
     ready: Active # Open and ready for review
     draft: keep # A draft PR is the lock on its issue, so it stays put
     draft_no_status: New # A new draft with no Status yet
-    merged: Done
-    closed: Done # Closed without merging
   linked_issue: # Issues the PR closes, following the PR's state
     ready: Active
     draft: keep
-    merged: Done
     closed: Next # PR closed without merging returns the issue to Next
   issue:
     no_status: New
-    closed: Done

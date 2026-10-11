@@ -40,13 +40,14 @@ for (const policy of [undefined, shipped]) {
     assert.strictEqual(linked(null, { draft: true }), null);
   });
 
-  test(`[${label}] merged PR and its issue go to Done`, () => {
-    assert.strictEqual(pr('Active', { isClosed: true, merged: true }), 'Done');
-    assert.strictEqual(linked('Active', { isClosed: true, merged: true }), 'Done');
+  test(`[${label}] merged PR and its issue are left to GitHub's built-in Done workflow`, () => {
+    assert.strictEqual(pr('Active', { isClosed: true, merged: true }), 'Active');
+    assert.strictEqual(linked('Active', { isClosed: true, merged: true }), 'Active');
+    assert.strictEqual(linked('Done', { isClosed: true, merged: true }), 'Done');
   });
 
-  test(`[${label}] PR closed without merging goes to Done, its issue back to Next`, () => {
-    assert.strictEqual(pr('Active', { isClosed: true }), 'Done');
+  test(`[${label}] PR closed without merging is not moved, its issue goes back to Next`, () => {
+    assert.strictEqual(pr('Active', { isClosed: true }), 'Active');
     assert.strictEqual(linked('Active', { isClosed: true }), 'Next');
     assert.strictEqual(linked('Done', { isClosed: true }), 'Next');
   });
@@ -68,10 +69,10 @@ for (const policy of [undefined, shipped]) {
     }
   });
 
-  test(`[${label}] issues: no Status goes to New, closed goes to Done`, () => {
+  test(`[${label}] issues: no Status goes to New, closed issues are not moved`, () => {
     assert.strictEqual(determineTargetColumn('Issue', false, null, { policy }), 'New');
     assert.strictEqual(determineTargetColumn('Issue', false, 'Next', { policy }), 'Next');
-    assert.strictEqual(determineTargetColumn('Issue', true, 'Active', { policy }), 'Done');
+    assert.strictEqual(determineTargetColumn('Issue', true, 'Active', { policy }), 'Active');
   });
 }
 
