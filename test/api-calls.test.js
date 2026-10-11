@@ -15,7 +15,7 @@ import { loadBoardRules } from '../src/config/board-rules.js';
 const P16 = 'PVT_project16';
 const now = new Date('2026-10-11T12:00:00Z');
 const since = '2026-10-11T10:00:00.000Z';
-const repos = loadBoardRules({ monitoredUser: 'DerekRoberts' }).project.repositories;
+const repos = loadBoardRules().project.repositories;
 
 // 1. Board membership, column and sprint come from the search result
 test('boardState reads membership, column and sprint from projectItems', () => {
@@ -63,7 +63,12 @@ test('per-item board lookups are gone', () => {
 
 // 2. Combined repo searches
 test('repo searches combine all monitored repos into as few queries as fit', () => {
-  const { repoQueries } = buildSearchQueries({ org: 'bcgov', repos, monitoredUser: 'me', since });
+  const { repoQueries } = buildSearchQueries({
+    org: 'bcgov',
+    repos,
+    monitoredUsers: ['me'],
+    since,
+  });
   // One open query and one closed-unmerged PR query cover every repo
   assert.strictEqual(repoQueries.length, 2);
   for (const q of repoQueries) {
@@ -81,7 +86,7 @@ test('chunkQualifiers splits long lists without exceeding the limit or dropping 
   const { repoQueries } = buildSearchQueries({
     org: 'bcgov',
     repos: quals.map((q) => q.slice(5)),
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since,
     maxLength: 300,
   });
@@ -96,7 +101,7 @@ test('unqualified repos get the default org', () => {
   const { repoQueries } = buildSearchQueries({
     org: 'bcgov',
     repos: ['actions'],
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since,
   });
   assert.ok(repoQueries[0].startsWith('repo:bcgov/actions '));
@@ -107,7 +112,7 @@ test('every query is windowed and limited to open items or PRs closed without me
   const { repoQueries, userQueries } = buildSearchQueries({
     org: 'bcgov',
     repos,
-    monitoredUser: 'me',
+    monitoredUsers: ['me'],
     since,
   });
   for (const q of [...repoQueries, ...userQueries]) {

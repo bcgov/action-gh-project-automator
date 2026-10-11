@@ -5,11 +5,13 @@ import { getProjectId } from '../src/github/api.js';
 import { determineTargetColumn } from '../src/utils/column-assignment.js';
 import { isTitleExcluded } from '../src/utils/exclusions.js';
 
+const { board_columns: policy, exclusions: shippedExclusions } = loadBoardRules();
+
 test('loadBoardRules resolves config and flattens scope', () => {
-  const rules = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+  const rules = loadBoardRules();
   assert.ok(rules.project);
   assert.ok(rules.rules);
-  assert.strictEqual(rules.monitoredUser, 'DerekRoberts');
+  assert.deepStrictEqual(rules.monitoredUsers, ['DerekRoberts']);
   assert.deepStrictEqual(rules.project.allowedOrgs, ['bcgov', 'bcgov-c']);
 });
 
@@ -17,55 +19,61 @@ test('getProjectId correctly rejects malformed project URLs', async () => {
   process.env.GITHUB_TOKEN = 'test-token';
   await assert.rejects(
     () => getProjectId('https://github.com/invalid/format'),
-    /Invalid GITHUB_PROJECT_URL format/
+    /Invalid project.url format/
   );
 });
 
 test('determineTargetColumn maps columns correctly', () => {
   // Closed and merged items aren't moved (GitHub's built-in workflows move them to Done)
-  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Active'), 'Active');
-  assert.strictEqual(determineTargetColumn('Issue', true, 'New'), 'New');
-  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting'), 'Waiting');
+  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Active', { policy }), 'Active');
+  assert.strictEqual(determineTargetColumn('Issue', true, 'New', { policy }), 'New');
+  assert.strictEqual(determineTargetColumn('PullRequest', true, 'Waiting', { policy }), 'Waiting');
 
   // Pull Requests already in Waiting stay in Waiting
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting'), 'Waiting');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Waiting');
 
   // Pull Requests not in Waiting go to Active
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New'), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog'), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'None'), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, null), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New', { policy }), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog', { policy }), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'None', { policy }), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), 'Active');
 
   // Issues without column go to New
-  assert.strictEqual(determineTargetColumn('Issue', false, null), 'New');
-  assert.strictEqual(determineTargetColumn('Issue', false, 'None'), 'New');
+  assert.strictEqual(determineTargetColumn('Issue', false, null, { policy }), 'New');
+  assert.strictEqual(determineTargetColumn('Issue', false, 'None', { policy }), 'New');
 
   // Issues already in a column stay unchanged
-  assert.strictEqual(determineTargetColumn('Issue', false, 'Active'), 'Active');
-  assert.strictEqual(determineTargetColumn('Issue', false, 'Backlog'), 'Backlog');
-  assert.strictEqual(determineTargetColumn('Issue', false, 'Waiting'), 'Waiting');
+  assert.strictEqual(determineTargetColumn('Issue', false, 'Active', { policy }), 'Active');
+  assert.strictEqual(determineTargetColumn('Issue', false, 'Backlog', { policy }), 'Backlog');
+  assert.strictEqual(determineTargetColumn('Issue', false, 'Waiting', { policy }), 'Waiting');
 });
 
 test('isTitleExcluded correctly identifies automated noise titles', () => {
   // Excluded titles
-  assert.strictEqual(isTitleExcluded('Dependency Dashboard'), true);
-  assert.strictEqual(isTitleExcluded('Dependency Dashboard '), true);
-  assert.strictEqual(isTitleExcluded('Dependency Dashboard\r'), true);
-  assert.strictEqual(isTitleExcluded(' Dependency Dashboard '), true);
-  assert.strictEqual(isTitleExcluded('ZAP Security Report'), true);
-  assert.strictEqual(isTitleExcluded(' ZAP Security Report '), true);
-  assert.strictEqual(isTitleExcluded('OWASP ZAP Security Report - API Scan'), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard', shippedExclusions), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard ', shippedExclusions), true);
+  assert.strictEqual(isTitleExcluded('Dependency Dashboard\r', shippedExclusions), true);
+  assert.strictEqual(isTitleExcluded(' Dependency Dashboard ', shippedExclusions), true);
+  assert.strictEqual(isTitleExcluded('ZAP Security Report', shippedExclusions), true);
+  assert.strictEqual(isTitleExcluded(' ZAP Security Report ', shippedExclusions), true);
+  assert.strictEqual(
+    isTitleExcluded('OWASP ZAP Security Report - API Scan', shippedExclusions),
+    true
+  );
 
   // Non-excluded titles
-  assert.strictEqual(isTitleExcluded('Fix security bug in project board'), false);
-  assert.strictEqual(isTitleExcluded('Update README documentation'), false);
-  assert.strictEqual(isTitleExcluded('dependency dashboard'), false); // Case-sensitive check
-  assert.strictEqual(isTitleExcluded(''), false);
-  assert.strictEqual(isTitleExcluded(null), false);
-  assert.strictEqual(isTitleExcluded(undefined), false);
-  assert.strictEqual(isTitleExcluded(12345), false);
-  assert.strictEqual(isTitleExcluded(true), false);
-  assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }), false);
+  assert.strictEqual(
+    isTitleExcluded('Fix security bug in project board', shippedExclusions),
+    false
+  );
+  assert.strictEqual(isTitleExcluded('Update README documentation', shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded('dependency dashboard', shippedExclusions), false); // Case-sensitive check
+  assert.strictEqual(isTitleExcluded('', shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded(null, shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded(undefined, shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded(12345, shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded(true, shippedExclusions), false);
+  assert.strictEqual(isTitleExcluded({ title: 'Dependency Dashboard' }, shippedExclusions), false);
 });
 
 test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items', () => {
@@ -81,9 +89,8 @@ test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items',
     'feat: reusable DAST action for ZAP and Nuclei',
     'feat(scan-url): action to scan URL with ZAP and Nuclei',
   ];
-  // Built-in defaults and the shipped rules.yml (which replaces the defaults) must agree
-  const { exclusions } = loadBoardRules({ monitoredUser: 'DerekRoberts' });
-  for (const config of [undefined, exclusions]) {
+  const { exclusions } = loadBoardRules();
+  for (const config of [exclusions]) {
     for (const title of zapReports) {
       assert.strictEqual(isTitleExcluded(title, config), true, title);
     }
@@ -94,7 +101,7 @@ test('isTitleExcluded excludes ZAP scan report titles but keeps ZAP work items',
 });
 
 test('ZAP reports from newly added Core repos are in scope but skipped', () => {
-  const { project, exclusions } = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+  const { project, exclusions } = loadBoardRules();
   const zapTitlesByRepo = {
     'bcgov/actions-openshift': ['ZAP Full Scan Report', 'ZAP: frontend'],
     'bcgov/devops-scripts': ['ZAP Scan Baseline Report', 'ZAP: backend'],
@@ -123,7 +130,11 @@ test('isTitleExcluded respects custom exclusions configuration', () => {
   assert.strictEqual(isTitleExcluded('Custom Blocked Title ', customConfig), true);
   assert.strictEqual(isTitleExcluded('This is [Automated] event', customConfig), true);
 
-  // Default exclusions should NOT match when custom config is provided
+  // Only the configured exclusions apply
   assert.strictEqual(isTitleExcluded('Dependency Dashboard', customConfig), false);
   assert.strictEqual(isTitleExcluded('ZAP Security Report', customConfig), false);
+});
+
+test('isTitleExcluded requires the exclusions config', () => {
+  assert.throws(() => isTitleExcluded('Dependency Dashboard'), /exclusions/);
 });

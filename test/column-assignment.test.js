@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import {
-  DEFAULT_COLUMN_POLICY,
   determineLinkedIssueColumn,
   determineTargetColumn,
 } from '../src/utils/column-assignment.js';
 
-const { board_columns: shipped } = loadBoardRules({ monitoredUser: 'DerekRoberts' });
+const { board_columns: shipped } = loadBoardRules();
 
-test('shipped rules.yml board_columns matches the built-in defaults', () => {
-  assert.deepStrictEqual(shipped, DEFAULT_COLUMN_POLICY);
+test('column moves require board_columns: there are no built-in defaults', () => {
+  assert.throws(() => determineTargetColumn('Issue', false, null, {}), /board_columns/);
+  assert.throws(() => determineLinkedIssueColumn({}, null, undefined), /board_columns/);
 });
 
-for (const policy of [undefined, shipped]) {
-  const label = policy ? 'rules.yml' : 'defaults';
+for (const policy of [shipped]) {
+  const label = 'rules.yml';
   const pr = (current, state = {}) =>
     determineTargetColumn('PullRequest', Boolean(state.isClosed), current, { ...state, policy });
   const linked = (current, state = {}) =>
@@ -76,12 +76,13 @@ for (const policy of [undefined, shipped]) {
   });
 }
 
-test('partial board_columns overrides keep the remaining defaults', () => {
-  const policy = { linked_issue: { closed: 'Backlog' } };
+test('board_columns values in rules.yml drive the moves', () => {
+  const policy = structuredClone(shipped);
+  policy.linked_issue.closed = 'Backlog';
+  policy.locked = ['Parked'];
   assert.strictEqual(
     determineLinkedIssueColumn({ isClosed: true, merged: false, draft: false }, 'Active', policy),
     'Backlog'
   );
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Next', { policy }), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Waiting');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Active');
 });
