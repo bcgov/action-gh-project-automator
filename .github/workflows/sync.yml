@@ -9,16 +9,11 @@ on:
     - cron: "0 * * * *" # hourly
   workflow_dispatch:
     inputs:
-      backfill:
-        description: 'Catch-up for open items: a window like 30d, or all (empty = normal run)'
+      catch_up:
+        description: 'Catch up: add all missing open items'
         required: false
-        default: ''
-        type: string
-      window_hours:
-        description: 'Update window (hours)'
-        required: false
-        default: '2'
-        type: string
+        default: false
+        type: boolean
 
 permissions: {}
 
@@ -70,8 +65,8 @@ jobs:
       - name: Run Sync Engine
         uses: ./.github/actions/sync-engine
         with:
-          backfill: ${{ inputs.backfill }}
-          window_hours: ${{ inputs.window_hours || '2' }}
+          # Catch up runs the backfill path over all open items
+          backfill: ${{ inputs.catch_up && 'all' || '' }}
           verbose: 'true'
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
 

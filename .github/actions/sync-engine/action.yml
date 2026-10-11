@@ -2,13 +2,9 @@ name: 'Sync Engine'
 description: 'Core logic for project board synchronization'
 inputs:
   backfill:
-    description: 'Catch-up for open items: a window like 30d, or all (empty = normal run)'
+    description: 'Backfill window for open items: 30d-style or all (empty = normal run). Sync sets all when Catch up is ticked.'
     required: false
     default: ''
-  window_hours:
-    description: 'Update window (hours)'
-    required: false
-    default: '2'
   verbose:
     description: 'Enable verbose logging'
     required: false
@@ -16,18 +12,6 @@ inputs:
   github_token:
     description: 'GitHub Token'
     required: true
-  github_author:
-    description: 'GitHub username to monitor'
-    required: false
-    default: 'DerekRoberts'
-  project_url:
-    description: 'GitHub Project URL'
-    required: false
-    default: 'https://github.com/orgs/bcgov/projects/16'
-  config_file:
-    description: 'Path to rules.yml'
-    required: false
-    default: 'rules.yml'
 
 runs:
   using: 'node24'
