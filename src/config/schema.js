@@ -26,6 +26,16 @@ const schema = {
       },
       oneOf: [{ required: ['id'] }, { required: ['url'] }],
     },
+    stale_drafts: {
+      type: 'object',
+      required: ['label', 'days', 'authors'],
+      properties: {
+        label: { type: 'string', minLength: 1 },
+        days: { type: 'integer', minimum: 1 },
+        authors: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      },
+      additionalProperties: false,
+    },
     automation: {
       type: 'object',
       required: ['user_scope', 'repository_scope'],

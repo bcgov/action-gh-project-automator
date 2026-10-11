@@ -11,6 +11,14 @@ project:
     - bcgov
     - bcgov-c
 
+# Daily: label draft PRs that are on the board with no activity for `days` (src/stale-drafts).
+# The label comes off when the PR gets activity or is no longer a draft. Label changes don't count as activity.
+stale_drafts:
+  label: "stale-draft"
+  days: 7
+  authors:
+    - DerekRoberts
+
 automation:
   # Rules that follow users across all repositories
   user_scope:

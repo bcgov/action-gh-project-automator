@@ -1,0 +1,40 @@
+name: Stale Drafts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/stale-drafts.yml'
+      - 'rules.yml'
+      - 'src/**'
+  schedule:
+    - cron: '41 14 * * *' # daily, 07:41 PT
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: Label
+    if: (! github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ secrets.PROJECT_SYNC_TOKEN }}
+      # Pull requests only log the label changes they would make
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Label stale draft PRs
+        shell: bash
+        run: |
+          npm ci
+          node src/stale-drafts/index.js

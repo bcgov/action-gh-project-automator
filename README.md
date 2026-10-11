@@ -134,3 +134,7 @@ npm test -- test/processors/unified-rule-processor.test.js
 # Test the ludicrous validation matrix
 npm test -- test/processors/ludicrous-coverage.test.js
 ```
+
+## Stale Draft Label
+
+A daily job (`.github/workflows/stale-drafts.yml`) adds the `stale-draft` label to draft PRs by the configured authors that are on the project board and have had no activity for 7 or more days. The label comes off when the PR gets new commits, comments, reviews or title changes, or stops being a draft. Adding or removing the label doesn't count as activity. Settings are in `stale_drafts` in `rules.yml`. Pull request runs only log what they would change.
