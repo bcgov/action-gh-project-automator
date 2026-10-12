@@ -570,6 +570,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
             nodes {
               id
               number
+              state
               repository { nameWithOwner }
               ${PROJECT_ITEMS_FRAGMENT}
             }
@@ -585,6 +586,8 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
     return {
       id: node.id,
       number: node.number,
+      state: node.state,
+      isClosed: node.state === 'CLOSED',
       repository: node.repository,
       projectItemId: board?.projectItemId || null,
       column: board?.column || null,

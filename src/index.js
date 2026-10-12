@@ -274,7 +274,8 @@ async function run() {
               const linkedTargetCol = determineLinkedIssueColumn(
                 { isClosed, merged: isMerged, draft: isDraft },
                 linkedCurrentCol,
-                config.board_columns
+                config.board_columns,
+                { isClosed: linked.isClosed }
               );
 
               if (linkedTargetCol && linkedTargetCol !== linkedCurrentCol) {
@@ -296,8 +297,14 @@ async function run() {
                 await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
               }
 
-              // Inherit Assignee
-              await api.assignUserToItem(linked.repository?.nameWithOwner, linked.number, assignee);
+              // Inherit Assignee (open issues only)
+              if (!linked.isClosed) {
+                await api.assignUserToItem(
+                  linked.repository?.nameWithOwner,
+                  linked.number,
+                  assignee
+                );
+              }
             }
           }
         }

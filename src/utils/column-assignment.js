@@ -69,11 +69,17 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
  * @param {boolean} pr.draft - PR is a draft
  * @param {string|null} currentColumn - The issue's current column
  * @param {object} policy - `board_columns` from rules.yml
+ * @param {object} [options]
+ * @param {boolean} [options.isClosed] - Whether the linked issue itself is closed
  * @returns {string|null} The resolved target column name
  */
-export function determineLinkedIssueColumn(pr, currentColumn, policy) {
+export function determineLinkedIssueColumn(pr, currentColumn, policy, options = {}) {
   const resolved = resolvePolicy(policy);
   const current = normalizeColumn(currentColumn);
+
+  if (options.isClosed) {
+    return current;
+  }
 
   if (current && resolved.locked.includes(current)) {
     return current;

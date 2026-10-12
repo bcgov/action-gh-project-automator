@@ -17,11 +17,12 @@ for (const policy of [shipped]) {
   const label = 'rules.yml';
   const pr = (current, state = {}) =>
     determineTargetColumn('PullRequest', Boolean(state.isClosed), current, { ...state, policy });
-  const linked = (current, state = {}) =>
+  const linked = (current, state = {}, options = {}) =>
     determineLinkedIssueColumn(
       { isClosed: false, merged: false, draft: false, ...state },
       current,
-      policy
+      policy,
+      options
     );
 
   test(`[${label}] ready-for-review PR and its issue go to Active`, () => {
@@ -46,10 +47,27 @@ for (const policy of [shipped]) {
     assert.strictEqual(linked('Done', { isClosed: true, merged: true }), 'Done');
   });
 
-  test(`[${label}] PR closed without merging is not moved, its issue goes back to Next`, () => {
+  test(`[${label}] PR closed without merging is not moved, its open issue goes back to Next`, () => {
     assert.strictEqual(pr('Active', { isClosed: true }), 'Active');
     assert.strictEqual(linked('Active', { isClosed: true }), 'Next');
     assert.strictEqual(linked('Done', { isClosed: true }), 'Next');
+  });
+
+  test(`[${label}] closed linked issue is not moved`, () => {
+    for (const col of ['New', 'Backlog', 'Next', 'Active', 'Done']) {
+      for (const prState of [
+        { isClosed: true, merged: false },
+        { isClosed: false, merged: false, draft: false },
+        { isClosed: true, merged: true },
+        { draft: true },
+      ]) {
+        assert.strictEqual(
+          linked(col, prState, { isClosed: true }),
+          col,
+          `${col} ${JSON.stringify(prState)}`
+        );
+      }
+    }
   });
 
   test(`[${label}] nothing moves out of Waiting or Parked`, () => {
