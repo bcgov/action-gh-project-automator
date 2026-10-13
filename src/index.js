@@ -172,6 +172,10 @@ async function run() {
 
         // Board state from the search result, or the board's item list for cross-org items
         const state = await board.stateFor(item, repoName);
+        if (state?.isArchived) {
+          core.info(`Item ${repoName}#${number} is archived on the project board; skipping.`);
+          continue;
+        }
         let projectItemId = state?.projectItemId || null;
         let currentColumn = state?.column || null;
         let currentSprint = state?.sprint || null;
@@ -265,6 +269,12 @@ async function run() {
               });
             }
             if (linked.projectItemId) {
+              if (linked.isArchived) {
+                core.info(
+                  `Linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner} is archived on the project board; skipping.`
+                );
+                continue;
+              }
               core.info(
                 `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
               );

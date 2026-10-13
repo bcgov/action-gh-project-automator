@@ -28,6 +28,7 @@ test('boardState reads membership, column and sprint from projectItems', () => {
           project: { id: P16 },
           status: { name: 'Next' },
           sprint: { iterationId: 'it1', title: 'Sprint 1' },
+          isArchived: false,
         },
       ],
     },
@@ -36,6 +37,7 @@ test('boardState reads membership, column and sprint from projectItems', () => {
     projectItemId: 'PVTI_16',
     column: 'Next',
     sprint: { id: 'it1', title: 'Sprint 1' },
+    isArchived: false,
   });
 });
 
@@ -45,12 +47,27 @@ test('boardState: on the board with no Status or Sprint, and not on the board', 
     projectItemId: 'PVTI_16',
     column: null,
     sprint: null,
+    isArchived: false,
   });
   assert.strictEqual(
     boardState({ projectItems: { nodes: [{ id: 'x', project: { id: 'PVT_other' } }] } }, P16),
     null
   );
   assert.strictEqual(boardState({}, P16), null);
+});
+
+test('boardState detects archived items on the board', () => {
+  const archived = {
+    projectItems: {
+      nodes: [{ id: 'PVTI_16', project: { id: P16 }, isArchived: true }],
+    },
+  };
+  assert.deepStrictEqual(boardState(archived, P16), {
+    projectItemId: 'PVTI_16',
+    column: null,
+    sprint: null,
+    isArchived: true,
+  });
 });
 
 test('per-item board lookups are gone', () => {
