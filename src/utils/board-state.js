@@ -25,9 +25,14 @@ export function boardState(item, projectId) {
  * @returns {string}
  */
 export function projectItemsFragment(fields) {
-  if (!fields?.status || !fields?.sprint) {
-    throw new Error('project.fields.status and project.fields.sprint from rules.yml are required');
+  if (!fields?.status) {
+    throw new Error('project.fields.status from rules.yml is required');
   }
+  const sprintSelection = fields.sprint
+    ? `sprint: fieldValueByName(name: ${JSON.stringify(fields.sprint)}) {
+        ... on ProjectV2ItemFieldIterationValue { iterationId title }
+      }`
+    : '';
   return `
   projectItems(first: 20, includeArchived: true) {
     nodes {
@@ -37,9 +42,7 @@ export function projectItemsFragment(fields) {
       status: fieldValueByName(name: ${JSON.stringify(fields.status)}) {
         ... on ProjectV2ItemFieldSingleSelectValue { name }
       }
-      sprint: fieldValueByName(name: ${JSON.stringify(fields.sprint)}) {
-        ... on ProjectV2ItemFieldIterationValue { iterationId title }
-      }
+      ${sprintSelection}
     }
   }
 `;

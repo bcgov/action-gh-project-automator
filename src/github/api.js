@@ -279,9 +279,9 @@ async function getProjectMetadata(projectId) {
   const statusField = fields.find(
     (f) => f.name === names.status && f.__typename === 'ProjectV2SingleSelectField'
   );
-  const sprintField = fields.find(
-    (f) => f.name === names.sprint && f.__typename === 'ProjectV2IterationField'
-  );
+  const sprintField = names.sprint
+    ? fields.find((f) => f.name === names.sprint && f.__typename === 'ProjectV2IterationField')
+    : null;
 
   let currentSprintId = null;
   let currentSprintTitle = null;
@@ -520,13 +520,16 @@ function readItemState(node) {
 
 function itemStateFields() {
   const names = getProjectFields();
+  const sprintSelection = names.sprint
+    ? `sprint: fieldValueByName(name: ${JSON.stringify(names.sprint)}) {
+        ... on ProjectV2ItemFieldIterationValue { iterationId title }
+      }`
+    : '';
   return `
     status: fieldValueByName(name: ${JSON.stringify(names.status)}) {
       ... on ProjectV2ItemFieldSingleSelectValue { name }
     }
-    sprint: fieldValueByName(name: ${JSON.stringify(names.sprint)}) {
-      ... on ProjectV2ItemFieldIterationValue { iterationId title }
-    }
+    ${sprintSelection}
   `;
 }
 

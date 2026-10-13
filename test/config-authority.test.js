@@ -24,17 +24,12 @@ function writeRules(mutate) {
 const required = [
   ['project', 'url'],
   ['project', 'organization'],
-  ['project', 'allowedOrgs'],
   ['project', 'fields'],
   ['project', 'fields', 'status'],
-  ['project', 'fields', 'sprint'],
-  ['automation', 'user_scope', 'monitored_users'],
   ['automation', 'repository_scope', 'repositories'],
   ['board_columns'],
   ['board_columns', 'locked'],
   ['board_columns', 'linked_issue', 'closed'],
-  ['sprints'],
-  ['sprints', 'clear'],
   ['exclusions'],
   ['exclusions', 'title_prefixes'],
   ['technical', 'update_window_hours'],
@@ -143,6 +138,24 @@ test('sprint changes follow rules.yml sprints', () => {
   assert.strictEqual(sprintAction('Review', null, current, custom), 'assign');
   assert.strictEqual(sprintAction('Active', { id: 'it-1' }, current, custom), 'clear');
   assert.throws(() => sprintAction('Active', null, current, undefined), /sprints/);
+});
+
+test('optional configurations: rules.yml without sprints, user_scope, or allowedOrgs', () => {
+  const file = writeRules((config) => {
+    delete config.sprints;
+    delete config.project.fields.sprint;
+    delete config.automation.user_scope;
+    delete config.project.allowedOrgs;
+  });
+  const config = loadBoardRules(file);
+  assert.strictEqual(config.sprints, undefined);
+  assert.strictEqual(config.project.fields.sprint, undefined);
+  assert.deepStrictEqual(config.monitoredUsers, []);
+  assert.deepStrictEqual(config.project.allowedOrgs, ['bcgov']);
+
+  const fragment = projectItemsFragment(config.project.fields);
+  assert.match(fragment, /fieldValueByName\(name: "Status"\)/);
+  assert.doesNotMatch(fragment, /sprint:/);
 });
 
 test('src has no hardcoded user, org, project URL or sprint columns', () => {

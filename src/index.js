@@ -49,15 +49,20 @@ async function run() {
     }
     core.info(`Resolved Project ID: ${projectId}`);
 
-    core.info('Fetching Project Metadata & Iterations...');
-    const meta = await api.getProjectMetadata(projectId);
-    core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
-    if (meta.currentSprintTitle) {
-      core.info(
-        `Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`
-      );
+    let meta = { currentSprintId: null, currentSprintTitle: null, sprintFieldId: null };
+    if (config.project.fields.sprint && config.sprints) {
+      core.info('Fetching Project Metadata & Iterations...');
+      meta = await api.getProjectMetadata(projectId);
+      core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
+      if (meta.currentSprintTitle) {
+        core.info(
+          `Active Iteration (Sprint): "${meta.currentSprintTitle}" (ID: ${meta.currentSprintId})`
+        );
+      } else {
+        core.info('⚠️ No active Iteration (Sprint) resolved for today.');
+      }
     } else {
-      core.info('⚠️ No active Iteration (Sprint) resolved for today.');
+      core.info('Sprint tracking not configured; bypassing iteration resolution.');
     }
 
     // Membership, column and sprint: from search results, or the board's item list for cross-org items
@@ -126,8 +131,8 @@ async function run() {
           (item.reviewRequests?.nodes || []).some((req) =>
             monitoredUsers.includes(req.requestedReviewer?.login)
           );
-        // The monitored user to assign: the author when monitored, otherwise the first listed
-        const assignee = isAuthored ? author : monitoredUsers[0];
+        // The monitored user to assign: the author when monitored, otherwise the first listed (if any)
+        const assignee = isAuthored ? author : monitoredUsers[0] || null;
 
         const shouldBeAdded = isMaintainerRepo || isAuthored || isAssigned || isReviewer;
         let addReason = '';
@@ -223,20 +228,22 @@ async function run() {
           `Current Sprint Field Value: ${currentSprint ? `"${currentSprint.title}"` : 'None'}`
         );
 
-        const sprintChange = sprintAction(
-          finalColumn,
-          currentSprint,
-          meta.currentSprintId,
-          config.sprints
-        );
-        if (sprintChange === 'assign') {
-          core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
-          await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
-          core.info('Sprint successfully associated!');
-        } else if (sprintChange === 'clear') {
-          core.info(`Clearing sprint iteration (column "${finalColumn}")...`);
-          await api.updateItemSprint(projectId, projectItemId, null);
-          core.info('Sprint cleared!');
+        if (config.sprints && config.project.fields.sprint) {
+          const sprintChange = sprintAction(
+            finalColumn,
+            currentSprint,
+            meta.currentSprintId,
+            config.sprints
+          );
+          if (sprintChange === 'assign') {
+            core.info(`Assigning current active sprint iteration "${meta.currentSprintTitle}"...`);
+            await api.updateItemSprint(projectId, projectItemId, meta.currentSprintId);
+            core.info('Sprint successfully associated!');
+          } else if (sprintChange === 'clear') {
+            core.info(`Clearing sprint iteration (column "${finalColumn}")...`);
+            await api.updateItemSprint(projectId, projectItemId, null);
+            core.info('Sprint cleared!');
+          }
         }
 
         // --- Assignee Check ---
@@ -296,19 +303,21 @@ async function run() {
               }
 
               // Inherit Sprint (only assigned here, as before; never cleared)
-              const linkedSprintChange = sprintAction(
-                linkedTargetCol,
-                linked.sprint,
-                meta.currentSprintId,
-                config.sprints
-              );
-              if (linkedSprintChange === 'assign') {
-                core.info(`Updating linked issue sprint to current active iteration...`);
-                await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
+              if (config.sprints && config.project.fields.sprint) {
+                const linkedSprintChange = sprintAction(
+                  linkedTargetCol,
+                  linked.sprint,
+                  meta.currentSprintId,
+                  config.sprints
+                );
+                if (linkedSprintChange === 'assign') {
+                  core.info(`Updating linked issue sprint to current active iteration...`);
+                  await api.updateItemSprint(projectId, linked.projectItemId, meta.currentSprintId);
+                }
               }
 
               // Inherit Assignee (open issues only)
-              if (!linked.isClosed) {
+              if (!linked.isClosed && assignee) {
                 await api.assignUserToItem(
                   linked.repository?.nameWithOwner,
                   linked.number,
