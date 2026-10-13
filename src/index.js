@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { loadBoardRules } from './config/board-rules.js';
+import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
 import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
@@ -25,8 +25,18 @@ async function run() {
   try {
     core.info('🚀 Starting Project Automator...');
 
-    // 1. Load rules.yml: the schema requires every setting read below
-    const config = loadBoardRules();
+    // Dry run configuration: CLI/action input or environment variable
+    const dryRun = core.getInput('dry_run');
+    if (dryRun === 'true' || process.env.DRY_RUN === 'true') {
+      process.env.DRY_RUN = 'true';
+      core.info('🔍 Running in DRY_RUN mode (read-only, mutations disabled).');
+    } else {
+      process.env.DRY_RUN = 'false';
+    }
+
+    // 1. Load rules.yml: resolve from config_path input or default rules.yml
+    const configPathInput = core.getInput('config_path');
+    const config = loadBoardRules(configPathInput ? resolveConfigPath(configPathInput) : undefined);
     const projectUrl = config.project.url;
     const { allowedOrgs, organization } = config.project;
     const maintainerRepos = config.project.repositories;

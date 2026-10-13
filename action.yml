@@ -1,0 +1,26 @@
+name: 'GitHub Project Automator'
+description: 'GitHub project board automation based on configurable rules'
+inputs:
+  github_token:
+    description: 'GitHub token with project and repo access'
+    required: true
+  config_path:
+    description: 'Path to rules configuration'
+    required: false
+    default: 'rules.yml'
+  dry_run:
+    description: 'Execute in read-only mode without mutating board items'
+    required: false
+    default: 'false'
+  backfill:
+    description: 'Backfill window for open items: 30d-style or all (empty = normal run)'
+    required: false
+    default: ''
+  verbose:
+    description: 'Enable verbose logging'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
