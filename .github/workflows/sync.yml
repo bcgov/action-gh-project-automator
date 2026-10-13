@@ -81,6 +81,8 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || '' }}
 
       - name: Cache Trivy DB
         uses: actions/cache@v6
