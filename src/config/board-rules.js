@@ -117,25 +117,27 @@ function mergeRuleGroup(merged, ruleGroup) {
   });
 }
 
-export { loadBoardRules };
+export { loadBoardRules, resolveConfigPath };
 
 /**
  * Resolve the configuration file path, preferring a flattened, repo-level config.
  * Order of precedence:
- * 1) CONFIG_FILE env var (absolute or relative to CWD)
+ * 1) customPath argument, INPUT_CONFIG_PATH, or CONFIG_FILE env var
  * 2) CWD/rules.yml (root level config)
  * 3) Walk up parent directories from CWD to find rules.yml
  * 4) Legacy package-local config
+ * @param {string} [customPath]
  * @returns {string}
  */
-function resolveConfigPath() {
-  // 1) Explicit env override
-  const fromEnv = process.env.CONFIG_FILE;
-  if (fromEnv) {
-    const absoluteEnvPath = path.isAbsolute(fromEnv)
-      ? fromEnv
-      : path.resolve(process.cwd(), fromEnv);
+function resolveConfigPath(customPath) {
+  // 1) Explicit customPath, config_path action input, or CONFIG_FILE env override
+  const candidate = customPath || process.env.INPUT_CONFIG_PATH || process.env.CONFIG_FILE;
+  if (candidate) {
+    const absoluteEnvPath = path.isAbsolute(candidate)
+      ? candidate
+      : path.resolve(process.cwd(), candidate);
     if (fs.existsSync(absoluteEnvPath)) return absoluteEnvPath;
+    throw new Error(`Configuration file not found: ${candidate}`);
   }
 
   // 2) CWD/rules.yml (root level config)

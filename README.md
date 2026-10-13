@@ -16,6 +16,43 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 - **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
 - **Multi-Org Mastery**: Monitors activity across `bcgov` and `bcgov-c` simultaneously.
 
+## Usage as a GitHub Action
+
+You can consume Project Automator directly in your workflow without checking out the repository:
+
+```yaml
+name: Project Sync
+
+on:
+  schedule:
+    - cron: "0 * * * *" # Hourly
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sync:
+    name: Sync Board
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Project Automator
+        uses: bcgov/project-automator@v1
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          config_path: rules.yml
+          dry_run: false
+```
+
+### Action Inputs
+
+| Input | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `github_token` | **Yes** | — | Personal access token with `repo` and `project` scopes. |
+| `config_path` | No | `rules.yml` | Path to rules configuration file in the repository. |
+| `dry_run` | No | `false` | Run in read-only mode without mutating board items or watermarks. |
+| `backfill` | No | `''` | Backfill window for open items: `30d`-style or `all`. |
+| `verbose` | No | `true` | Enable verbose log output. |
+
 ## Automated Noise Exclusions
 
 To prevent automated noise and metadata artifacts from cluttering the project board, the engine early-skips issues and pull requests matching specific titles before applying rule transitions.

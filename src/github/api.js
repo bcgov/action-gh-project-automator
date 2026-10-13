@@ -33,7 +33,8 @@ let _graphql = null;
  */
 function getClients() {
   if (!_octokit || !_graphql) {
-    const token = process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN;
+    const token =
+      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
     if (!token) {
       throw new Error('GITHUB_TOKEN environment variable is not configured.');
     }
@@ -695,6 +696,37 @@ async function getRateLimit() {
   }
 }
 
+/**
+ * Fetch a file from the repository via GitHub API (for workflows running without checkout)
+ * @param {string} filePath - Path to file in repository
+ * @param {object} [options]
+ * @param {string} [options.repository] - Owner/repo (defaults to process.env.GITHUB_REPOSITORY)
+ * @param {string} [options.ref] - Commit SHA or ref (defaults to process.env.GITHUB_SHA or GITHUB_REF)
+ * @returns {Promise<string>} File contents as UTF-8 string
+ */
+async function fetchRepoFile(filePath, options = {}) {
+  const repository = options.repository || process.env.GITHUB_REPOSITORY;
+  if (!repository) {
+    throw new Error('GITHUB_REPOSITORY environment variable is not configured.');
+  }
+  const [owner, repo] = repository.split('/');
+  if (!owner || !repo) {
+    throw new Error(`Invalid repository identifier: ${repository}`);
+  }
+
+  const ref = options.ref || process.env.GITHUB_SHA || process.env.GITHUB_REF;
+  const { octokit } = getClients();
+  const params = { owner, repo, path: filePath };
+  if (ref) params.ref = ref;
+
+  const response = await octokit.rest.repos.getContent(params);
+  if (!response.data || !response.data.content) {
+    throw new Error(`File '${filePath}' in ${repository} is empty or not a file.`);
+  }
+
+  return Buffer.from(response.data.content, 'base64').toString('utf8');
+}
+
 export {
   getProjectBoardItems,
   getProjectItemState,
@@ -711,4 +743,5 @@ export {
   fetchLinkedIssuesForPullRequest,
   assignUserToItem,
   getRateLimit,
+  fetchRepoFile,
 };

@@ -1,5 +1,8 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import * as core from '@actions/core';
-import { loadBoardRules } from './config/board-rules.js';
+import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
 import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
@@ -25,8 +28,35 @@ async function run() {
   try {
     core.info('🚀 Starting Project Automator...');
 
-    // 1. Load rules.yml: the schema requires every setting read below
-    const config = loadBoardRules();
+    // Dry run configuration: CLI/action input or environment variable
+    const dryRun = core.getInput('dry_run');
+    if (dryRun === 'true' || process.env.DRY_RUN === 'true') {
+      process.env.DRY_RUN = 'true';
+      core.info('🔍 Running in DRY_RUN mode (read-only, mutations disabled).');
+    } else {
+      process.env.DRY_RUN = 'false';
+    }
+
+    // 1. Load rules.yml: resolve from local disk or fetch via GitHub API when running without checkout
+    const configPathInput = core.getInput('config_path') || process.env.CONFIG_FILE || 'rules.yml';
+    let resolvedConfigPath;
+    try {
+      resolvedConfigPath = resolveConfigPath(configPathInput);
+    } catch (err) {
+      if (process.env.GITHUB_REPOSITORY) {
+        core.info(
+          `Local config not found. Fetching '${configPathInput}' from ${process.env.GITHUB_REPOSITORY}...`
+        );
+        const content = await api.fetchRepoFile(configPathInput);
+        const tmpPath = path.join(os.tmpdir(), 'project-automator-rules.yml');
+        fs.writeFileSync(tmpPath, content, 'utf8');
+        resolvedConfigPath = tmpPath;
+      } else {
+        throw err;
+      }
+    }
+
+    const config = loadBoardRules(resolvedConfigPath);
     const projectUrl = config.project.url;
     const { allowedOrgs, organization } = config.project;
     const maintainerRepos = config.project.repositories;
