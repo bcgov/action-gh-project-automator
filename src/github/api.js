@@ -56,6 +56,10 @@ function getClients() {
   return { octokit: _octokit, graphql: _graphql };
 }
 
+function isItemArchivedError(err) {
+  return (err?.message || '').includes('The item is archived and cannot be updated');
+}
+
 /**
  * Exponential backoff wrapper for API operations
  */
@@ -64,7 +68,7 @@ async function withRetry(fn, retries = 3, delay = 1000) {
     try {
       return await fn();
     } catch (err) {
-      if (i === retries - 1) throw err;
+      if (isItemArchivedError(err) || i === retries - 1) throw err;
       core.warning(
         `GitHub API call failed (attempt ${i + 1}/${retries}). Retrying in ${delay}ms... Error: ${err.message}`
       );
@@ -395,19 +399,29 @@ async function updateItemColumn(projectId, projectItemId, columnName) {
       }
     }
   `;
-  const result = await withRetry(() =>
-    graphql(mutation, {
-      projectId,
-      itemId: projectItemId,
-      fieldId: meta.statusFieldId,
-      optionId: option.id,
-    })
-  );
-  requireUpdatedItem(
-    result,
-    'updateProjectV2ItemFieldValue',
-    `Setting ${projectItemId} Status to "${columnName}"`
-  );
+  try {
+    const result = await withRetry(() =>
+      graphql(mutation, {
+        projectId,
+        itemId: projectItemId,
+        fieldId: meta.statusFieldId,
+        optionId: option.id,
+      })
+    );
+    requireUpdatedItem(
+      result,
+      'updateProjectV2ItemFieldValue',
+      `Setting ${projectItemId} Status to "${columnName}"`
+    );
+  } catch (err) {
+    if (isItemArchivedError(err)) {
+      core.warning(
+        `Skipping ${projectItemId}: item is archived on the project board and cannot be updated.`
+      );
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -426,52 +440,66 @@ async function updateItemSprint(projectId, projectItemId, sprintId) {
     throw new Error('Sprint field was not found on the project board.');
   }
 
-  if (!sprintId) {
-    const mutation = `
-      mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
-        clearProjectV2ItemFieldValue(input: {
-          projectId: $projectId,
-          itemId: $itemId,
-          fieldId: $fieldId
-        }) {
-          projectV2Item { id }
+  try {
+    if (!sprintId) {
+      const mutation = `
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+          clearProjectV2ItemFieldValue(input: {
+            projectId: $projectId,
+            itemId: $itemId,
+            fieldId: $fieldId
+          }) {
+            projectV2Item { id }
+          }
         }
-      }
-    `;
-    const result = await withRetry(() =>
-      graphql(mutation, {
-        projectId,
-        itemId: projectItemId,
-        fieldId: meta.sprintFieldId,
-      })
-    );
-    requireUpdatedItem(result, 'clearProjectV2ItemFieldValue', `Clearing ${projectItemId} Sprint`);
-  } else {
-    const mutation = `
-      mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
-        updateProjectV2ItemFieldValue(input: {
-          projectId: $projectId,
-          itemId: $itemId,
-          fieldId: $fieldId,
-          value: { iterationId: $iterationId }
-        }) {
-          projectV2Item { id }
+      `;
+      const result = await withRetry(() =>
+        graphql(mutation, {
+          projectId,
+          itemId: projectItemId,
+          fieldId: meta.sprintFieldId,
+        })
+      );
+      requireUpdatedItem(
+        result,
+        'clearProjectV2ItemFieldValue',
+        `Clearing ${projectItemId} Sprint`
+      );
+    } else {
+      const mutation = `
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+          updateProjectV2ItemFieldValue(input: {
+            projectId: $projectId,
+            itemId: $itemId,
+            fieldId: $fieldId,
+            value: { iterationId: $iterationId }
+          }) {
+            projectV2Item { id }
+          }
         }
-      }
-    `;
-    const result = await withRetry(() =>
-      graphql(mutation, {
-        projectId,
-        itemId: projectItemId,
-        fieldId: meta.sprintFieldId,
-        iterationId: sprintId,
-      })
-    );
-    requireUpdatedItem(
-      result,
-      'updateProjectV2ItemFieldValue',
-      `Setting ${projectItemId} Sprint to ${sprintId}`
-    );
+      `;
+      const result = await withRetry(() =>
+        graphql(mutation, {
+          projectId,
+          itemId: projectItemId,
+          fieldId: meta.sprintFieldId,
+          iterationId: sprintId,
+        })
+      );
+      requireUpdatedItem(
+        result,
+        'updateProjectV2ItemFieldValue',
+        `Setting ${projectItemId} Sprint to ${sprintId}`
+      );
+    }
+  } catch (err) {
+    if (isItemArchivedError(err)) {
+      core.warning(
+        `Skipping ${projectItemId}: item is archived on the project board and cannot be updated.`
+      );
+      return;
+    }
+    throw err;
   }
 }
 
@@ -482,7 +510,12 @@ function readItemState(node) {
   const sprint = node?.sprint?.iterationId
     ? { id: node.sprint.iterationId, title: node.sprint.title }
     : null;
-  return { projectItemId: node.id, column: node?.status?.name || null, sprint };
+  return {
+    projectItemId: node.id,
+    column: node?.status?.name || null,
+    sprint,
+    isArchived: Boolean(node?.isArchived),
+  };
 }
 
 function itemStateFields() {
@@ -500,7 +533,7 @@ function itemStateFields() {
 /**
  * Every item on the board, read from the project side (paginated, 100 per call).
  * @param {string} projectId
- * @returns {Promise<{ items: Map<string, {projectItemId: string, column: string|null, sprint: object|null}>, calls: number }>}
+ * @returns {Promise<{ items: Map<string, {projectItemId: string, column: string|null, sprint: object|null, isArchived: boolean}>, calls: number }>}
  *   Keyed by the issue or PR node id
  */
 async function getProjectBoardItems(projectId) {
@@ -512,6 +545,7 @@ async function getProjectBoardItems(projectId) {
           items(first: 100, after: $cursor) {
             nodes {
               id
+              isArchived
               content { ... on Issue { id } ... on PullRequest { id } }
               ${itemStateFields()}
             }
@@ -540,17 +574,17 @@ async function getProjectBoardItems(projectId) {
 /**
  * Status and Sprint of one project item.
  * @param {string} projectItemId
- * @returns {Promise<{projectItemId: string, column: string|null, sprint: object|null}>}
+ * @returns {Promise<{projectItemId: string, column: string|null, sprint: object|null, isArchived: boolean}>}
  */
 async function getProjectItemState(projectItemId) {
   if (process.env.DRY_RUN === 'true') {
-    return { projectItemId, column: null, sprint: null };
+    return { projectItemId, column: null, sprint: null, isArchived: false };
   }
   const { graphql } = getClients();
   const query = `
     query($itemId: ID!) {
       node(id: $itemId) {
-        ... on ProjectV2Item { id ${itemStateFields()} }
+        ... on ProjectV2Item { id isArchived ${itemStateFields()} }
       }
     }
   `;
@@ -570,6 +604,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
             nodes {
               id
               number
+              state
               repository { nameWithOwner }
               ${PROJECT_ITEMS_FRAGMENT}
             }
@@ -585,6 +620,9 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
     return {
       id: node.id,
       number: node.number,
+      state: node.state,
+      isClosed: node.state === 'CLOSED',
+      isArchived: Boolean(board?.isArchived),
       repository: node.repository,
       projectItemId: board?.projectItemId || null,
       column: board?.column || null,

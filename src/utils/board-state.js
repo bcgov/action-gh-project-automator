@@ -15,6 +15,7 @@ export function boardState(item, projectId) {
     projectItemId: projectItem.id,
     column: projectItem.status?.name || null,
     sprint,
+    isArchived: Boolean(projectItem.isArchived),
   };
 }
 
@@ -31,6 +32,7 @@ export function projectItemsFragment(fields) {
   projectItems(first: 20, includeArchived: true) {
     nodes {
       id
+      isArchived
       project { id }
       status: fieldValueByName(name: ${JSON.stringify(fields.status)}) {
         ... on ProjectV2ItemFieldSingleSelectValue { name }
