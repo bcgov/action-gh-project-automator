@@ -10,18 +10,18 @@
 
 const schema = {
   type: 'object',
-  required: ['project', 'automation', 'technical', 'board_columns', 'sprints', 'exclusions'],
+  required: ['project', 'automation', 'technical', 'board_columns', 'exclusions'],
   properties: {
     project: {
       type: 'object',
-      required: ['url', 'organization', 'allowedOrgs', 'fields'],
+      required: ['url', 'organization', 'fields'],
       properties: {
         url: { type: 'string', pattern: '^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$' },
         organization: { type: 'string', minLength: 1 },
         allowedOrgs: { type: 'array', items: { type: 'string' }, minItems: 1 },
         fields: {
           type: 'object',
-          required: ['status', 'sprint'],
+          required: ['status'],
           properties: {
             status: { type: 'string', minLength: 1 },
             sprint: { type: 'string', minLength: 1 },
@@ -33,7 +33,7 @@ const schema = {
     },
     automation: {
       type: 'object',
-      required: ['user_scope', 'repository_scope'],
+      required: ['repository_scope'],
       properties: {
         user_scope: {
           type: 'object',

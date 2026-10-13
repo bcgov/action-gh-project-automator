@@ -9,20 +9,28 @@ import ConfigLoader from './loader.js';
  * @returns {object} The parsed and validated configuration
  */
 
+import { projectOwnerFromUrl } from '../utils/board-lookup.js';
+
 function loadBoardRules(configPath = resolveConfigPath()) {
   const loader = new ConfigLoader();
   const config = loader.load(configPath);
+
+  // Default allowedOrgs to the owner parsed from project.url when omitted
+  if (!config.project.allowedOrgs || config.project.allowedOrgs.length === 0) {
+    config.project.allowedOrgs = [projectOwnerFromUrl(config.project.url)];
+  }
 
   // Normalize the new scope-based structure to the old flat structure for backward compatibility
   if (config.automation) {
     config.rules = mergeRuleScopes(config.automation);
     config.project = {
       ...config.project,
-      repositories: config.automation.repository_scope.repositories,
+      repositories: config.automation.repository_scope?.repositories || [],
     };
 
-    // Every listed user is monitored (the schema requires at least one)
-    config.monitoredUsers = config.automation.user_scope.monitored_users;
+    config.monitoredUsers = config.automation.user_scope?.monitored_users || [];
+  } else {
+    config.monitoredUsers = [];
   }
 
   return config;
