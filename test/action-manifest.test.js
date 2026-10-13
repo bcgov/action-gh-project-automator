@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as yaml from 'js-yaml';
 import { resolveConfigPath } from '../src/config/board-rules.js';
+import { fetchRepoFile } from '../src/github/api.js';
 
 const manifestPath = new URL('../action.yml', import.meta.url);
 const manifest = yaml.load(fs.readFileSync(manifestPath, 'utf8'));
@@ -51,4 +52,38 @@ test('resolveConfigPath respects custom path and INPUT_CONFIG_PATH', () => {
     () => resolveConfigPath('non-existent-rules.yml'),
     /Configuration file not found: non-existent-rules\.yml/
   );
+});
+
+test('fetchRepoFile retrieves and decodes base64 file content without checkout', async () => {
+  process.env.GITHUB_TOKEN = 'test-token';
+  const originalRepo = process.env.GITHUB_REPOSITORY;
+  const originalFetch = globalThis.fetch;
+
+  process.env.GITHUB_REPOSITORY = 'bcgov/test-repo';
+
+  const mockYaml = 'project:\n  url: "https://github.com/orgs/bcgov/projects/16"\n';
+  const base64Content = Buffer.from(mockYaml, 'utf8').toString('base64');
+
+  globalThis.fetch = async (url) => {
+    assert.match(url.toString(), /repos\/bcgov\/test-repo\/contents\/rules\.yml/);
+    return new Response(
+      JSON.stringify({
+        content: base64Content,
+        encoding: 'base64',
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    );
+  };
+
+  try {
+    const fetched = await fetchRepoFile('rules.yml');
+    assert.strictEqual(fetched, mockYaml);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalRepo !== undefined) {
+      process.env.GITHUB_REPOSITORY = originalRepo;
+    } else {
+      delete process.env.GITHUB_REPOSITORY;
+    }
+  }
 });

@@ -18,7 +18,7 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 
 ## Usage as a GitHub Action
 
-You can consume Project Automator directly in your workflow:
+You can consume Project Automator directly in your workflow without checking out the repository:
 
 ```yaml
 name: Project Sync
@@ -35,8 +35,6 @@ jobs:
     name: Sync Board
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
       - name: Run Project Automator
         uses: bcgov/project-automator@v1
         with:
