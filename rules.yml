@@ -65,16 +65,22 @@ automation:
       - bcgov/actions
       - bcgov/actions-openshift
       - bcgov/devops-scripts
-      - bcgov/project-automator
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-modules
       - bcgov/renovate-config
       # FSD
       - bcgov/action-repo-reporter
-      - bcgov/nr-fom
-      - bcgov/nr-hydrometric-rating-curve
-      - bcgov/nr-results-exam
+      - bcgov-c/nr-mof-db
       - bcgov/nr-seedtransfer-map
+      - bcgov/project-automator
+      # Maint
+      - bcgov/action-gwa-publish
+      - bcgov/nr-fom
+      - bcgov/nr-forest-client-commons
+      - bcgov/nr-hydrometric-rating-curve
+      - bcgov/nr-old-growth
+      - bcgov/nr-results-exam
+      - bcgov/pubcode
 
     rules:
       # Board addition rules
