@@ -70,7 +70,7 @@ automation:
       - bcgov/renovate-config
       # FSD
       - bcgov/action-repo-reporter
-      - bcgov/nr-mof-db
+      - bcgov-c/nr-mof-db
       - bcgov/nr-seedtransfer-map
       - bcgov/project-automator
       # Maint
