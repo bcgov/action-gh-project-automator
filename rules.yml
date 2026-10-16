@@ -80,7 +80,7 @@ automation:
       - bcgov/nr-old-growth
       - bcgov/nr-results-exam
       - bcgov/pubcode
-      # Personal
+      # Derek's work (brain)
       - DerekRoberts/brain
 
     rules:
