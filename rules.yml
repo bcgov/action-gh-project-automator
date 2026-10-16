@@ -80,6 +80,8 @@ automation:
       - bcgov/nr-old-growth
       - bcgov/nr-results-exam
       - bcgov/pubcode
+      # Derek's work (brain)
+      - DerekRoberts/brain
 
     rules:
       # Board addition rules
