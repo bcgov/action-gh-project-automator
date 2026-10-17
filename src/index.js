@@ -1,10 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import * as core from '@actions/core';
 import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
-import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
+import {
+  determineLinkedIssueColumn,
+  determineTargetColumn,
+  getConfiguredColumns,
+  validateBoardColumns,
+} from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
@@ -24,13 +30,13 @@ import {
   shouldSaveWatermark,
 } from './utils/backfill.js';
 
-async function run() {
+async function run(options = {}) {
   try {
     core.info('🚀 Starting Project Automator...');
 
     // Dry run configuration: CLI/action input or environment variable
-    const dryRun = core.getInput('dry_run');
-    if (dryRun === 'true' || process.env.DRY_RUN === 'true') {
+    const dryRun = options.dryRun !== undefined ? String(options.dryRun) : core.getInput('dry_run');
+    if (dryRun === 'true' || process.env.DRY_RUN === 'true' || process.argv.includes('--dry-run')) {
       process.env.DRY_RUN = 'true';
       core.info('🔍 Running in DRY_RUN mode (read-only, mutations disabled).');
     } else {
@@ -38,7 +44,8 @@ async function run() {
     }
 
     // 1. Load rules.yml: resolve from local disk or fetch via GitHub API when running without checkout
-    const configPathInput = core.getInput('config_path') || process.env.CONFIG_FILE || 'rules.yml';
+    const configPathInput =
+      options.configPath || core.getInput('config_path') || process.env.CONFIG_FILE || 'rules.yml';
     let resolvedConfigPath;
     try {
       resolvedConfigPath = resolveConfigPath(configPathInput);
@@ -72,6 +79,19 @@ async function run() {
     core.info(`Monitored Users: ${monitoredUsers.join(', ')}`);
 
     // 2. Resolve Project Board and Fields
+    const token =
+      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+    const isDryRun = process.env.DRY_RUN === 'true';
+    const isValidateOnly = process.argv.includes('--validate');
+
+    if (!token && (isDryRun || isValidateOnly)) {
+      core.info('✔ Offline validation passed: configuration syntax and schema are valid.');
+      core.warning(
+        'GITHUB_TOKEN not configured; skipping remote project board connectivity, column verification, and planned mutation reporting.'
+      );
+      return;
+    }
+
     core.info('Resolving Project Board ID...');
     const projectId = await api.getProjectId(projectUrl);
     if (!projectId) {
@@ -79,10 +99,17 @@ async function run() {
     }
     core.info(`Resolved Project ID: ${projectId}`);
 
-    let meta = { currentSprintId: null, currentSprintTitle: null, sprintFieldId: null };
+    core.info('Fetching Project Metadata & Columns...');
+    const meta = await api.getProjectMetadata(projectId);
+    if (!meta.statusFieldId) {
+      throw new Error(
+        `Status field "${config.project.fields.status}" was not found on the project board.`
+      );
+    }
+    validateBoardColumns(getConfiguredColumns(config), meta.statusOptions);
+    core.info('✔ Configured status columns verified against project board.');
+
     if (config.project.fields.sprint && config.sprints) {
-      core.info('Fetching Project Metadata & Iterations...');
-      meta = await api.getProjectMetadata(projectId);
       core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
       if (meta.currentSprintTitle) {
         core.info(
@@ -93,6 +120,11 @@ async function run() {
       }
     } else {
       core.info('Sprint tracking not configured; bypassing iteration resolution.');
+    }
+
+    if (isValidateOnly) {
+      core.info('✔ Remote board connectivity and status columns validated successfully.');
+      return;
     }
 
     // Membership, column and sprint: from search results, or the board's item list for cross-org items
@@ -397,7 +429,11 @@ async function run() {
     summaryHtml += formatResultCounts(summaryReport);
     summaryHtml += formatBoardFetch(board.stats);
     summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
-    await core.summary.addRaw(summaryHtml).write();
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      await core.summary.addRaw(summaryHtml).write();
+    } else {
+      core.info(summaryHtml);
+    }
 
     // Only a fully successful normal run moves the watermark forward, so failed items are retried
     if (shouldSaveWatermark({ backfill, hasFailure })) {
@@ -414,7 +450,25 @@ async function run() {
     core.info('🎉 All operations completed successfully.');
   } catch (error) {
     core.setFailed(`Engine execution crashed: ${error.message}`);
+    throw error;
   }
 }
 
-run();
+export { run };
+
+function isDirectExecution() {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = fileURLToPath(import.meta.url);
+    const entryPath = path.resolve(process.argv[1]);
+    return scriptPath === entryPath || fs.realpathSync(scriptPath) === fs.realpathSync(entryPath);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectExecution()) {
+  run().catch(() => {
+    process.exitCode = 1;
+  });
+}

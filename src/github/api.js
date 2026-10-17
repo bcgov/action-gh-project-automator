@@ -374,11 +374,6 @@ async function addItemToProject(nodeId, projectId, label = nodeId) {
  * Update an item's status column
  */
 async function updateItemColumn(projectId, projectItemId, columnName) {
-  if (process.env.DRY_RUN === 'true') {
-    core.info(`[DRY RUN] Would update item ${projectItemId} Status to "${columnName}"`);
-    return;
-  }
-  const { graphql } = getClients();
   const meta = await getProjectMetadata(projectId);
   if (!meta.statusFieldId) {
     throw new Error('Status field was not found on the project board.');
@@ -387,6 +382,11 @@ async function updateItemColumn(projectId, projectItemId, columnName) {
   if (!option) {
     throw new Error(`Column "${columnName}" not found on the project board.`);
   }
+  if (process.env.DRY_RUN === 'true') {
+    core.info(`[DRY RUN] Would update item ${projectItemId} Status to "${columnName}"`);
+    return;
+  }
+  const { graphql } = getClients();
 
   const mutation = `
     mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
