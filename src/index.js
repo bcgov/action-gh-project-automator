@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import * as core from '@actions/core';
 import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
@@ -29,12 +30,12 @@ import {
   shouldSaveWatermark,
 } from './utils/backfill.js';
 
-async function run() {
+async function run(options = {}) {
   try {
     core.info('🚀 Starting Project Automator...');
 
     // Dry run configuration: CLI/action input or environment variable
-    const dryRun = core.getInput('dry_run');
+    const dryRun = options.dryRun !== undefined ? String(options.dryRun) : core.getInput('dry_run');
     if (dryRun === 'true' || process.env.DRY_RUN === 'true' || process.argv.includes('--dry-run')) {
       process.env.DRY_RUN = 'true';
       core.info('🔍 Running in DRY_RUN mode (read-only, mutations disabled).');
@@ -43,7 +44,8 @@ async function run() {
     }
 
     // 1. Load rules.yml: resolve from local disk or fetch via GitHub API when running without checkout
-    const configPathInput = core.getInput('config_path') || process.env.CONFIG_FILE || 'rules.yml';
+    const configPathInput =
+      options.configPath || core.getInput('config_path') || process.env.CONFIG_FILE || 'rules.yml';
     let resolvedConfigPath;
     try {
       resolvedConfigPath = resolveConfigPath(configPathInput);
@@ -427,7 +429,11 @@ async function run() {
     summaryHtml += formatResultCounts(summaryReport);
     summaryHtml += formatBoardFetch(board.stats);
     summaryHtml += formatApiUsage(apiUsage, await api.getRateLimit());
-    await core.summary.addRaw(summaryHtml).write();
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      await core.summary.addRaw(summaryHtml).write();
+    } else {
+      core.info(summaryHtml);
+    }
 
     // Only a fully successful normal run moves the watermark forward, so failed items are retried
     if (shouldSaveWatermark({ backfill, hasFailure })) {
@@ -444,15 +450,25 @@ async function run() {
     core.info('🎉 All operations completed successfully.');
   } catch (error) {
     core.setFailed(`Engine execution crashed: ${error.message}`);
+    throw error;
   }
 }
 
 export { run };
 
-if (
-  process.argv[1] &&
-  !process.argv[1].endsWith('validate.js') &&
-  !process.argv[1].includes('node_modules')
-) {
-  run();
+function isDirectExecution() {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = fileURLToPath(import.meta.url);
+    const entryPath = path.resolve(process.argv[1]);
+    return scriptPath === entryPath || fs.realpathSync(scriptPath) === fs.realpathSync(entryPath);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectExecution()) {
+  run().catch(() => {
+    process.exitCode = 1;
+  });
 }

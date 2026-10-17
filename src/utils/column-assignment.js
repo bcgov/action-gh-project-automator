@@ -99,12 +99,12 @@ export function getConfiguredColumns(config) {
   if (bc) {
     if (Array.isArray(bc.locked)) {
       bc.locked.forEach((col) => {
-        if (typeof col === 'string' && col.trim() !== '') columns.add(col.trim());
+        if (typeof col === 'string' && col.length > 0) columns.add(col);
       });
     }
     const addIfValid = (val) => {
-      if (typeof val === 'string' && val !== KEEP && val.trim() !== '') {
-        columns.add(val.trim());
+      if (typeof val === 'string' && val !== KEEP && val.length > 0) {
+        columns.add(val);
       }
     };
     if (bc.pull_request) {
@@ -125,8 +125,8 @@ export function getConfiguredColumns(config) {
     ['assign_current', 'assign_current_if_empty', 'clear'].forEach((key) => {
       if (Array.isArray(config.sprints[key])) {
         config.sprints[key].forEach((col) => {
-          if (typeof col === 'string' && col.trim() !== '') {
-            columns.add(col.trim());
+          if (typeof col === 'string' && col.length > 0) {
+            columns.add(col);
           }
         });
       }

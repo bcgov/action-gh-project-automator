@@ -310,3 +310,74 @@ test('updateItemColumn in DRY_RUN mode validates column existence before logging
     }
   }
 });
+
+test('getConfiguredColumns preserves exact column names without trimming', () => {
+  const config = {
+    board_columns: {
+      locked: [' Waiting '],
+      pull_request: {
+        ready: ' Active ',
+        draft: 'keep',
+        draft_no_status: ' New ',
+      },
+      linked_issue: {
+        ready: ' Active ',
+        draft: 'keep',
+        closed: ' Next ',
+      },
+      issue: {
+        no_status: ' New ',
+      },
+    },
+    sprints: {
+      assign_current: [' Done '],
+      assign_current_if_empty: [' Waiting '],
+      clear: [' Backlog '],
+    },
+  };
+
+  const columns = getConfiguredColumns(config);
+  assert.ok(columns.includes(' Waiting '));
+  assert.ok(columns.includes(' Active '));
+  assert.ok(columns.includes(' New '));
+  assert.ok(columns.includes(' Next '));
+  assert.ok(columns.includes(' Done '));
+  assert.ok(columns.includes(' Backlog '));
+  assert.strictEqual(columns.includes('Active'), false);
+});
+
+test('validate() with dryRun propagates engine failures to caller', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'mock-token';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    const body = options?.body ? JSON.parse(options.body) : {};
+    if (body.query?.includes('organization(login: $org)')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            organization: { projectV2: { id: 'PVT_ERR_TEST' } },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    }
+    // Fail getProjectMetadata during dry-run execution
+    return new Response(JSON.stringify({ errors: [{ message: 'GraphQL failure' }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    await assert.rejects(() => validate({ dryRun: true }), /GraphQL failure/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken !== undefined) {
+      process.env.GITHUB_TOKEN = originalToken;
+    } else {
+      delete process.env.GITHUB_TOKEN;
+    }
+  }
+});

@@ -66,7 +66,7 @@ export async function validate(options = {}) {
     core.info('🔍 Running dry-run to report planned mutations...');
     process.env.DRY_RUN = 'true';
     const { run } = await import('./index.js');
-    await run();
+    await run({ configPath: resolvedConfigPath, dryRun: true });
   }
 
   return { valid: true, offline: false, config, projectId, meta };
