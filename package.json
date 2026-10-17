@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "ncc build src/index.js -o dist",
-    "validate": "node scripts/validate.js",
+    "validate": "node src/validate.js",
     "test": "node --test test/*.test.* test/*/*.test.*",
     "start": "node src/index.js",
     "test:state": "node --test test/state-verifier.test.js",

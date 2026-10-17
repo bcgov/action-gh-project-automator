@@ -86,3 +86,71 @@ export function determineLinkedIssueColumn(pr, currentColumn, policy, options = 
   }
   return apply(resolved.linked_issue[pullRequestState(pr)], current);
 }
+
+/**
+ * Extract all unique target column names defined in rules.yml policy.
+ * Ignores 'keep' since that leaves the item in its existing column.
+ * @param {object} config - Parsed configuration from rules.yml
+ * @returns {Array<string>} List of unique column names
+ */
+export function getConfiguredColumns(config) {
+  const columns = new Set();
+  const bc = config?.board_columns;
+  if (bc) {
+    if (Array.isArray(bc.locked)) {
+      bc.locked.forEach((col) => {
+        if (typeof col === 'string' && col.trim() !== '') columns.add(col.trim());
+      });
+    }
+    const addIfValid = (val) => {
+      if (typeof val === 'string' && val !== KEEP && val.trim() !== '') {
+        columns.add(val.trim());
+      }
+    };
+    if (bc.pull_request) {
+      addIfValid(bc.pull_request.ready);
+      addIfValid(bc.pull_request.draft);
+      addIfValid(bc.pull_request.draft_no_status);
+    }
+    if (bc.linked_issue) {
+      addIfValid(bc.linked_issue.ready);
+      addIfValid(bc.linked_issue.draft);
+      addIfValid(bc.linked_issue.closed);
+    }
+    if (bc.issue) {
+      addIfValid(bc.issue.no_status);
+    }
+  }
+  if (config?.sprints) {
+    ['assign_current', 'assign_current_if_empty', 'clear'].forEach((key) => {
+      if (Array.isArray(config.sprints[key])) {
+        config.sprints[key].forEach((col) => {
+          if (typeof col === 'string' && col.trim() !== '') {
+            columns.add(col.trim());
+          }
+        });
+      }
+    });
+  }
+  return Array.from(columns);
+}
+
+/**
+ * Validates configured columns against available status options on the project board.
+ * @param {Array<string>} configuredColumns - Column names from rules.yml
+ * @param {Array<{id: string, name: string}>} statusOptions - Single-select options from Project board
+ * @throws {Error} When configured columns are missing from the project board
+ */
+export function validateBoardColumns(configuredColumns, statusOptions = []) {
+  if (!Array.isArray(statusOptions) || statusOptions.length === 0) {
+    throw new Error('Project board has no status columns configured.');
+  }
+  const availableNames = new Set(statusOptions.map((opt) => opt.name));
+  const missing = configuredColumns.filter((col) => !availableNames.has(col));
+  if (missing.length > 0) {
+    const availableList = statusOptions.map((opt) => `"${opt.name}"`).join(', ');
+    throw new Error(
+      `Status columns in rules.yml not found on project board: ${missing.map((c) => `"${c}"`).join(', ')}. Available columns: ${availableList}`
+    );
+  }
+}

@@ -4,7 +4,12 @@ import os from 'node:os';
 import * as core from '@actions/core';
 import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
-import { determineLinkedIssueColumn, determineTargetColumn } from './utils/column-assignment.js';
+import {
+  determineLinkedIssueColumn,
+  determineTargetColumn,
+  getConfiguredColumns,
+  validateBoardColumns,
+} from './utils/column-assignment.js';
 import { isTitleExcluded } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
@@ -30,7 +35,7 @@ async function run() {
 
     // Dry run configuration: CLI/action input or environment variable
     const dryRun = core.getInput('dry_run');
-    if (dryRun === 'true' || process.env.DRY_RUN === 'true') {
+    if (dryRun === 'true' || process.env.DRY_RUN === 'true' || process.argv.includes('--dry-run')) {
       process.env.DRY_RUN = 'true';
       core.info('🔍 Running in DRY_RUN mode (read-only, mutations disabled).');
     } else {
@@ -72,6 +77,19 @@ async function run() {
     core.info(`Monitored Users: ${monitoredUsers.join(', ')}`);
 
     // 2. Resolve Project Board and Fields
+    const token =
+      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+    const isDryRun = process.env.DRY_RUN === 'true';
+    const isValidateOnly = process.argv.includes('--validate');
+
+    if (!token && (isDryRun || isValidateOnly)) {
+      core.info('✔ Offline validation passed: configuration syntax and schema are valid.');
+      core.warning(
+        'GITHUB_TOKEN not configured; skipping remote project board connectivity, column verification, and planned mutation reporting.'
+      );
+      return;
+    }
+
     core.info('Resolving Project Board ID...');
     const projectId = await api.getProjectId(projectUrl);
     if (!projectId) {
@@ -79,10 +97,17 @@ async function run() {
     }
     core.info(`Resolved Project ID: ${projectId}`);
 
-    let meta = { currentSprintId: null, currentSprintTitle: null, sprintFieldId: null };
+    core.info('Fetching Project Metadata & Columns...');
+    const meta = await api.getProjectMetadata(projectId);
+    if (!meta.statusFieldId) {
+      throw new Error(
+        `Status field "${config.project.fields.status}" was not found on the project board.`
+      );
+    }
+    validateBoardColumns(getConfiguredColumns(config), meta.statusOptions);
+    core.info('✔ Configured status columns verified against project board.');
+
     if (config.project.fields.sprint && config.sprints) {
-      core.info('Fetching Project Metadata & Iterations...');
-      meta = await api.getProjectMetadata(projectId);
       core.info(`Sprint Field Present: ${!!meta.sprintFieldId}`);
       if (meta.currentSprintTitle) {
         core.info(
@@ -93,6 +118,11 @@ async function run() {
       }
     } else {
       core.info('Sprint tracking not configured; bypassing iteration resolution.');
+    }
+
+    if (isValidateOnly) {
+      core.info('✔ Remote board connectivity and status columns validated successfully.');
+      return;
     }
 
     // Membership, column and sprint: from search results, or the board's item list for cross-org items
@@ -417,4 +447,12 @@ async function run() {
   }
 }
 
-run();
+export { run };
+
+if (
+  process.argv[1] &&
+  !process.argv[1].endsWith('validate.js') &&
+  !process.argv[1].includes('node_modules')
+) {
+  run();
+}
