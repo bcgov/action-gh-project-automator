@@ -44,9 +44,6 @@ export async function validate(options = {}) {
   core.info(`Verifying project board connectivity: ${config.project.url}...`);
   api.setProjectFields(config.project.fields);
   const projectId = await api.getProjectId(config.project.url);
-  if (!projectId) {
-    throw new Error(`Failed to resolve Project ID from URL: ${config.project.url}`);
-  }
   core.info(`✔ Connected to Project Board (ID: ${projectId}).`);
 
   const meta = await api.getProjectMetadata(projectId);
@@ -61,6 +58,9 @@ export async function validate(options = {}) {
   core.info(
     `✔ Configured status columns verified against project board: ${configuredColumns.join(', ')}.`
   );
+
+  await api.requireReadableRepositories(config.project.organization, config.project.repositories);
+  core.info(`✔ Token can read all ${config.project.repositories.length} monitored repositories.`);
 
   if (dryRun) {
     core.info('🔍 Running dry-run to report planned mutations...');

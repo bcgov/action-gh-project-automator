@@ -144,6 +144,14 @@ test('validate() verifies remote board and columns when credentials present', as
         { status: 200, headers: { 'content-type': 'application/json' } }
       );
     }
+    if (body.query?.includes('repository(owner:')) {
+      // Every monitored repository is readable
+      const aliases = [...body.query.matchAll(/(r\d+): repository\(/g)].map((m) => m[1]);
+      return new Response(
+        JSON.stringify({ data: Object.fromEntries(aliases.map((a) => [a, { id: `R_${a}` }])) }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    }
     if (body.query?.includes('node(id: $projectId)')) {
       return new Response(
         JSON.stringify({

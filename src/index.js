@@ -54,7 +54,15 @@ async function run(options = {}) {
         core.info(
           `Local config not found. Fetching '${configPathInput}' from ${process.env.GITHUB_REPOSITORY}...`
         );
-        const content = await api.fetchRepoFile(configPathInput);
+        let content;
+        try {
+          content = await api.fetchRepoFile(configPathInput);
+        } catch (fetchErr) {
+          throw new Error(
+            `Cannot read '${configPathInput}' from ${process.env.GITHUB_REPOSITORY}: ${fetchErr.message}. Check config_path, add actions/checkout before this step, or give the token read access to the repository contents.`,
+            { cause: fetchErr }
+          );
+        }
         const tmpPath = path.join(os.tmpdir(), 'project-automator-rules.yml');
         fs.writeFileSync(tmpPath, content, 'utf8');
         resolvedConfigPath = tmpPath;
@@ -84,7 +92,11 @@ async function run(options = {}) {
     const isDryRun = process.env.DRY_RUN === 'true';
     const isValidateOnly = process.argv.includes('--validate');
 
-    if (!token && (isDryRun || isValidateOnly)) {
+    // Command-line dry runs and --validate can check the config offline; an action run needs a token
+    if (!token) {
+      if (process.env.GITHUB_ACTIONS === 'true' || !(isDryRun || isValidateOnly)) {
+        throw new Error(api.NO_TOKEN_MESSAGE);
+      }
       core.info('✔ Offline validation passed: configuration syntax and schema are valid.');
       core.warning(
         'GITHUB_TOKEN not configured; skipping remote project board connectivity, column verification, and planned mutation reporting.'
@@ -94,9 +106,6 @@ async function run(options = {}) {
 
     core.info('Resolving Project Board ID...');
     const projectId = await api.getProjectId(projectUrl);
-    if (!projectId) {
-      throw new Error(`Failed to resolve Project ID from URL: ${projectUrl}`);
-    }
     core.info(`Resolved Project ID: ${projectId}`);
 
     core.info('Fetching Project Metadata & Columns...');
@@ -121,6 +130,9 @@ async function run(options = {}) {
     } else {
       core.info('Sprint tracking not configured; bypassing iteration resolution.');
     }
+
+    await api.requireReadableRepositories(organization, maintainerRepos);
+    core.info(`✔ Token can read all ${maintainerRepos.length} monitored repositories.`);
 
     if (isValidateOnly) {
       core.info('✔ Remote board connectivity and status columns validated successfully.');

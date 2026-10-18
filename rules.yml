@@ -79,7 +79,7 @@ automation:
       - bcgov/nr-old-growth
       - bcgov/nr-results-exam
       - bcgov/pubcode
-      # Derek's work (brain)
+      # The maintainer's work (brain)
       - DerekRoberts/brain
 
     rules:

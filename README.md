@@ -142,6 +142,15 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
+#### Access Failures
+
+A run fails, with a non-zero exit and a message naming what to fix, when:
+
+- The token can't read the project board.
+- The token can't read a repository in `automation.repository_scope.repositories`. This is checked before any search, because GitHub search skips a repository it can't read without an error.
+- A search fails. The watermark isn't saved, so the next run searches the same window again.
+- The token is empty in an Actions run, including `dry_run: true`. From the command line, `--dry-run` and `--validate` without a token still check `rules.yml` offline.
+
 #### Adding the Secret to GitHub Actions
 
 1. Copy the generated token string (`ghp_...`).
