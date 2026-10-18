@@ -28,6 +28,13 @@ import { buildSearchQueries } from './queries.js';
 let _octokit = null;
 let _graphql = null;
 
+// Token permissions the engine needs, named in access errors
+export const TOKEN_HELP =
+  'A fine-grained token needs Projects read and write on the organization that owns the project, and read access to each monitored repository; a classic token needs the project and repo scopes. See the README token section.';
+
+export const NO_TOKEN_MESSAGE =
+  'No token: set the github_token action input (or GITHUB_TOKEN when running from the command line). An empty value usually means the secret name is wrong or the secret is not available to this workflow.';
+
 /**
  * Lazy-initialize the REST and GraphQL clients
  */
@@ -36,7 +43,7 @@ function getClients() {
     const token =
       process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
     if (!token) {
-      throw new Error('GITHUB_TOKEN environment variable is not configured.');
+      throw new Error(NO_TOKEN_MESSAGE);
     }
     _octokit = new Octokit({ auth: token });
     // Count every call for the job summary
@@ -80,7 +87,8 @@ async function withRetry(fn, retries = 3, delay = 1000) {
 }
 
 /**
- * Resolves the Project ID from a standard project URL
+ * Resolves the Project ID from a standard project URL.
+ * Throws with the token permissions to check when the project can't be read.
  */
 async function getProjectId(projectUrl) {
   const { graphql } = getClients();
@@ -90,40 +98,36 @@ async function getProjectId(projectUrl) {
   }
   const [, type, owner, numberStr] = match;
   const number = parseInt(numberStr, 10);
+  const [ownerField, ownerVar] = type === 'orgs' ? ['organization', 'org'] : ['user', 'user'];
 
-  if (type === 'orgs') {
-    const result = await withRetry(() =>
+  let result;
+  try {
+    result = await withRetry(() =>
       graphql(
         `
-          query ($org: String!, $number: Int!) {
-            organization(login: $org) {
+          query ($${ownerVar}: String!, $number: Int!) {
+            ${ownerField}(login: $${ownerVar}) {
               projectV2(number: $number) {
                 id
               }
             }
           }
         `,
-        { org: owner, number }
+        { [ownerVar]: owner, number }
       )
     );
-    return result.organization?.projectV2?.id;
-  } else {
-    const result = await withRetry(() =>
-      graphql(
-        `
-          query ($user: String!, $number: Int!) {
-            user(login: $user) {
-              projectV2(number: $number) {
-                id
-              }
-            }
-          }
-        `,
-        { user: owner, number }
-      )
-    );
-    return result.user?.projectV2?.id;
+  } catch (err) {
+    throw new Error(`Cannot read project ${projectUrl}: ${err.message}. ${TOKEN_HELP}`, {
+      cause: err,
+    });
   }
+  const id = result?.[ownerField]?.projectV2?.id;
+  if (!id) {
+    throw new Error(
+      `Cannot read project ${projectUrl}: it does not exist or the token cannot see it. ${TOKEN_HELP}`
+    );
+  }
+  return id;
 }
 
 /**
@@ -194,7 +198,8 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
         cursor = result.search.pageInfo.endCursor;
       }
     } catch (err) {
-      core.warning(`Search query failed for "${searchQuery}": ${err.message}`);
+      // A failed search would skip its items and still move the watermark past them
+      throw new Error(`Search failed for "${searchQuery}": ${err.message}`, { cause: err });
     }
     return nodes;
   }
@@ -228,6 +233,46 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
     seen.add(item.id);
     return true;
   });
+}
+
+/**
+ * Monitored repositories the token cannot read. GitHub search drops a `repo:` qualifier it
+ * cannot resolve without an error, so unreadable repos are checked here, in one call.
+ * @param {string} org - Default organization for unqualified repos
+ * @param {Array<string>} repos - Monitored repositories
+ * @returns {Promise<Array<string>>} owner/name of each unreadable repository
+ */
+async function getUnreadableRepositories(org, repos) {
+  const names = (repos || []).map((repo) => (repo.includes('/') ? repo : `${org}/${repo}`));
+  if (names.length === 0) return [];
+  const { graphql } = getClients();
+  const fields = names.map((name, i) => {
+    const [owner, repo] = name.split('/');
+    return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) { id }`;
+  });
+  let data;
+  try {
+    data = await withRetry(() => graphql(`query { ${fields.join('\n')} }`));
+  } catch (err) {
+    // Unreadable repositories come back as null with NOT_FOUND or FORBIDDEN errors
+    if (!err?.data) throw err;
+    data = err.data;
+  }
+  return names.filter((_, i) => !data?.[`r${i}`]?.id);
+}
+
+/**
+ * Throw when the token cannot read any monitored repository.
+ * @param {string} org - Default organization for unqualified repos
+ * @param {Array<string>} repos - Monitored repositories
+ */
+async function requireReadableRepositories(org, repos) {
+  const unreadable = await getUnreadableRepositories(org, repos);
+  if (unreadable.length > 0) {
+    throw new Error(
+      `The token cannot read ${unreadable.length} monitored repository(s): ${unreadable.join(', ')}. Grant the token access to them or remove them from automation.repository_scope.repositories. ${TOKEN_HELP}`
+    );
+  }
 }
 
 // Local cache for metadata and fields
@@ -736,6 +781,8 @@ export {
   getClients,
   getProjectId,
   getRecentItems,
+  getUnreadableRepositories,
+  requireReadableRepositories,
   getProjectMetadata,
   addItemToProject,
   updateItemColumn,
