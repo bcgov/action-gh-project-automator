@@ -61,7 +61,7 @@ test('requireReadableRepositories fails with the repos and the token permissions
         () => api.requireReadableRepositories('acme', ['acme/secret']),
         (err) =>
           /cannot read 1 monitored repository\(s\): acme\/secret/.test(err.message) &&
-          /needs project access: use a GitHub App token \(see README\), or a PAT for user-owned boards/.test(
+          /needs Projects read and write on the board and read access to each monitored repository\. Use a GitHub App installation token, or a PAT/.test(
             err.message
           )
       );
@@ -84,7 +84,7 @@ test('a project the token cannot see fails with the token permissions to check',
     async () => {
       await assert.rejects(
         () => api.getProjectId('https://github.com/orgs/acme/projects/7'),
-        /Cannot read project https:\/\/github\.com\/orgs\/acme\/projects\/7: it does not exist or the token cannot see it\. The token needs project access: use a GitHub App token/
+        /Cannot read project https:\/\/github\.com\/orgs\/acme\/projects\/7: it does not exist or the token cannot see it\. The token needs Projects read and write/
       );
     }
   );

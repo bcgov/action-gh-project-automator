@@ -30,7 +30,7 @@ let _graphql = null;
 
 // Token permissions the engine needs, named in access errors
 export const TOKEN_HELP =
-  'The token needs project access: use a GitHub App token (see README), or a PAT for user-owned boards. It also needs read access to each monitored repository.';
+  'The token needs Projects read and write on the board and read access to each monitored repository. Use a GitHub App installation token, or a PAT (required for user-owned boards); see the README token section.';
 
 export const NO_TOKEN_MESSAGE =
   'No token: set the github_token action input (or GITHUB_TOKEN when running from the command line). An empty value usually means the secret name is wrong or the secret is not available to this workflow.';
