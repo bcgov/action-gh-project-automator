@@ -103,7 +103,7 @@ automation:
 
       # Column moves are set in board_columns below
 
-# Exclusion rules to filter out automated noise by title
+# Exclusion rules to filter out automated noise by title or label
 exclusions:
   exact_titles:
     - "Dependency Dashboard"
@@ -116,6 +116,7 @@ exclusions:
   title_prefixes:
     # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
     - "ZAP: "
+  exclude_labels: [] # Label names, case-insensitive; an item with any of them is skipped
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run

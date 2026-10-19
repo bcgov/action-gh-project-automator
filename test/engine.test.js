@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { getProjectId } from '../src/github/api.js';
 import { determineTargetColumn } from '../src/utils/column-assignment.js';
-import { isTitleExcluded } from '../src/utils/exclusions.js';
+import { findExcludedLabel, isTitleExcluded } from '../src/utils/exclusions.js';
 
 const { board_columns: policy, exclusions: shippedExclusions } = loadBoardRules();
 
@@ -137,4 +137,24 @@ test('isTitleExcluded respects custom exclusions configuration', () => {
 
 test('isTitleExcluded requires the exclusions config', () => {
   assert.throws(() => isTitleExcluded('Dependency Dashboard'), /exclusions/);
+});
+
+test('findExcludedLabel skips items carrying an excluded label, ignoring case', () => {
+  const config = { exclude_labels: ['Do Not Track', 'wontfix'] };
+  assert.strictEqual(findExcludedLabel(['bug', 'do not track'], config), 'do not track');
+  assert.strictEqual(findExcludedLabel(['WONTFIX'], config), 'WONTFIX');
+  assert.strictEqual(findExcludedLabel(['bug', 'enhancement'], config), null);
+  assert.strictEqual(findExcludedLabel([], config), null);
+  // Label names match whole, not as substrings
+  assert.strictEqual(findExcludedLabel(['wontfix-later'], config), null);
+});
+
+test('the shipped rules.yml excludes no labels', () => {
+  assert.deepStrictEqual(shippedExclusions.exclude_labels, []);
+  assert.strictEqual(findExcludedLabel(['bug', 'dependencies'], shippedExclusions), null);
+});
+
+test('findExcludedLabel requires exclusions.exclude_labels', () => {
+  assert.throws(() => findExcludedLabel(['bug']), /exclusions\.exclude_labels/);
+  assert.throws(() => findExcludedLabel(['bug'], { exact_titles: [] }), /exclusions\.exclude_labels/);
 });

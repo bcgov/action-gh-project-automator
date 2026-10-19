@@ -160,6 +160,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
+      labels(first: 50) { nodes { name } }
       state updatedAt
       ${PROJECT_ITEMS_FRAGMENT}
     }
@@ -168,6 +169,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
+      labels(first: 50) { nodes { name } }
       state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
       ${PROJECT_ITEMS_FRAGMENT}

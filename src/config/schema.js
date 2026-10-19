@@ -117,7 +117,7 @@ const schema = {
     },
     exclusions: {
       type: 'object',
-      required: ['exact_titles', 'title_substrings', 'title_prefixes'],
+      required: ['exact_titles', 'title_substrings', 'title_prefixes', 'exclude_labels'],
       properties: {
         exact_titles: {
           type: 'array',
@@ -130,6 +130,10 @@ const schema = {
         title_prefixes: {
           type: 'array',
           items: { type: 'string' },
+        },
+        exclude_labels: {
+          type: 'array',
+          items: { type: 'string', minLength: 1 },
         },
       },
       additionalProperties: false,

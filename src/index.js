@@ -11,7 +11,7 @@ import {
   getConfiguredColumns,
   validateBoardColumns,
 } from './utils/column-assignment.js';
-import { isTitleExcluded } from './utils/exclusions.js';
+import { findExcludedLabel, isTitleExcluded } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
   columnAfterAdd,
@@ -193,6 +193,14 @@ async function run(options = {}) {
         // Exclude specific automated noise by title
         if (isTitleExcluded(title, config.exclusions)) {
           core.info(`Skipping: Automated item excluded based on title ("${title}").`);
+          continue;
+        }
+        const excludedLabel = findExcludedLabel(
+          (item.labels?.nodes || []).map((label) => label.name),
+          config.exclusions
+        );
+        if (excludedLabel) {
+          core.info(`Skipping: Item excluded based on label ("${excludedLabel}").`);
           continue;
         }
 

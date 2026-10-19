@@ -32,6 +32,7 @@ const required = [
   ['board_columns', 'linked_issue', 'closed'],
   ['exclusions'],
   ['exclusions', 'title_prefixes'],
+  ['exclusions', 'exclude_labels'],
   ['technical', 'update_window_hours'],
 ];
 
