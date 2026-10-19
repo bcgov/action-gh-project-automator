@@ -98,3 +98,36 @@ jobs:
             git tag -fa "$major" -m "Release $TAG"
             git push origin "refs/tags/${major}" --force
           fi
+
+  smoke:
+    name: Smoke test the release tag
+    needs: dist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # The tag as consumers get it: committed dist/, no npm install, no build
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+
+      - name: Check the tag commit carries dist/
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if ! git ls-files --error-unmatch dist/index.js >/dev/null 2>&1; then
+            echo "tag ${TAG} has no committed dist/index.js" >&2
+            exit 1
+          fi
+          sha=$(git rev-parse HEAD)
+          echo "Smoke testing ${TAG} at ${sha}"
+          echo "Consumers pin \`bcgov/project-automator@${sha} # ${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the action from the tag (dry run)
+        uses: ./
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          config_path: rules.yml
+          dry_run: 'true'
