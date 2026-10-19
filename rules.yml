@@ -24,32 +24,36 @@ automation:
 
   # Repositories whose issues and PRs are synced
   repository_scope:
-    # Hand-kept mirror of the Core, FSD and Maint groups in the maintainer's
-    # brain repo-rules.md (DerekRoberts/brain, private). Update this list by
-    # hand whenever those groups change; repo-rules.md wins if they disagree.
-    # Deliberate exceptions:
-    #   - bcgov/nr-fom (Maint) is left out because it is frozen.
+    # Hand-kept mirror of the repositories in roles 1 Develop and 2 Maintain in the
+    # maintainer's brain repo-rules.md (DerekRoberts/brain, private), plus
+    # bcgov/project-automator until its transfer. Update this list by hand whenever
+    # those roles change; repo-rules.md wins if they disagree. Role 3 Assist repos
+    # aren't listed: their items are found through user_scope only.
     repositories:
-      # Core
+      # 1 Develop
+      - bcgov/action-repo-reporter
       - bcgov/actions
       - bcgov/actions-openshift
       - bcgov/devops-scripts
+      - bcgov/nr-containers
+      - bcgov-c/nr-mof-db
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-modules
       - bcgov/renovate-config
-      # FSD
-      - bcgov/action-repo-reporter
-      - bcgov/nr-seedtransfer-map
-      - bcgov/project-automator
-      # Maint
+      # 2 Maintain
+      - bcgov/action-gherkin-issue-processor
       - bcgov/action-gwa-publish
+      - bcgov/nr-epd-organics-info
+      - bcgov/nr-fom
       - bcgov/nr-forest-client-commons
       - bcgov/nr-hydrometric-rating-curve
+      - bcgov/nr-metabase
       - bcgov/nr-old-growth
       - bcgov/nr-results-exam
+      - bcgov/nr-seedtransfer-map
       - bcgov/pubcode
-      # The maintainer's work (brain)
-      - DerekRoberts/brain
+      # Until the transfer
+      - bcgov/project-automator
 
 # Exclusion rules to filter out automated noise by title or label
 exclusions:
