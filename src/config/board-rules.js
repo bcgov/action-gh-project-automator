@@ -25,9 +25,8 @@ function loadBoardRules(configPath = resolveConfigPath()) {
     config.project.allowedOrgs = [projectOwnerFromUrl(config.project.url)];
   }
 
-  // Normalize the new scope-based structure to the old flat structure for backward compatibility
+  // Flatten the scopes into the fields the sync reads
   if (config.automation) {
-    config.rules = mergeRuleScopes(config.automation);
     config.project = {
       ...config.project,
       repositories: config.automation.repository_scope?.repositories || [],
@@ -39,87 +38,6 @@ function loadBoardRules(configPath = resolveConfigPath()) {
   }
 
   return config;
-}
-
-/**
- * Merge user_scope and repository_scope rules into a flat structure
- * @param {object} automation The automation configuration
- * @returns {object} Merged rules object
- */
-function mergeRuleScopes(automation) {
-  const merged = {};
-
-  // Initialize merged object with all rule types from both scopes
-  const allRuleTypes = new Set();
-
-  // Collect rule types from user scope
-  if (automation.user_scope?.rules) {
-    Object.keys(automation.user_scope.rules).forEach((ruleType) => allRuleTypes.add(ruleType));
-  }
-
-  // Collect rule types from repository scope
-  if (automation.repository_scope?.rules) {
-    Object.keys(automation.repository_scope.rules).forEach((ruleType) =>
-      allRuleTypes.add(ruleType)
-    );
-  }
-
-  // Initialize all rule types with empty arrays
-  allRuleTypes.forEach((ruleType) => {
-    merged[ruleType] = [];
-  });
-
-  // Check if monitored users are properly configured
-  const monitoredUsers = getMonitoredUsers(automation);
-
-  if (monitoredUsers && monitoredUsers.length > 0) {
-    // Merge user scope rules only if monitored users are configured
-    if (automation.user_scope?.rules) {
-      mergeRuleGroup(merged, automation.user_scope.rules);
-    }
-  } else {
-    // Log warning and skip user-scope rules
-    console.warn(
-      '⚠️  No monitored users configured. Skipping user-scope rules (board_items, assignees that depend on users).'
-    );
-    console.warn(
-      '   To enable user-based rules, configure monitored_users in automation.user_scope'
-    );
-  }
-
-  // Merge repository scope rules (always included)
-  if (automation.repository_scope?.rules) {
-    mergeRuleGroup(merged, automation.repository_scope.rules);
-  }
-
-  return merged;
-}
-
-/**
- * Extract monitored users from automation configuration
- * @param {object} automation The automation configuration
- * @returns {Array<string>|null} The monitored users array or null if not configured
- */
-function getMonitoredUsers(automation) {
-  if (!automation.user_scope?.monitored_users) {
-    return null;
-  }
-
-  const monitoredUsers = automation.user_scope.monitored_users;
-  return Array.isArray(monitoredUsers) ? monitoredUsers : null;
-}
-
-/**
- * Merge a rule group into the merged rules object
- * @param {object} merged The merged rules object
- * @param {object} ruleGroup The rule group to merge
- */
-function mergeRuleGroup(merged, ruleGroup) {
-  Object.keys(ruleGroup).forEach((ruleType) => {
-    if (Array.isArray(ruleGroup[ruleType])) {
-      merged[ruleType].push(...ruleGroup[ruleType]);
-    }
-  });
 }
 
 export { loadBoardRules, resolveConfigPath };

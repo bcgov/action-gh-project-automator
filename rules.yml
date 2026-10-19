@@ -1,7 +1,7 @@
 # Project Board Sync Configuration
 # User-facing configuration template - users provide their own rules.yml in their repositories.
 # This file serves as an example template showing available configuration options.
-# For developer documentation and feature specifications, see the specs/ directory.
+# For design notes, see docs/design.md.
 # Changes here will be applied on the next sync run.
 
 # Every key the engine reads is required here; there are no built-in defaults.
@@ -17,50 +17,18 @@ project:
     sprint: "Sprint"
 
 automation:
-  # Rules that follow users across all repositories
+  # Users whose PRs and assigned items are followed across all repositories
   user_scope:
     monitored_users:
       - DerekRoberts
-    rules:
-      # Board addition rules
-      board_items:
-        - name: "authored_pull_requests"
-          description: "Add pull requests authored by any monitored user"
-          trigger:
-            type: "PullRequest"
-            condition: "monitored.users.includes(item.author)"
-          action: "add_to_board"
-          skip_if: "item.inProject"
 
-        - name: "assigned_pull_requests"
-          description: "Add pull requests assigned to any monitored user"
-          trigger:
-            type: "PullRequest"
-            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
-          action: "add_to_board"
-          skip_if: "item.inProject"
-
-        - name: "assigned_issues"
-          description: "Add issues assigned to any monitored user"
-          trigger:
-            type: "Issue"
-            condition: "item.assignees.some(assignee => monitored.users.includes(assignee))"
-          action: "add_to_board"
-          skip_if: "item.inProject"
-
-      # Assignee rules
-      assignees:
-        - name: "assign_authored_prs"
-          description: "Add PR author as assignee"
-          trigger:
-            type: "PullRequest"
-            condition: "monitored.users.includes(item.author)"
-          action: "add_assignee"
-          value: "item.author"
-          skip_if: "item.assignees.includes(item.author)"
-
-  # Rules limited to specific repositories
+  # Repositories whose issues and PRs are synced
   repository_scope:
+    # Hand-kept mirror of the Core, FSD and Maint groups in the maintainer's
+    # brain repo-rules.md (DerekRoberts/brain, private). Update this list by
+    # hand whenever those groups change; repo-rules.md wins if they disagree.
+    # Deliberate exceptions:
+    #   - bcgov/nr-fom (Maint) is left out because it is frozen.
     repositories:
       # Core
       - bcgov/actions
@@ -82,27 +50,6 @@ automation:
       - bcgov/pubcode
       # The maintainer's work (brain)
       - DerekRoberts/brain
-
-    rules:
-      # Board addition rules
-      board_items:
-        - name: "repository_pull_requests"
-          description: "Add pull requests from monitored repositories"
-          trigger:
-            type: "PullRequest"
-            condition: "monitored.repos.includes(item.repository)"
-          action: "add_to_board"
-          skip_if: "item.inProject"
-
-        - name: "repository_issues"
-          description: "Add issues from monitored repositories"
-          trigger:
-            type: "Issue"
-            condition: "monitored.repos.includes(item.repository)"
-          action: "add_to_board"
-          skip_if: "item.inProject"
-
-      # Column moves are set in board_columns below
 
 # Exclusion rules to filter out automated noise by title or label
 exclusions:
