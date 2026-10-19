@@ -193,3 +193,17 @@ test('a non-list exclusions.exclude_labels is rejected', () => {
   });
   assert.throws(() => loadBoardRules(file), /exclude_labels must be array/);
 });
+
+test('an older rules.yml that still has scope rules blocks loads the same', () => {
+  const rule = { name: 'r', trigger: { type: 'Issue', condition: 'true' }, action: 'add_to_board' };
+  const file = writeRules((config) => {
+    config.automation.user_scope.rules = { board_items: [rule], assignees: [rule] };
+    config.automation.repository_scope.rules = { board_items: [rule] };
+  });
+  const config = loadBoardRules(file);
+  const current = loadBoardRules(writeRules(() => {}));
+  assert.strictEqual(config.rules, undefined);
+  assert.deepStrictEqual(config.project, current.project);
+  assert.deepStrictEqual(config.monitoredUsers, current.monitoredUsers);
+  assert.deepStrictEqual(config.board_columns, current.board_columns);
+});

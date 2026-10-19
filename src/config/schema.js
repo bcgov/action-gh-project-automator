@@ -37,26 +37,24 @@ const schema = {
       properties: {
         user_scope: {
           type: 'object',
-          required: ['monitored_users', 'rules'],
+          required: ['monitored_users'],
           properties: {
             monitored_users: {
               type: 'array',
               items: { type: 'string', minLength: 1 },
               minItems: 1,
             },
-            rules: { $ref: '#/definitions/ruleGroups' },
           },
         },
         repository_scope: {
           type: 'object',
-          required: ['repositories', 'rules'],
+          required: ['repositories'],
           properties: {
             repositories: {
               type: 'array',
               items: { type: 'string', minLength: 1 },
               minItems: 1,
             },
-            rules: { $ref: '#/definitions/ruleGroups' },
           },
         },
       },
@@ -138,102 +136,6 @@ const schema = {
         },
       },
       additionalProperties: false,
-    },
-  },
-  definitions: {
-    ruleGroups: {
-      type: 'object',
-      properties: {
-        board_items: {
-          type: 'array',
-          items: { $ref: '#/definitions/rule' },
-        },
-        columns: {
-          type: 'array',
-          items: {
-            allOf: [
-              { $ref: '#/definitions/rule' },
-              {
-                type: 'object',
-                properties: {
-                  validTransitions: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      required: ['from', 'to', 'conditions'],
-                      properties: {
-                        from: {
-                          oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
-                        },
-                        to: { type: 'string' },
-                        conditions: { type: 'array', items: { type: 'string' } },
-                      },
-                    },
-                  },
-                },
-              },
-            ],
-          },
-        },
-        linked_issues: {
-          type: 'array',
-          items: { $ref: '#/definitions/rule' },
-        },
-        assignees: {
-          type: 'array',
-          items: { $ref: '#/definitions/rule' },
-        },
-      },
-    },
-    rule: {
-      type: 'object',
-      required: ['name', 'trigger', 'action'],
-      properties: {
-        name: { type: 'string' },
-        description: { type: 'string' },
-        trigger: {
-          type: 'object',
-          required: ['type', 'condition'],
-          properties: {
-            type: {
-              oneOf: [
-                { type: 'string', enum: ['PullRequest', 'Issue', 'LinkedIssue'] },
-                {
-                  type: 'array',
-                  items: { type: 'string', enum: ['PullRequest', 'Issue', 'LinkedIssue'] },
-                },
-              ],
-            },
-            condition: { type: 'string' },
-            stateRequirements: {
-              type: 'object',
-              properties: {
-                column: { type: 'string' },
-                sprint: { type: 'string' },
-                assignees: {
-                  type: 'array',
-                  items: { type: 'string' },
-                },
-                labels: {
-                  type: 'array',
-                  items: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-        action: {
-          oneOf: [
-            { type: 'string' },
-            {
-              type: 'array',
-              items: { type: 'string' },
-            },
-          ],
-        },
-        value: { type: 'string' },
-        skip_if: { type: 'string' },
-      },
     },
   },
 };
