@@ -138,7 +138,10 @@ export function getConfiguredColumns(config) {
       addIfValid(bc.issue.no_status);
     }
     if (Array.isArray(bc.on_add_by_label)) {
-      bc.on_add_by_label.forEach((rule) => addIfValid(rule?.column));
+      // Routing columns are used literally (`keep` isn't a sentinel here), so check them all
+      bc.on_add_by_label.forEach((rule) => {
+        if (typeof rule?.column === 'string' && rule.column.length > 0) columns.add(rule.column);
+      });
     }
   }
   if (config?.sprints) {

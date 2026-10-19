@@ -6,6 +6,7 @@ import {
   columnForLabelsOnAdd,
   determineTargetColumn,
   getConfiguredColumns,
+  validateBoardColumns,
 } from '../src/utils/column-assignment.js';
 import fs from 'node:fs';
 import {
@@ -242,6 +243,19 @@ test('label routing columns are verified against the board like other columns', 
     board_columns: { ...policy, on_add_by_label: [{ label: 'bug', column: 'Triage' }] },
   });
   assert.ok(columns.includes('Triage'));
+  // `keep` is a literal column name in routing, so a board without it fails validation
+  const keep = getConfiguredColumns({
+    board_columns: { ...policy, on_add_by_label: [{ label: 'bug', column: 'keep' }] },
+  });
+  assert.ok(keep.includes('keep'));
+  assert.throws(
+    () =>
+      validateBoardColumns(keep, [
+        { id: '1', name: 'New' },
+        { id: '2', name: 'Active' },
+      ]),
+    /"keep"/
+  );
 });
 
 test('label routing applies only when the run adds an item with no Status', () => {
@@ -250,9 +264,10 @@ test('label routing applies only when the run adds an item with no Status', () =
   const route = index.indexOf('labelColumn = columnForLabelsOnAdd(', add);
   assert.ok(add !== -1 && route !== -1, 'routing happens in the add branch');
   assert.ok(
-    index.lastIndexOf('if (!existing.column)', route) > add,
-    'only without an existing Status'
+    index.lastIndexOf('if (!existing.column && !readyPullRequest)', route) > add,
+    'only without an existing Status, and never for a ready PR'
   );
+  assert.match(index, /const readyPullRequest = itemType === 'PullRequest' && !isDraft;/);
   // Backfill adds route through planBackfillItem with the item's labels
   assert.match(
     index,

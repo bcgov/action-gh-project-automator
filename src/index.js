@@ -269,7 +269,8 @@ async function run(options = {}) {
         let projectItemId = state?.projectItemId || null;
         let currentColumn = state?.column || null;
         let currentSprint = state?.sprint || null;
-        // Set only when this run adds the item with no Status and a label rule matches
+        // Set only when this run adds an issue or draft PR with no Status and a label rule matches.
+        // A ready PR goes straight to pull_request.ready: a later run may not find it again.
         let labelColumn = null;
 
         if (projectItemId) {
@@ -285,7 +286,8 @@ async function run(options = {}) {
           const existing = await api.getProjectItemState(projectItemId);
           currentColumn = existing.column;
           currentSprint = existing.sprint;
-          if (!existing.column) {
+          const readyPullRequest = itemType === 'PullRequest' && !isDraft;
+          if (!existing.column && !readyPullRequest) {
             labelColumn = columnForLabelsOnAdd(itemLabels, config.board_columns);
             if (labelColumn) core.info(`Label rule routes the new item to "${labelColumn}".`);
           }

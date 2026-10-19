@@ -99,7 +99,7 @@ board_columns:
       column: "Next"
 ```
 
-Routing happens only at that add (normal runs and catch-up runs). Later runs and label changes don't re-route an item, and an item that already has a Status is never changed by these rules. On later runs the normal `board_columns` rules still apply: a ready PR moves to `pull_request.ready` (unless that's `keep`), so routing mainly decides where new issues land. Routing columns are checked against the board at start-up like the other columns.
+Routing happens only at that add (normal runs and catch-up runs). Later runs and label changes don't re-route an item, and an item that already has a Status is never changed by these rules. Normal runs route issues and draft PRs only: a ready PR is added straight to `pull_request.ready`, because a later run may not find it again to move it. On later runs the normal `board_columns` rules still apply. A routing `column` is used as written (`keep` isn't special there), so it must be a real board column. Routing columns are checked against the board at start-up like the other columns.
 
 ## Stability & Predictability
 
