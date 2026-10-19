@@ -103,6 +103,12 @@ async function run(options = {}) {
       return;
     }
 
+    // Per-owner tokens from rules.yml; a mapped owner with no token fails here, before any call
+    api.setOwnerTokens(api.resolveOwnerTokens(config.tokens), projectOwnerFromUrl(projectUrl));
+    for (const owner of Object.keys(config.tokens)) {
+      core.info(`Owner ${owner} uses token ${api.tokenNameFor(owner)}.`);
+    }
+
     core.info('Resolving Project Board ID...');
     const projectId = await api.getProjectId(projectUrl);
     core.info(`Resolved Project ID: ${projectId}`);
@@ -340,7 +346,11 @@ async function run(options = {}) {
         // --- Linked Issues Progression (Spec 3.2) ---
         if (itemType === 'PullRequest') {
           core.info('Checking for linked issues closing references...');
-          const linkedIssues = await api.fetchLinkedIssuesForPullRequest(item.id, projectId);
+          const linkedIssues = await api.fetchLinkedIssuesForPullRequest(
+            item.id,
+            projectId,
+            repoName
+          );
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {

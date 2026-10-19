@@ -3,6 +3,7 @@
 import * as core from '@actions/core';
 import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
+import { projectOwnerFromUrl } from './utils/board-lookup.js';
 import { getConfiguredColumns, validateBoardColumns } from './utils/column-assignment.js';
 
 /**
@@ -42,6 +43,10 @@ export async function validate(options = {}) {
   // 3. Online verification: board connectivity and status columns
   core.info(`Verifying project board connectivity: ${config.project.url}...`);
   api.setProjectFields(config.project.fields);
+  api.setOwnerTokens(
+    api.resolveOwnerTokens(config.tokens),
+    projectOwnerFromUrl(config.project.url)
+  );
   const projectId = await api.getProjectId(config.project.url);
   core.info(`✔ Connected to Project Board (ID: ${projectId}).`);
 

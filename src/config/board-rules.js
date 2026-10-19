@@ -20,6 +20,11 @@ function loadBoardRules(configPath = resolveConfigPath()) {
     config.exclusions.exclude_labels = [];
   }
 
+  // tokens is optional: absent means every call uses the default github_token
+  if (config.tokens === undefined) {
+    config.tokens = {};
+  }
+
   // Default allowedOrgs to the owner parsed from project.url when omitted
   if (!config.project.allowedOrgs || config.project.allowedOrgs.length === 0) {
     config.project.allowedOrgs = [projectOwnerFromUrl(config.project.url)];

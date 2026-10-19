@@ -113,6 +113,12 @@ const schema = {
       },
       additionalProperties: false,
     },
+    // Optional: owner -> environment variable holding that owner's token; absent means none
+    tokens: {
+      type: 'object',
+      propertyNames: { pattern: '^[A-Za-z0-9][A-Za-z0-9-]*$' },
+      additionalProperties: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*$' },
+    },
     exclusions: {
       type: 'object',
       required: ['exact_titles', 'title_substrings', 'title_prefixes'],

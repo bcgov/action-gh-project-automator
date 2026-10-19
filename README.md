@@ -149,6 +149,29 @@ A fine-grained token can only reach one resource owner. For a user-owned board, 
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
+#### Per-Owner Tokens (optional)
+
+An optional `tokens:` map in `rules.yml` gives an owner (organization or user) its own token. Each entry names the environment variable that holds the token, never the token itself:
+
+```yaml
+tokens:
+  bcgov-c: BCGOV_C_TOKEN
+```
+
+```yaml
+      - uses: bcgov/project-automator@<sha> # vX.Y.Z
+        env:
+          BCGOV_C_TOKEN: ${{ secrets.BCGOV_C_TOKEN }}
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+```
+
+- A mapped owner's token is used for everything about that owner: its repositories, its items and their linked issues, its assignees, and (for the board's owner) the project board. User searches for a mapped organization in `allowedOrgs` run with its token, limited to that organization.
+- Every other owner uses `github_token`.
+- There's no fallback: if a mapped variable is unset or empty, the run fails before it reads the board, naming the owner and the variable.
+- Without `tokens:`, every call uses `github_token`, as before.
+- Adding an item to the board uses the board owner's token, so that token must also be able to see items from other owners. With fine-grained tokens per owner, keep `github_token` broad enough for that, or track only the board owner's items.
+
 #### Access Failures
 
 A run fails, with a non-zero exit and a message naming what to fix, when:
