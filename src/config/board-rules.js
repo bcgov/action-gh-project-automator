@@ -15,6 +15,11 @@ function loadBoardRules(configPath = resolveConfigPath()) {
   const loader = new ConfigLoader();
   const config = loader.load(configPath);
 
+  // exclusions.exclude_labels is optional (added after configs were in use): absent means none
+  if (config.exclusions.exclude_labels === undefined) {
+    config.exclusions.exclude_labels = [];
+  }
+
   // Default allowedOrgs to the owner parsed from project.url when omitted
   if (!config.project.allowedOrgs || config.project.allowedOrgs.length === 0) {
     config.project.allowedOrgs = [projectOwnerFromUrl(config.project.url)];

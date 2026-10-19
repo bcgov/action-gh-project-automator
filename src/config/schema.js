@@ -131,6 +131,11 @@ const schema = {
           type: 'array',
           items: { type: 'string' },
         },
+        // Optional: loadBoardRules sets [] when absent, so configs written before it still load
+        exclude_labels: {
+          type: 'array',
+          items: { type: 'string', minLength: 1 },
+        },
       },
       additionalProperties: false,
     },

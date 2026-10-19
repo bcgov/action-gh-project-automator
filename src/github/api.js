@@ -3,6 +3,7 @@ import { graphql as graphqlClient } from '@octokit/graphql';
 import * as core from '@actions/core';
 import { apiUsage, countCalls } from '../utils/api-usage.js';
 import { boardState, projectItemsFragment } from '../utils/board-state.js';
+import { LABELS_FRAGMENT, labelNames } from '../utils/exclusions.js';
 
 // Project field names from rules.yml `project.fields`; set once by the engine before any board call
 let projectFields = null;
@@ -160,6 +161,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
+      ${LABELS_FRAGMENT}
       state updatedAt
       ${PROJECT_ITEMS_FRAGMENT}
     }
@@ -168,6 +170,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       repository { nameWithOwner }
       author { login }
       assignees(first: 5) { nodes { login } }
+      ${LABELS_FRAGMENT}
       state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
       ${PROJECT_ITEMS_FRAGMENT}
@@ -655,6 +658,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
               number
               state
               repository { nameWithOwner }
+              ${LABELS_FRAGMENT}
               ${PROJECT_ITEMS_FRAGMENT}
             }
           }
@@ -673,6 +677,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
       isClosed: node.state === 'CLOSED',
       isArchived: Boolean(board?.isArchived),
       repository: node.repository,
+      labels: labelNames(node.labels),
       projectItemId: board?.projectItemId || null,
       column: board?.column || null,
       sprint: board?.sprint || null,
