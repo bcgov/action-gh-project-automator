@@ -87,8 +87,7 @@ async function run(options = {}) {
     core.info(`Monitored Users: ${monitoredUsers.join(', ')}`);
 
     // 2. Resolve Project Board and Fields
-    const token =
-      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+    const token = api.resolveToken();
     const isDryRun = process.env.DRY_RUN === 'true';
     const isValidateOnly = process.argv.includes('--validate');
 

@@ -11,15 +11,15 @@ const json = (payload) =>
 
 async function withFetch(handler, fn) {
   const originalFetch = globalThis.fetch;
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'mock-token';
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  process.env.INPUT_GITHUB_TOKEN = 'mock-token';
   globalThis.fetch = async (url, options) => handler(options?.body ? JSON.parse(options.body) : {});
   try {
     await fn();
   } finally {
     globalThis.fetch = originalFetch;
-    if (originalToken !== undefined) process.env.GITHUB_TOKEN = originalToken;
-    else delete process.env.GITHUB_TOKEN;
+    if (originalToken !== undefined) process.env.INPUT_GITHUB_TOKEN = originalToken;
+    else delete process.env.INPUT_GITHUB_TOKEN;
   }
 }
 
@@ -61,7 +61,7 @@ test('requireReadableRepositories fails with the repos and the token permissions
         () => api.requireReadableRepositories('acme', ['acme/secret']),
         (err) =>
           /cannot read 1 monitored repository\(s\): acme\/secret/.test(err.message) &&
-          /needs Projects read and write on the board and read access to each monitored repository\. Use a GitHub App installation token, or a PAT/.test(
+          /needs Projects read and write on the board and read access to each monitored repository\. Use a fine-grained PAT .*, or a GitHub App installation token/.test(
             err.message
           )
       );
@@ -113,4 +113,36 @@ test('the engine checks repository access before discovering items', () => {
     index,
     /process\.env\.GITHUB_ACTIONS === 'true'[^\n]*\n\s*throw new Error\(api\.NO_TOKEN_MESSAGE\)/
   );
+});
+
+test('the github_token input wins over GITHUB_TOKEN', () => {
+  assert.strictEqual(
+    api.resolveToken({ INPUT_GITHUB_TOKEN: 'input', GITHUB_TOKEN: 'env', GITHUB_ACTIONS: 'true' }),
+    'input'
+  );
+  assert.strictEqual(
+    api.resolveToken({ INPUT_GITHUB_TOKEN: 'input', GITHUB_TOKEN: 'env' }),
+    'input'
+  );
+});
+
+test('an Actions run never falls back to GITHUB_TOKEN', () => {
+  assert.strictEqual(api.resolveToken({ GITHUB_TOKEN: 'env', GITHUB_ACTIONS: 'true' }), '');
+  assert.strictEqual(
+    api.resolveToken({ INPUT_GITHUB_TOKEN: '  ', GITHUB_TOKEN: 'env', GITHUB_ACTIONS: 'true' }),
+    ''
+  );
+});
+
+test('the command line falls back to GITHUB_TOKEN when there is no input', () => {
+  assert.strictEqual(api.resolveToken({ GITHUB_TOKEN: 'env' }), 'env');
+  assert.strictEqual(api.resolveToken({ INPUT_GITHUB_TOKEN: '', GITHUB_TOKEN: 'env' }), 'env');
+  assert.strictEqual(api.resolveToken({}), '');
+});
+
+test('no source reads GITHUB_TOKEN ahead of the input', () => {
+  for (const file of ['../src/index.js', '../src/validate.js', '../src/github/api.js']) {
+    const src = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(src, /process\.env\.GITHUB_TOKEN \|\|/, file);
+  }
 });

@@ -97,21 +97,21 @@ test('validateBoardColumns throws and names missing columns and available option
 });
 
 test('validate() executes offline syntax and schema check when no GITHUB_TOKEN', async () => {
-  const originalToken = process.env.GITHUB_TOKEN;
-  delete process.env.GITHUB_TOKEN;
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  delete process.env.INPUT_GITHUB_TOKEN;
   try {
     const result = await validate();
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.offline, true);
     assert.ok(result.config);
   } finally {
-    if (originalToken !== undefined) process.env.GITHUB_TOKEN = originalToken;
+    if (originalToken !== undefined) process.env.INPUT_GITHUB_TOKEN = originalToken;
   }
 });
 
 test('validate() fails fast on invalid schema', async () => {
-  const originalToken = process.env.GITHUB_TOKEN;
-  delete process.env.GITHUB_TOKEN;
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  delete process.env.INPUT_GITHUB_TOKEN;
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'val-'));
   const tmpFile = path.join(tmpDir, 'invalid-rules.yml');
@@ -120,14 +120,14 @@ test('validate() fails fast on invalid schema', async () => {
   try {
     await assert.rejects(() => validate({ configPath: tmpFile }), /YAMLException|YAML/i);
   } finally {
-    if (originalToken !== undefined) process.env.GITHUB_TOKEN = originalToken;
+    if (originalToken !== undefined) process.env.INPUT_GITHUB_TOKEN = originalToken;
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 
 test('validate() verifies remote board and columns when credentials present', async () => {
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'mock-token';
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  process.env.INPUT_GITHUB_TOKEN = 'mock-token';
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
@@ -202,16 +202,16 @@ test('validate() verifies remote board and columns when credentials present', as
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken !== undefined) {
-      process.env.GITHUB_TOKEN = originalToken;
+      process.env.INPUT_GITHUB_TOKEN = originalToken;
     } else {
-      delete process.env.GITHUB_TOKEN;
+      delete process.env.INPUT_GITHUB_TOKEN;
     }
   }
 });
 
 test('validate() rejects when board is missing required status columns', async () => {
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'mock-token';
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  process.env.INPUT_GITHUB_TOKEN = 'mock-token';
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
@@ -263,18 +263,18 @@ test('validate() rejects when board is missing required status columns', async (
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken !== undefined) {
-      process.env.GITHUB_TOKEN = originalToken;
+      process.env.INPUT_GITHUB_TOKEN = originalToken;
     } else {
-      delete process.env.GITHUB_TOKEN;
+      delete process.env.INPUT_GITHUB_TOKEN;
     }
   }
 });
 
 test('updateItemColumn in DRY_RUN mode validates column existence before logging', async () => {
   const originalDryRun = process.env.DRY_RUN;
-  const originalToken = process.env.GITHUB_TOKEN;
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
   process.env.DRY_RUN = 'true';
-  process.env.GITHUB_TOKEN = 'mock-token';
+  process.env.INPUT_GITHUB_TOKEN = 'mock-token';
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => {
@@ -312,9 +312,9 @@ test('updateItemColumn in DRY_RUN mode validates column existence before logging
     globalThis.fetch = originalFetch;
     process.env.DRY_RUN = originalDryRun;
     if (originalToken !== undefined) {
-      process.env.GITHUB_TOKEN = originalToken;
+      process.env.INPUT_GITHUB_TOKEN = originalToken;
     } else {
-      delete process.env.GITHUB_TOKEN;
+      delete process.env.INPUT_GITHUB_TOKEN;
     }
   }
 });
@@ -355,8 +355,8 @@ test('getConfiguredColumns preserves exact column names without trimming', () =>
 });
 
 test('validate() with dryRun propagates engine failures to caller', async () => {
-  const originalToken = process.env.GITHUB_TOKEN;
-  process.env.GITHUB_TOKEN = 'mock-token';
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  process.env.INPUT_GITHUB_TOKEN = 'mock-token';
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
@@ -383,9 +383,9 @@ test('validate() with dryRun propagates engine failures to caller', async () => 
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken !== undefined) {
-      process.env.GITHUB_TOKEN = originalToken;
+      process.env.INPUT_GITHUB_TOKEN = originalToken;
     } else {
-      delete process.env.GITHUB_TOKEN;
+      delete process.env.INPUT_GITHUB_TOKEN;
     }
   }
 });

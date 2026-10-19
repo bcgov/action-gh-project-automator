@@ -18,7 +18,8 @@ test('action.yml defines a standalone root node24 action pointing to dist/index.
 test('action.yml defines required and optional inputs with standard defaults', () => {
   const { inputs } = manifest;
 
-  assert.strictEqual(inputs.github_token.required, true);
+  assert.strictEqual(inputs.github_token.required, false);
+  assert.strictEqual(inputs.github_token.default, '${{ github.token }}');
 
   assert.strictEqual(inputs.config_path.required, false);
   assert.strictEqual(inputs.config_path.default, 'rules.yml');
@@ -55,7 +56,7 @@ test('resolveConfigPath respects custom path and INPUT_CONFIG_PATH', () => {
 });
 
 test('fetchRepoFile retrieves and decodes base64 file content without checkout', async () => {
-  process.env.GITHUB_TOKEN = 'test-token';
+  process.env.INPUT_GITHUB_TOKEN = 'test-token';
   const originalRepo = process.env.GITHUB_REPOSITORY;
   const originalFetch = globalThis.fetch;
 
