@@ -397,6 +397,115 @@ async function requireReadableRepositories(org, repos) {
   }
 }
 
+const REPO_PERMISSIONS = 'Metadata, Issues and Pull requests read';
+
+/**
+ * Start-up access check, run before any write (dry runs too). Reports one line per project,
+ * organization and repository, naming the token used (never its value), and collects every
+ * failure instead of stopping at the first.
+ * @param {object} options
+ * @param {string} options.projectUrl
+ * @param {string} options.org - Default organization for unqualified repos
+ * @param {Array<string>} options.repos - Monitored repositories
+ * @param {Array<string>} [options.allowedOrgs] - Organizations searched for user-scope items
+ * @returns {Promise<{projectId: string|null, lines: Array<string>, failures: Array<string>}>}
+ */
+async function checkAccess({ projectUrl, org, repos, allowedOrgs = [] }) {
+  const lines = [];
+  const failures = [];
+  const report = (subject, token, problem) => {
+    const line = `${subject} via ${token}: ${problem || 'OK'}`;
+    lines.push(line);
+    if (problem) failures.push(line);
+  };
+
+  const projectOwner =
+    (projectUrl.match(/github\.com\/(?:orgs|users)\/([^/]+)\//) || [])[1] || null;
+  const projectName = projectOwner ? `${projectOwner}/${projectUrl.split('/').pop()}` : projectUrl;
+  let projectId = null;
+  try {
+    projectId = await getProjectId(projectUrl);
+    if (!(await projectWritable(projectId, projectOwner))) {
+      report(
+        `project ${projectName}`,
+        tokenNameFor(projectOwner),
+        'read only; needs Projects read and write'
+      );
+    } else {
+      report(`project ${projectName}`, tokenNameFor(projectOwner));
+    }
+  } catch (err) {
+    report(
+      `project ${projectName}`,
+      tokenNameFor(projectOwner),
+      `cannot read; needs Projects read and write (${err.message.split('. ')[0]})`
+    );
+  }
+
+  const groups = groupByToken(org, repos);
+  const unreadable = new Set();
+  for (const [owner, names] of groups) {
+    for (const name of await unreadableWith(getClients(owner).graphql, names)) unreadable.add(name);
+  }
+
+  // One line per owner, then one per repository
+  const repoNames = [...groups.values()].flat();
+  const owners = [];
+  for (const owner of [projectOwner, ...repoNames.map(ownerOf), ...allowedOrgs]) {
+    if (owner && !owners.some((o) => o.toLowerCase() === owner.toLowerCase())) owners.push(owner);
+  }
+  for (const owner of owners) {
+    const ownRepos = repoNames.filter(
+      (name) => ownerOf(name).toLowerCase() === owner.toLowerCase()
+    );
+    const missing = ownRepos.filter((name) => unreadable.has(name)).length;
+    report(
+      `org ${owner}`,
+      tokenNameFor(owner),
+      missing ? `cannot read ${missing} of ${ownRepos.length} repositories` : null
+    );
+  }
+  for (const name of repoNames) {
+    report(
+      `repo ${name}`,
+      tokenNameFor(ownerOf(name)),
+      unreadable.has(name) ? `cannot read; needs ${REPO_PERMISSIONS}` : null
+    );
+  }
+  return { projectId, lines, failures };
+}
+
+/**
+ * Throw when checkAccess found problems, listing all of them.
+ * @param {{failures: Array<string>}} result - From checkAccess
+ */
+function requireAccess(result) {
+  if (result.failures.length > 0) {
+    throw new Error(
+      `Access check failed (${result.failures.length}):\n- ${result.failures.join('\n- ')}\n${TOKEN_HELP}`
+    );
+  }
+}
+
+async function projectWritable(projectId, owner) {
+  const { graphql } = getClients(owner);
+  const result = await withRetry(() =>
+    graphql(
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on ProjectV2 {
+              viewerCanUpdate
+            }
+          }
+        }
+      `,
+      { id: projectId }
+    )
+  );
+  return result?.node?.viewerCanUpdate === true;
+}
+
 // Local cache for metadata and fields
 const projectMetadataCache = new Map();
 
@@ -904,6 +1013,8 @@ async function fetchRepoFile(filePath, options = {}) {
 }
 
 export {
+  checkAccess,
+  requireAccess,
   getProjectBoardItems,
   getProjectItemState,
   requireAddedItemId,

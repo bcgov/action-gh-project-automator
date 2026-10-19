@@ -174,10 +174,17 @@ tokens:
 
 #### Access Failures
 
+Every run, including `dry_run: true` and `--validate`, starts with an access check before any write. It logs one line for the project, each owner and each monitored repository, naming the token used (`github_token` or a `tokens:` variable, never its value):
+
+```text
+Access: project bcgov/16 via github_token: OK
+Access: org bcgov-c via BCGOV_C_TOKEN: cannot read 1 of 2 repositories
+Access: repo bcgov-c/app via BCGOV_C_TOKEN: cannot read; needs Metadata, Issues and Pull requests read
+```
+
 A run fails, with a non-zero exit and a message naming what to fix, when:
 
-- The token can't read the project board.
-- The token can't read a repository in `automation.repository_scope.repositories`. This is checked before any search, because GitHub search skips a repository it can't read without an error.
+- The access check finds a problem: the token can't read the project board or can't update it, or can't read a repository in `automation.repository_scope.repositories` (GitHub search skips a repository it can't read without an error). Every problem is listed, not just the first.
 - A search fails. The watermark isn't saved, so the next run searches the same window again.
 - The token is empty in an Actions run, including `dry_run: true`. From the command line, `--dry-run` and `--validate` without a token still check `rules.yml` offline.
 

@@ -109,8 +109,17 @@ async function run(options = {}) {
       core.info(`Owner ${owner} uses token ${api.tokenNameFor(owner)}.`);
     }
 
-    core.info('Resolving Project Board ID...');
-    const projectId = await api.getProjectId(projectUrl);
+    // Start-up access check: every project, owner and repository, before any write (dry runs too)
+    core.info('Checking token access...');
+    const access = await api.checkAccess({
+      projectUrl,
+      org: organization,
+      repos: maintainerRepos,
+      allowedOrgs,
+    });
+    for (const line of access.lines) core.info(`Access: ${line}`);
+    api.requireAccess(access);
+    const projectId = access.projectId;
     core.info(`Resolved Project ID: ${projectId}`);
 
     core.info('Fetching Project Metadata & Columns...');
@@ -136,7 +145,6 @@ async function run(options = {}) {
       core.info('Sprint tracking not configured; bypassing iteration resolution.');
     }
 
-    await api.requireReadableRepositories(organization, maintainerRepos);
     core.info(`✔ Token can read all ${maintainerRepos.length} monitored repositories.`);
 
     if (isValidateOnly) {

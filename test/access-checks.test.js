@@ -105,8 +105,14 @@ test('a failed search fails the run instead of logging a warning', async () => {
 
 test('the engine checks repository access before discovering items', () => {
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-  const check = index.indexOf('api.requireReadableRepositories(');
-  assert.ok(check > 0, 'repository access check is missing');
+  const check = index.indexOf('api.requireAccess(access)');
+  assert.ok(check > 0, 'access check is missing');
+  for (const write of ['api.addItemToProject(', 'api.updateItemColumn(', 'api.assignUserToItem(']) {
+    assert.ok(check < index.indexOf(write), `access check must run before ${write}`);
+  }
+  // Dry runs check access too: nothing between the token check and the access check returns early
+  const between = index.slice(index.indexOf("core.info('Checking token access...')"), check);
+  assert.doesNotMatch(between, /isDryRun|return;/);
   assert.ok(check < index.indexOf('api.getRecentItems('), 'access check must run before search');
   // An action run with no token fails instead of passing offline
   assert.match(
