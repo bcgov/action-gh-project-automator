@@ -47,7 +47,7 @@ jobs:
 
 | Input | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `github_token` | **Yes** | — | Personal access token with `repo` and `project` scopes. |
+| `github_token` | **Yes** | — | Personal access token that can read and write the project board and read the monitored repositories. See [Authentication & Token Setup](#authentication--token-setup). |
 | `config_path` | No | `rules.yml` | Path to rules configuration file in the repository. |
 | `dry_run` | No | `false` | Run in read-only mode without mutating board items or watermarks. |
 | `backfill` | No | `''` | Backfill window for open items: `30d`-style or `all`. |
@@ -131,16 +131,21 @@ project:
 
 The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
 
-> **Note on Fine-Grained Tokens:** GitHub Fine-Grained PATs do not currently support `Projects` (v2) permissions under repository or account permissions. Therefore, a **Classic Personal Access Token (PAT)** is required to authenticate GitHub Projects v2 automation.
+#### Fine-Grained Personal Access Token (recommended)
 
-#### Required Classic PAT Scopes
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Fine-grained tokens**](https://github.com/settings/personal-access-tokens/new). A token owned by a team or service account is better than a personal one.
+2. Set **Token name** to `PROJECT_SYNC_TOKEN`.
+3. Set **Resource owner** to the organization that owns the project board.
+4. Under **Repository access**, choose the monitored repositories (or all repositories).
+5. Set these permissions:
+   * **Organization → Projects: Read and write**, for the project board.
+   * **Repository → Issues: Read** and **Pull requests: Read**, for search and item metadata. Choose **Read and write** for both if `user_scope` is set, because the run assigns authored items to their author.
+   * **Repository → Contents: Read**, only when `rules.yml` is fetched without a checkout.
+   * **Repository → Metadata: Read** is included automatically.
 
-1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new).
-2. Set **Note** to `PROJECT_SYNC_TOKEN`.
-3. Select the following required scopes:
-   * **`repo`** (Full control of private repositories - required to access issue and PR metadata across `bcgov` and `bcgov-c`. *Note: GitHub automatically locks child sub-scopes when `repo` is selected.*)
-   * **`project`** (Full control of organization and user projects - required for GraphQL `projectV2` access).
-   * **`read:org`** (Read org membership under `admin:org` - required for org identity resolution).
+No organization membership permission (classic `read:org`) is needed.
+
+A fine-grained token can only reach one resource owner. For a user-owned board, or a board that tracks repositories in more than one organization or user account, use a classic PAT with the `project` and `repo` scopes instead (`public_repo` is enough when every monitored repository is public).
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
@@ -155,7 +160,7 @@ A run fails, with a non-zero exit and a message naming what to fix, when:
 
 #### Adding the Secret to GitHub Actions
 
-1. Copy the generated token string (`ghp_...`).
+1. Copy the generated token string.
 2. Navigate to your repository's **Settings** → **Secrets and variables** → **Actions**.
 3. Click **New repository secret**.
 4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
