@@ -1,146 +1,46 @@
 # Copilot Instructions
 
-Source lives in `src/`. The sync workflow runs `npm run build` (`ncc`) on each
-run and executes `dist/index.js`. `dist/` is gitignored. Do not commit it.
+A JavaScript GitHub Action (native ES modules, Node 24) that syncs issues and pull requests onto a GitHub Projects (v2) board. `rules.yml` is the only source of settings; see `README.md` for its keys and `docs/design.md` for how the sync works.
 
-## Repository Structure
+## Layout
 
-| Path                   | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| `__fixtures__/`        | Unit Test Fixtures                                       |
-| `__tests__/`           | Unit Tests                                               |
-| `.devcontainer/`       | Development Container Configuration                      |
-| `.github/`             | GitHub Configuration                                     |
-| `.licenses/`           | License Information                                      |
-| `.vscode/`             | Visual Studio Code Configuration                         |
-| `badges/`              | Badges for readme                                        |
-| `dist/`                | Build output, gitignored, produced by the sync workflow  |
-| `src/`                 | TypeScript Source Code                                   |
-| `.env.example`         | Environment Variables Example for `@github/local-action` |
-| `.licensed.yml`        | Licensed Configuration                                   |
-| `.markdown-lint.yml`   | Markdown Linter Configuration                            |
-| `.node-version`        | Node.js Version Configuration                            |
-| `.prettierrc.yml`      | Prettier Formatter Configuration                         |
-| `.yaml-lint.yml`       | YAML Linter Configuration                                |
-| `action.yml`           | GitHub Action Metadata                                   |
-| `CODEOWNERS`           | Code Owners File                                         |
-| `eslint.config.mjs`    | ESLint Configuration                                     |
-| `jest.config.js`       | Jest Configuration                                       |
-| `LICENSE`              | License File                                             |
-| `package.json`         | NPM Package Configuration                                |
-| `README.md`            | Project Documentation                                    |
-| `rollup.config.ts`     | Rollup Bundler Configuration                             |
-| `tsconfig.base.json`   | Base TypeScript Configuration                            |
-| `tsconfig.eslint.json` | TypeScript Configuration for ESLint                      |
-| `tsconfig.json`        | TypeScript Configuration                                 |
+| Path              | Contents                                                           |
+| ----------------- | ------------------------------------------------------------------ |
+| `src/index.js`    | The sync run: discovery, adds, column, sprint and assignee updates |
+| `src/config/`     | `rules.yml` loading and its JSON schema                            |
+| `src/github/`     | GitHub API calls and search queries                                |
+| `src/utils/`      | Column, sprint, exclusion, backfill, watermark and summary helpers |
+| `src/validate.js` | Offline config check and `--dry-run`                               |
+| `test/`           | `node --test` suites                                               |
+| `rules.yml`       | The config this repo's own sync uses                               |
 
-## Environment Setup
-
-Install dependencies by running:
+## Commands
 
 ```bash
-npm install
+npm ci
+npm test
+npm run lint
+npm run build # ncc bundle into dist/, only to inspect it
 ```
 
-## Testing
+`dist/` is gitignored on main; don't commit it. The release workflow builds it and commits it to the release tag.
 
-Ensure all unit tests pass by running:
+## Guidelines
 
-```bash
-npm run test
-```
+- Keep changes small and match existing patterns. Comments explain why, not what.
+- Log with `@actions/core`, not `console`.
+- Tests use `node:test` and `node:assert`, make no network calls (stub `fetch` or inject dependencies), and cover edge cases as well as the main path.
+- Don't hardcode users, organizations, project URLs or column names; read them from `rules.yml`. A new optional key needs a safe default so existing configs keep loading.
+- Update `README.md` when inputs or `rules.yml` keys change, and `docs/design.md` when sync behaviour changes.
+- Don't change the `package.json` version in a PR; releases are cut separately.
 
-Unit tests should exist in the `__tests__` directory. They are powered by
-`jest`. Fixtures should be placed in the `__fixtures__` directory.
+## Domain notes
 
-## Bundling
+- `automation.repository_scope.repositories` only decides which items are discovered and added. It never gates column, sprint or assignee updates for items already on the board.
+- Before blaming `rules.yml` for a missed item, trace `src/` to confirm the setting is actually read, and check whether discovery found the item or filtered it out.
 
-`dist/` is gitignored. The sync workflow builds it with:
+## Pull requests
 
-```bash
-npm run build
-```
-
-Run that locally only to inspect the bundle. Do not commit the output.
-
-## General Coding Guidelines
-
-- Follow standard TypeScript and JavaScript coding conventions and best
-  practices
-- Changes should maintain consistency with existing patterns and style
-- Document changes clearly and thoroughly, including updates to existing
-  comments when appropriate
-- Do not include basic, unnecessary comments that simply restate what the code
-  is doing (focus on explaining _why_, not _what_)
-- Use consistent error handling patterns throughout the codebase
-- Use TypeScript's type system to ensure type safety and clarity
-- Keep functions focused and manageable
-- Use descriptive variable and function names that clearly convey their purpose
-- Use JSDoc comments to document functions, classes, and complex logic
-- After doing any refactoring, ensure to run `npm run test` to ensure that all
-  tests still pass and coverage requirements are met
-- When suggesting code changes, always opt for the most maintainable approach.
-  Try your best to keep the code clean and follow "Don't Repeat Yourself" (DRY)
-  principles
-- Avoid unnecessary complexity and always consider the long-term maintainability
-  of the code
-- When writing unit tests, try to consider edge cases as well as the main path
-  of success. This will help ensure that the code is robust and can handle
-  unexpected inputs or situations
-- Use the `@actions/core` package for logging over `console` to ensure
-  compatibility with GitHub Actions logging features
-
-### Core Domain Architecture & Common Misconceptions
-
-- **Monitored Repositories (`automation.repository_scope.repositories`)**: This list is strictly
-  used for **board addition (intake) rules** (auto-adding new items to the project board).
-  It must **NEVER** be used to restrict or gate column transitions, sprint updates,
-  or general synchronization rules for items that are already on the board. Do not
-  tell users that a repository must be in this list to receive sprint updates if
-  the item is already present on the board.
-
-### Anti-Lazy Debugging Protocols (No Configuration Scapegoating)
-
-- **Do Not Blame rules.yml Without Code Verification**: When analyzing why an issue/PR was missed,
-  never look at `rules.yml` and state that a repository or user must be added to a list
-  unless you have traced the JS/TS source code (`src/`) to confirm that list is actually used.
-- **Trace the Data Flow**: If an item is already on the board but missed an update (sprint,
-  column, etc.), verify if the engine fetched the item from the board API or if it filtered
-  it out in discovery. Do not guess.
-- **Provide Debug Evidence**: Always verify your assumptions using the search tool or terminal
-  commands to inspect how variables are evaluated at runtime before outputting analysis.
-
-### Versioning
-
-GitHub Actions are versioned using branch and tag names. Please ensure the
-version in the project's `package.json` is updated to reflect the changes made
-in the codebase. The version should follow
-[Semantic Versioning](https://semver.org/) principles.
-
-## Pull Request Guidelines
-
-When creating a pull request (PR), please ensure that:
-
-- Keep changes focused and minimal (avoid large changes, or consider breaking
-  them into separate, smaller PRs)
-- Formatting checks pass
-- Linting checks pass
-- Unit tests pass and coverage requirements are met
-- `dist/` is not committed; the sync workflow builds it before the action runs
-- If necessary, the `README.md` file is updated to reflect any changes in
-  functionality or usage
-
-The body of the PR should include:
-
-- A summary of the changes
-- A special note of any changes to dependencies
-- A link to any relevant issues or discussions
-- Any additional context that may be helpful for reviewers
-
-## Code Review Guidelines
-
-When performing a code review, please follow these guidelines:
-
-- If there are changes that modify the functionality/usage of the action,
-  validate that there are changes in the `README.md` file that document the new
-  or modified functionality
+- CI must pass: lint, build and unit tests. The `Action` job then runs the PR's code for real against the board in `rules.yml`, so a ready PR must be safe to run.
+- The body summarizes the change, notes dependency changes, and links the issue.
+- Reviews check that behaviour changes are reflected in `README.md`.
