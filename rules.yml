@@ -24,6 +24,11 @@ automation:
 
   # Repositories whose issues and PRs are synced
   repository_scope:
+    # Hand-kept mirror of the Core, FSD and Maint groups in the maintainer's
+    # brain repo-rules.md (DerekRoberts/brain, private). Update this list by
+    # hand whenever those groups change; repo-rules.md wins if they disagree.
+    # Deliberate exceptions:
+    #   - bcgov/nr-fom (Maint) is left out because it is frozen.
     repositories:
       # Core
       - bcgov/actions
