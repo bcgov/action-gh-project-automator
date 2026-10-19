@@ -27,7 +27,7 @@ automation:
     # Hand-kept mirror of the repositories in roles 1 Develop and 2 Maintain in the
     # maintainer's brain repo-rules.md (DerekRoberts/brain, private). Update this list
     # by hand whenever those roles change; repo-rules.md wins if they disagree. Role 3
-    # Assist repos aren't listed: their items are found through user_scope only.
+    # Support repos aren't listed: their items are found through user_scope only.
     repositories:
       # 1 Develop
       - bcgov/action-repo-reporter
