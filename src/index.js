@@ -11,7 +11,12 @@ import {
   getConfiguredColumns,
   validateBoardColumns,
 } from './utils/column-assignment.js';
-import { findExcludedLabel, isTitleExcluded, labelNames } from './utils/exclusions.js';
+import {
+  botOnlyPullRequestAuthor,
+  findExcludedLabel,
+  isTitleExcluded,
+  labelNames,
+} from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
   columnAfterAdd,
@@ -198,6 +203,11 @@ async function run(options = {}) {
         const excludedLabel = findExcludedLabel(labelNames(item.labels), config.exclusions);
         if (excludedLabel) {
           core.info(`Skipping: Item excluded based on label ("${excludedLabel}").`);
+          continue;
+        }
+        const botAuthor = botOnlyPullRequestAuthor(item, config.exclusions);
+        if (botAuthor) {
+          core.info(`Skipping: PR by ${botAuthor} with no human commits.`);
           continue;
         }
 

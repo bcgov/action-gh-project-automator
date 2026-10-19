@@ -87,6 +87,19 @@ exclusions:
 
 Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. Title matches are case-sensitive. An item carrying any label in `exclude_labels` is skipped; label names must match whole, ignoring case, as GitHub treats label names. The three title lists are required in `rules.yml`; there are no built-in defaults. `exclude_labels` is the one optional key: when it's absent, no labels are excluded (`[]`), so configs written before it keep working. Like title exclusions, a label exclusion skips the item on every run, so it isn't added, moved or assigned; it isn't removed from the board if it's already there. Title and label exclusions also apply to the issues a PR closes, so an excluded issue isn't moved, given a sprint or assigned through its PR.
 
+### Dependency-bot PRs
+
+PRs opened by a bot in `exclude_bot_authors` are skipped unless a person authored at least one of their commits, so routine dependency updates don't count as sprint work:
+
+```yaml
+exclusions:
+  exclude_bot_authors:
+    - renovate[bot]
+    - dependabot[bot]
+```
+
+Use the bot's full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. A commit counts as human when one of its authors (co-authors included) is a GitHub user that isn't a bot, so a bot PR is added, or kept, once someone pushes a fix to it. The key is optional: when it's absent, no bot PRs are skipped. Like the other exclusions, it never removes an item that's already on the board.
+
 ## Stability & Predictability
 
 We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.

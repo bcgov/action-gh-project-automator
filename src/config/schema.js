@@ -134,6 +134,11 @@ const schema = {
           type: 'array',
           items: { type: 'string', minLength: 1 },
         },
+        // Optional: loadBoardRules sets [] when absent; bot logins such as "renovate[bot]"
+        exclude_bot_authors: {
+          type: 'array',
+          items: { type: 'string', pattern: '^[A-Za-z0-9-]+\\[bot\\]$' },
+        },
       },
       additionalProperties: false,
     },

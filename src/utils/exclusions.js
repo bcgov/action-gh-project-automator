@@ -66,3 +66,51 @@ export function labelNames(labels) {
   }
   return labels.nodes.map((label) => label.name);
 }
+
+// Up to 100 commits per PR, the GraphQL page limit; isBotOnlyPullRequest fails on more
+export const COMMIT_AUTHORS_FRAGMENT =
+  'commits(first: 100) { totalCount nodes { commit { authors(first: 10) { nodes { user { login } } } } } }';
+
+/**
+ * GitHub login of a GraphQL author: a Bot's login comes back without the "[bot]" suffix.
+ * @param {{ __typename?: string, login?: string } | null | undefined} author
+ * @returns {string | null}
+ */
+function authorLogin(author) {
+  if (!author?.login) return null;
+  return author.__typename === 'Bot' ? `${author.login}[bot]` : author.login;
+}
+
+/**
+ * Checks if a pull request is opened by an excluded bot and has no commit from a person.
+ * A commit counts as human when one of its authors is a GitHub user that isn't a bot.
+ * @param {object} item - Search result with author and COMMIT_AUTHORS_FRAGMENT commits
+ * @param {object} exclusionsConfig - `exclusions` from rules.yml
+ * @returns {string | null} The bot login when the PR should be skipped, otherwise null
+ */
+export function botOnlyPullRequestAuthor(item, exclusionsConfig) {
+  if (!exclusionsConfig || !Array.isArray(exclusionsConfig.exclude_bot_authors)) {
+    throw new Error('exclusions.exclude_bot_authors from rules.yml is required');
+  }
+  if (item?.__typename !== 'PullRequest') return null;
+  const login = authorLogin(item.author);
+  const bots = new Set(exclusionsConfig.exclude_bot_authors.map((name) => name.toLowerCase()));
+  if (!login || !bots.has(login.toLowerCase())) return null;
+
+  const commits = item.commits;
+  if (!commits || !Array.isArray(commits.nodes)) {
+    throw new Error('Commits were not fetched for this pull request');
+  }
+  if (commits.totalCount > commits.nodes.length) {
+    throw new Error(
+      `Pull request has ${commits.totalCount} commits but only ${commits.nodes.length} were fetched; human commits can't be checked`
+    );
+  }
+  const hasHumanCommit = commits.nodes.some((node) =>
+    (node.commit?.authors?.nodes || []).some((a) => {
+      const user = a.user?.login;
+      return Boolean(user) && !user.endsWith('[bot]') && !bots.has(user.toLowerCase());
+    })
+  );
+  return hasHumanCommit ? null : login;
+}
