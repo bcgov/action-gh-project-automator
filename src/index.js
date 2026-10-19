@@ -345,6 +345,12 @@ async function run(options = {}) {
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {
+            if (isTitleExcluded(linked.title, config.exclusions)) {
+              core.info(
+                `Skipping linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}: excluded based on title.`
+              );
+              continue;
+            }
             const linkedExcludedLabel = findExcludedLabel(linked.labels, config.exclusions);
             if (linkedExcludedLabel) {
               core.info(

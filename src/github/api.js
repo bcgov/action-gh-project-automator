@@ -656,6 +656,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
             nodes {
               id
               number
+              title
               state
               repository { nameWithOwner }
               ${LABELS_FRAGMENT}
@@ -673,6 +674,7 @@ async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId) {
     return {
       id: node.id,
       number: node.number,
+      title: node.title,
       state: node.state,
       isClosed: node.state === 'CLOSED',
       isArchived: Boolean(board?.isArchived),
