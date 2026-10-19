@@ -190,3 +190,23 @@ test('linked issues with an excluded label are skipped before any linked-issue c
   const api = fs.readFileSync(new URL('../src/github/api.js', import.meta.url), 'utf8');
   assert.match(api, /labels: labelNames\(node\.labels\)/);
 });
+
+test('linked issues with an excluded title are skipped before any linked-issue change', () => {
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  const loop = index.indexOf('for (const linked of linkedIssues)');
+  const guard = index.indexOf('isTitleExcluded(linked.title, config.exclusions)', loop);
+  assert.ok(loop !== -1 && guard !== -1, 'the linked-issue loop checks title exclusions');
+  for (const step of [
+    'board.isCrossOrg(linked',
+    'updateItemColumn(projectId, linked.projectItemId',
+    'updateItemSprint(projectId, linked.projectItemId',
+    'linked.repository?.nameWithOwner,\n                  linked.number',
+  ]) {
+    const at = index.indexOf(step, loop);
+    assert.ok(at !== -1 && guard < at, step);
+  }
+  const api = fs.readFileSync(new URL('../src/github/api.js', import.meta.url), 'utf8');
+  const linkedQuery = api.slice(api.indexOf('async function fetchLinkedIssuesForPullRequest'));
+  assert.match(linkedQuery, /closingIssuesReferences[\s\S]*?\n\s+title\n/);
+  assert.match(linkedQuery, /title: node\.title/);
+});
