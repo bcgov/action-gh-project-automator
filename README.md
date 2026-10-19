@@ -160,13 +160,10 @@ A run fails, with a non-zero exit and a message naming what to fix, when:
 3. Click **New repository secret**.
 4. Set **Name** to `PROJECT_SYNC_TOKEN` and paste your token in **Secret**.
 
-## Development & Specs
+## Development
 
-This project follows a **Spec-Driven Development** model using the [SpecKit](https://github.com/github/spec-kit) framework.
-
-- **SpecKit Architecture**: Documentation for our feature specifications lives in the `specs/` directory. See the [SpecKit README](specs/README.md) for usage guidelines.
-- **Rule Engine Spec**: See [Spec 004](specs/004-rule-engine-architecture/spec.md) for a deep dive into our validation architecture.
-- **Project Constitution**: Review [memory/constitution.md](memory/constitution.md) for our core development principles and "Ludicrous Testing" standards.
+- **Design notes**: [docs/design.md](docs/design.md) explains how the sync discovers items and decides board changes.
+- **Project Constitution**: Review [memory/constitution.md](memory/constitution.md) for our core development principles.
 - **AI Pair Programming**: See [.github/copilot-instructions.md](.github/copilot-instructions.md) for guidance when working with AI coding assistants.
 
 ## Search Window & API Usage

@@ -1,7 +1,7 @@
 # Project Board Sync Configuration
 # User-facing configuration template - users provide their own rules.yml in their repositories.
 # This file serves as an example template showing available configuration options.
-# For developer documentation and feature specifications, see the specs/ directory.
+# For design notes, see docs/design.md.
 # Changes here will be applied on the next sync run.
 
 # Every key the engine reads is required here; there are no built-in defaults.

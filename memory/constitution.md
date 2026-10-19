@@ -2,22 +2,15 @@
 
 ## Purpose
 - Capture non-negotiable operating principles for the Project Board Automator re-engineering effort.
-- Establish clear separation between user-facing configuration and developer-facing specifications.
+- Establish clear separation between user-facing configuration and developer-facing design notes.
 
 ## Critical Directories
-- **`specs/`** - Developer-facing feature specifications using SpecKit framework. **DO NOT DELETE** this directory.
+- **`docs/design.md`** - Developer-facing design notes: how the sync works and why.
 - **`rules.yml`** - User-facing configuration template. Users provide their own in their repositories.
 
-## DO NOT
-- **Never delete `specs/` directory** thinking `rules.yml` replaces it. They serve different purposes:
-  - `rules.yml` is user-facing configuration (users customize in their repos)
-  - `specs/` contains developer-facing documentation (our internal planning)
-- SpecKit specs are for development; rules.yml is for users. One does not replace the other.
-
 ## Guiding Principles
-- **Spec-Driven Development**: Use SpecKit framework for feature specifications. All new features require specs.
 - **User Configuration**: `rules.yml` is user-facing configuration - users provide their own or use our default template.
-- **Developer Documentation**: Feature specs in `specs/` document what we build and the rules.yml patterns we support.
+- **Developer Documentation**: `docs/design.md` records how the sync works; keep it short and current.
 - **Incremental PRs**: Prefer small, reviewable changes with clear testing notes.
 - **Backward Compatibility**: Preserve current behavior by default; deviations require explicit approval.
 - **Strict ESM Standard**: All runtime and test code must use native ES modules. CommonJS is completely deprecated and prohibited in this repository.
@@ -44,11 +37,9 @@
 - Provide regression coverage for observed bugs before shipping fixes.
 
 ## Documentation Requirements
-- **Feature Specifications**: All new features must have SpecKit specs in `specs/[number]-[feature-name]/`
-- **SpecKit Structure**: Follow SpecKit framework patterns (spec.md, plan.md, contracts/, etc.)
-- **Rules.yml Patterns**: Specs document the rules.yml schema/patterns we support for users
+- Update `docs/design.md` when a change alters how the sync behaves.
 - Keep README in sync with configurable inputs, outputs, and operational toggles.
-- Maintain clear separation: specs document development, rules.yml is user configuration.
+- Maintain clear separation: docs/design.md documents development, rules.yml is user configuration.
 
 ## Operational Practices
 - Enforce DRY_RUN safeguards for destructive mutations.
@@ -56,5 +47,5 @@
 - Treat workflow failures as blockers; investigate before new feature work.
 
 ## Change Control
-- Changes to default behaviors require explicit sign-off and spec updates.
+- Changes to default behaviors require explicit sign-off and design note updates.
 - Reference this constitution in PR descriptions when deviating from standard process.
