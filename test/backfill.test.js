@@ -101,7 +101,9 @@ test('backfill uses the same exclusions as the sync, before any board change', (
   }
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   assert.ok(index.indexOf('isTitleExcluded(title') < index.indexOf('planBackfillItem('));
-  assert.ok(index.indexOf('findExcludedLabel(') < index.indexOf('planBackfillItem('));
+  const labelGuard = index.indexOf('findExcludedLabel(labelNames(item.labels)');
+  assert.ok(labelGuard !== -1, 'the label exclusion runs in the item loop');
+  assert.ok(labelGuard < index.indexOf('planBackfillItem('));
 });
 
 test('a backfill run never saves the watermark', () => {

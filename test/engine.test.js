@@ -3,7 +3,8 @@ import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { getProjectId } from '../src/github/api.js';
 import { determineTargetColumn } from '../src/utils/column-assignment.js';
-import { findExcludedLabel, isTitleExcluded } from '../src/utils/exclusions.js';
+import fs from 'node:fs';
+import { findExcludedLabel, isTitleExcluded, labelNames } from '../src/utils/exclusions.js';
 
 const { board_columns: policy, exclusions: shippedExclusions } = loadBoardRules();
 
@@ -160,4 +161,32 @@ test('findExcludedLabel requires exclusions.exclude_labels', () => {
     () => findExcludedLabel(['bug'], { exact_titles: [] }),
     /exclusions\.exclude_labels/
   );
+});
+
+test('labelNames returns fetched label names and fails when labels were cut off', () => {
+  assert.deepStrictEqual(labelNames({ totalCount: 2, nodes: [{ name: 'bug' }, { name: 'ci' }] }), [
+    'bug',
+    'ci',
+  ]);
+  assert.deepStrictEqual(labelNames({ totalCount: 0, nodes: [] }), []);
+  assert.throws(() => labelNames({ totalCount: 101, nodes: [{ name: 'bug' }] }), /101 labels/);
+  assert.throws(() => labelNames(undefined), /Labels were not fetched/);
+});
+
+test('linked issues with an excluded label are skipped before any linked-issue change', () => {
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  const loop = index.indexOf('for (const linked of linkedIssues)');
+  const guard = index.indexOf('findExcludedLabel(linked.labels', loop);
+  assert.ok(loop !== -1 && guard !== -1, 'the linked-issue loop checks label exclusions');
+  for (const step of [
+    'board.isCrossOrg(linked',
+    'updateItemColumn(projectId, linked.projectItemId',
+    'updateItemSprint(projectId, linked.projectItemId',
+    'linked.repository?.nameWithOwner,\n                  linked.number',
+  ]) {
+    const at = index.indexOf(step, loop);
+    assert.ok(at !== -1 && guard < at, step);
+  }
+  const api = fs.readFileSync(new URL('../src/github/api.js', import.meta.url), 'utf8');
+  assert.match(api, /labels: labelNames\(node\.labels\)/);
 });

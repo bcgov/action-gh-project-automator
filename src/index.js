@@ -11,7 +11,7 @@ import {
   getConfiguredColumns,
   validateBoardColumns,
 } from './utils/column-assignment.js';
-import { findExcludedLabel, isTitleExcluded } from './utils/exclusions.js';
+import { findExcludedLabel, isTitleExcluded, labelNames } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
   columnAfterAdd,
@@ -195,10 +195,7 @@ async function run(options = {}) {
           core.info(`Skipping: Automated item excluded based on title ("${title}").`);
           continue;
         }
-        const excludedLabel = findExcludedLabel(
-          (item.labels?.nodes || []).map((label) => label.name),
-          config.exclusions
-        );
+        const excludedLabel = findExcludedLabel(labelNames(item.labels), config.exclusions);
         if (excludedLabel) {
           core.info(`Skipping: Item excluded based on label ("${excludedLabel}").`);
           continue;
@@ -348,6 +345,13 @@ async function run(options = {}) {
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {
+            const linkedExcludedLabel = findExcludedLabel(linked.labels, config.exclusions);
+            if (linkedExcludedLabel) {
+              core.info(
+                `Skipping linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}: excluded based on label ("${linkedExcludedLabel}").`
+              );
+              continue;
+            }
             // Cross-org linked issues aren't in their own projectItems: use the board's item list
             if (board.isCrossOrg(linked.repository?.nameWithOwner)) {
               Object.assign(linked, {
