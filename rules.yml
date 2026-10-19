@@ -5,6 +5,7 @@
 # Changes here will be applied on the next sync run.
 
 # Every key the engine reads is required here; there are no built-in defaults.
+# Exception: exclusions.exclude_labels is optional and means [] (no label exclusions) when absent.
 project:
   url: "https://github.com/orgs/bcgov/projects/16" # Project board
   organization: "bcgov" # Default organization for unqualified repository names
@@ -116,7 +117,7 @@ exclusions:
   title_prefixes:
     # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
     - "ZAP: "
-  exclude_labels: [] # Label names, case-insensitive; an item with any of them is skipped
+  exclude_labels: [] # Optional; label names, case-insensitive; an item with any of them is skipped
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run

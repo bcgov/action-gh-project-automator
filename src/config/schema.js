@@ -117,7 +117,7 @@ const schema = {
     },
     exclusions: {
       type: 'object',
-      required: ['exact_titles', 'title_substrings', 'title_prefixes', 'exclude_labels'],
+      required: ['exact_titles', 'title_substrings', 'title_prefixes'],
       properties: {
         exact_titles: {
           type: 'array',
@@ -131,6 +131,7 @@ const schema = {
           type: 'array',
           items: { type: 'string' },
         },
+        // Optional: loadBoardRules sets [] when absent, so configs written before it still load
         exclude_labels: {
           type: 'array',
           items: { type: 'string', minLength: 1 },

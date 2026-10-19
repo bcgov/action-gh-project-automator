@@ -6,6 +6,7 @@ import path from 'node:path';
 import * as yaml from 'js-yaml';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { buildSearchQueries } from '../src/github/queries.js';
+import { findExcludedLabel } from '../src/utils/exclusions.js';
 import { projectItemsFragment } from '../src/utils/board-state.js';
 import { sprintAction } from '../src/utils/sprint.js';
 
@@ -32,7 +33,6 @@ const required = [
   ['board_columns', 'linked_issue', 'closed'],
   ['exclusions'],
   ['exclusions', 'title_prefixes'],
-  ['exclusions', 'exclude_labels'],
   ['technical', 'update_window_hours'],
 ];
 
@@ -176,4 +176,20 @@ test('src has no hardcoded user, org, project URL or sprint columns', () => {
       assert.ok(!pattern.test(text), `${file} matches ${pattern}`);
     }
   }
+});
+
+test('a rules.yml without exclusions.exclude_labels loads and excludes no labels', () => {
+  const file = writeRules((config) => {
+    delete config.exclusions.exclude_labels;
+  });
+  const config = loadBoardRules(file);
+  assert.deepStrictEqual(config.exclusions.exclude_labels, []);
+  assert.strictEqual(findExcludedLabel(['bug', 'do not track'], config.exclusions), null);
+});
+
+test('a non-list exclusions.exclude_labels is rejected', () => {
+  const file = writeRules((config) => {
+    config.exclusions.exclude_labels = 'bug';
+  });
+  assert.throws(() => loadBoardRules(file), /exclude_labels must be array/);
 });
