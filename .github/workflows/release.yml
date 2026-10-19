@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    outputs:
+      skip: ${{ steps.unpublish.outputs.skip }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,15 +88,94 @@ jobs:
             git commit -m "chore(dist): rebuild ncc bundles for release"
             git tag "$TAG"
           fi
+          # The tag is pushed here, so it exists while the release is still a draft
           git push origin "refs/tags/${TAG}"
+          # Draft until the smoke test passes; the publish job publishes it and moves the major tag
+          flags=(--draft --verify-tag)
           if [ "$prerelease" = "true" ]; then
-            gh release create "$TAG" --title "$title" --notes-file "$RUNNER_TEMP/release-notes.md" --prerelease --verify-tag
-          else
-            gh release create "$TAG" --title "$title" --notes-file "$RUNNER_TEMP/release-notes.md" --verify-tag
+            flags+=(--prerelease)
           fi
+          gh release create "$TAG" --title "$title" --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
+
+  smoke:
+    name: Smoke test the release tag
+    needs: dist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # The tag as consumers get it: committed dist/, no npm install, no build
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+
+      - name: Check the tag commit carries dist/
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if ! git ls-files --error-unmatch dist/index.js >/dev/null 2>&1; then
+            echo "tag ${TAG} has no committed dist/index.js" >&2
+            exit 1
+          fi
+          sha=$(git rev-parse HEAD)
+          echo "Smoke testing ${TAG} at ${sha}"
+          echo "Consumers pin \`bcgov/project-automator@${sha} # ${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the action from the tag (dry run)
+        uses: ./
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          config_path: rules.yml
+          dry_run: 'true'
+
+      - name: Report the failed gate
+        if: failure()
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          SKIP: ${{ needs.dist.outputs.skip }}
+        run: |
+          if [ "$SKIP" = "true" ]; then
+            msg="Smoke test failed for ${TAG}. The rebuild was skipped, so the release was not changed."
+          else
+            msg="Smoke test failed for ${TAG}. The release stays a draft and the major tag was not moved. Fix and re-release, or delete the draft release and the ${TAG} tag."
+          fi
+          echo "::error::${msg}"
+          echo "### :x: ${msg}" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish the release
+    needs: [dist, smoke]
+    if: needs.dist.outputs.skip == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+
+      - name: Publish the draft and move the major tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" != "true" ]; then
+            echo "release ${TAG} is not a draft; refusing to republish it" >&2
+            exit 1
+          fi
+          prerelease=$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)
+          gh release edit "$TAG" --draft=false
+          echo "Published ${TAG} after the smoke test passed" >> "$GITHUB_STEP_SUMMARY"
           # Update floating major tag (e.g. v1 for v1.x.x)
           major="${TAG%%.*}"
           if [ "$prerelease" != "true" ] && [[ "$major" =~ ^v[0-9]+$ ]]; then
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
             git tag -fa "$major" -m "Release $TAG"
             git push origin "refs/tags/${major}" --force
+            echo "Moved ${major} to ${TAG}" >> "$GITHUB_STEP_SUMMARY"
           fi
