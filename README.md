@@ -133,7 +133,8 @@ board-sync/                     (private)
 
 | Your config covers | Token setup |
 | --- | --- |
-| One owner (one organization or user) | One fine-grained PAT as `github_token` (see [Authentication & Token Setup](#authentication--token-setup)). |
+| One organization, with an organization-owned board | One fine-grained PAT as `github_token` (see [Authentication & Token Setup](#authentication--token-setup)). |
+| A user-owned board | A classic PAT as `github_token`: fine-grained tokens can't reach Projects owned by a user account. |
 | Several owners | A classic PAT as `github_token`, or a default token plus a fine-grained token per owner in `tokens:` (see [Per-Owner Tokens](#per-owner-tokens-optional)). |
 
 - A fine-grained token reaches only one owner. A classic PAT reaches everything its user can, so prefer fine-grained tokens where your organizations allow them.
