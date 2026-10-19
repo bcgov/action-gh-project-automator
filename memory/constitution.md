@@ -4,7 +4,7 @@ Operating principles for this action. `docs/design.md` describes how the sync wo
 
 ## Configuration
 - `rules.yml` is the only source of settings. The engine hardcodes no user, organization, project URL or column name.
-- Every key the engine reads is required, except a few optional lists that default to `[]` so existing configs keep loading. Unknown keys in fixed sections are rejected.
+- Keys the engine reads are required unless documented as optional. Optional today: `sprints` and `project.fields.sprint` (no sprint updates), `automation.user_scope` (no user searches), `project.allowedOrgs` (defaults to the project owner) and `exclusions.exclude_labels` (`[]`). Unknown keys in fixed sections are rejected.
 - Settings are plain lists (`board_columns`, `sprints`, `exclusions`, the two scopes); there is no rule language.
 - Load and validate config through `src/config` (`loadBoardRules` and the JSON schema) before any API call.
 
