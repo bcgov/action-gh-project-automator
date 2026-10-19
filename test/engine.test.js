@@ -156,5 +156,8 @@ test('the shipped rules.yml excludes no labels', () => {
 
 test('findExcludedLabel requires exclusions.exclude_labels', () => {
   assert.throws(() => findExcludedLabel(['bug']), /exclusions\.exclude_labels/);
-  assert.throws(() => findExcludedLabel(['bug'], { exact_titles: [] }), /exclusions\.exclude_labels/);
+  assert.throws(
+    () => findExcludedLabel(['bug'], { exact_titles: [] }),
+    /exclusions\.exclude_labels/
+  );
 });
