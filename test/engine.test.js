@@ -2,9 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { getProjectId } from '../src/github/api.js';
-import { determineTargetColumn } from '../src/utils/column-assignment.js';
+import {
+  columnForLabelsOnAdd,
+  determineTargetColumn,
+  getConfiguredColumns,
+} from '../src/utils/column-assignment.js';
 import fs from 'node:fs';
-import { findExcludedLabel, isTitleExcluded, labelNames } from '../src/utils/exclusions.js';
+import {
+  findExcludedLabel,
+  hasRequiredLabel,
+  isTitleExcluded,
+  labelNames,
+  labelSkipReason,
+} from '../src/utils/exclusions.js';
 
 const { board_columns: policy, exclusions: shippedExclusions } = loadBoardRules();
 
@@ -176,7 +186,7 @@ test('labelNames returns fetched label names and fails when labels were cut off'
 test('linked issues with an excluded label are skipped before any linked-issue change', () => {
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   const loop = index.indexOf('for (const linked of linkedIssues)');
-  const guard = index.indexOf('findExcludedLabel(linked.labels', loop);
+  const guard = index.indexOf('labelSkipReason(linked.labels', loop);
   assert.ok(loop !== -1 && guard !== -1, 'the linked-issue loop checks label exclusions');
   for (const step of [
     'board.isCrossOrg(linked',
@@ -189,4 +199,63 @@ test('linked issues with an excluded label are skipped before any linked-issue c
   }
   const api = fs.readFileSync(new URL('../src/github/api.js', import.meta.url), 'utf8');
   assert.match(api, /labels: labelNames\(node\.labels\)/);
+});
+
+test('hasRequiredLabel needs ANY listed label, ignoring case; an empty list requires nothing', () => {
+  const config = { required_labels: ['DevOps', 'ci'] };
+  assert.strictEqual(hasRequiredLabel(['devops'], config), true);
+  assert.strictEqual(hasRequiredLabel(['bug', 'CI'], config), true);
+  assert.strictEqual(hasRequiredLabel(['bug'], config), false);
+  assert.strictEqual(hasRequiredLabel([], config), false);
+  assert.strictEqual(hasRequiredLabel([], { required_labels: [] }), true);
+  assert.throws(() => hasRequiredLabel(['bug'], {}), /exclusions\.required_labels/);
+});
+
+test('labelSkipReason checks excluded labels before required ones', () => {
+  const config = { exclude_labels: ['wontfix'], required_labels: ['devops'] };
+  assert.strictEqual(labelSkipReason(['devops'], config), null);
+  assert.match(labelSkipReason(['devops', 'WontFix'], config), /excluded label "WontFix"/);
+  assert.match(labelSkipReason(['bug'], config), /none of the required labels \(devops\)/);
+  assert.strictEqual(labelSkipReason([], { exclude_labels: [], required_labels: [] }), null);
+});
+
+test('columnForLabelsOnAdd picks the first matching rule, ignoring case', () => {
+  const routed = {
+    ...policy,
+    on_add_by_label: [
+      { label: 'bug', column: 'Next' },
+      { label: 'security', column: 'Active' },
+    ],
+  };
+  assert.strictEqual(columnForLabelsOnAdd(['Security', 'BUG'], routed), 'Next');
+  assert.strictEqual(columnForLabelsOnAdd(['security'], routed), 'Active');
+  assert.strictEqual(columnForLabelsOnAdd(['docs'], routed), null);
+  assert.strictEqual(columnForLabelsOnAdd(['bug'], policy), null); // shipped rules.yml: no rules
+  assert.throws(
+    () => columnForLabelsOnAdd(['bug'], { ...policy, on_add_by_label: undefined }),
+    /on_add_by_label/
+  );
+});
+
+test('label routing columns are verified against the board like other columns', () => {
+  const columns = getConfiguredColumns({
+    board_columns: { ...policy, on_add_by_label: [{ label: 'bug', column: 'Triage' }] },
+  });
+  assert.ok(columns.includes('Triage'));
+});
+
+test('label routing applies only when the run adds an item with no Status', () => {
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  const add = index.indexOf('projectItemId = await api.addItemToProject(item.id');
+  const route = index.indexOf('labelColumn = columnForLabelsOnAdd(', add);
+  assert.ok(add !== -1 && route !== -1, 'routing happens in the add branch');
+  assert.ok(
+    index.lastIndexOf('if (!existing.column)', route) > add,
+    'only without an existing Status'
+  );
+  // Backfill adds route through planBackfillItem with the item's labels
+  assert.match(
+    index,
+    /planBackfillItem\(\s*await board\.stateFor\(item, repoName\),\s*config\.board_columns,\s*itemLabels\s*\)/
+  );
 });

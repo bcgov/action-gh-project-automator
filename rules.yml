@@ -5,7 +5,8 @@
 # Changes here will be applied on the next sync run.
 
 # Every key the engine reads is required here; there are no built-in defaults.
-# Exception: exclusions.exclude_labels is optional and means [] (no label exclusions) when absent.
+# Exceptions: exclusions.exclude_labels, exclusions.required_labels and board_columns.on_add_by_label
+# are optional and mean [] (no label filtering or routing) when absent.
 project:
   url: "https://github.com/orgs/bcgov/projects/16" # Project board
   organization: "bcgov" # Default organization for unqualified repository names
@@ -118,6 +119,7 @@ exclusions:
     # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
     - "ZAP: "
   exclude_labels: [] # Optional; label names, case-insensitive; an item with any of them is skipped
+  required_labels: [] # Optional; when set, an item needs ANY one of these labels, or it's skipped
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run
@@ -153,3 +155,6 @@ board_columns:
     closed: Next # PR closed without merging returns the issue to Next
   issue:
     no_status: New
+  # Optional; when an item is added with no Status, the first rule whose label it carries sets the column.
+  # Later runs and label changes don't re-route it. Example: - { label: bug, column: Next }
+  on_add_by_label: []

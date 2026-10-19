@@ -84,12 +84,12 @@ test('backfill searches open items only; normal runs keep closed-unmerged PRs', 
 });
 
 test('backfill adds missing items to New and leaves existing items alone', () => {
-  assert.deepStrictEqual(planBackfillItem(null, config.board_columns), {
+  assert.deepStrictEqual(planBackfillItem(null, config.board_columns, []), {
     action: 'add',
     column: 'New',
   });
   const existing = { projectItemId: 'PVTI_1', column: 'Waiting', sprint: null };
-  assert.deepStrictEqual(planBackfillItem(existing, config.board_columns), {
+  assert.deepStrictEqual(planBackfillItem(existing, config.board_columns, ['bug']), {
     action: 'skip',
     projectItemId: 'PVTI_1',
   });
@@ -101,7 +101,7 @@ test('backfill uses the same exclusions as the sync, before any board change', (
   }
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   assert.ok(index.indexOf('isTitleExcluded(title') < index.indexOf('planBackfillItem('));
-  const labelGuard = index.indexOf('findExcludedLabel(labelNames(item.labels)');
+  const labelGuard = index.indexOf('labelSkipReason(itemLabels');
   assert.ok(labelGuard !== -1, 'the label exclusion runs in the item loop');
   assert.ok(labelGuard < index.indexOf('planBackfillItem('));
 });
@@ -111,4 +111,24 @@ test('a backfill run never saves the watermark', () => {
   assert.strictEqual(shouldSaveWatermark({ backfill: null, hasFailure: true }), false);
   assert.strictEqual(shouldSaveWatermark({ backfill: { all: true }, hasFailure: false }), false);
   assert.strictEqual(shouldSaveWatermark({ backfill: { days: 30 }, hasFailure: false }), false);
+});
+
+test('backfill adds use label routing, and never re-route an item already on the board', () => {
+  const policy = {
+    ...config.board_columns,
+    on_add_by_label: [{ label: 'security', column: 'Next' }],
+  };
+  assert.deepStrictEqual(planBackfillItem(null, policy, ['Security']), {
+    action: 'add',
+    column: 'Next',
+  });
+  assert.deepStrictEqual(planBackfillItem(null, policy, ['docs']), {
+    action: 'add',
+    column: 'New',
+  });
+  const existing = { projectItemId: 'PVTI_1', column: 'Backlog', sprint: null };
+  assert.deepStrictEqual(planBackfillItem(existing, policy, ['security']), {
+    action: 'skip',
+    projectItemId: 'PVTI_1',
+  });
 });

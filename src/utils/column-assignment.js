@@ -88,6 +88,23 @@ export function determineLinkedIssueColumn(pr, currentColumn, policy, options = 
 }
 
 /**
+ * Column for an item being added to the board, from `board_columns.on_add_by_label`.
+ * The first rule whose label the item carries wins; labels match ignoring case.
+ * Used only when an item is added with no Status, never on later runs or label changes.
+ * @param {Array<string>} labels - Label names on the issue or pull request
+ * @param {object} policy - `board_columns` from rules.yml, normalized by loadBoardRules
+ * @returns {string|null} The routed column, or null when no rule matches
+ */
+export function columnForLabelsOnAdd(labels, policy) {
+  const rules = resolvePolicy(policy).on_add_by_label;
+  if (!Array.isArray(rules)) {
+    throw new Error('board_columns.on_add_by_label from rules.yml is required');
+  }
+  const names = new Set(labels.map((name) => name.toLowerCase()));
+  return rules.find((rule) => names.has(rule.label.toLowerCase()))?.column || null;
+}
+
+/**
  * Extract all unique target column names defined in rules.yml policy.
  * Ignores 'keep' since that leaves the item in its existing column.
  * @param {object} config - Parsed configuration from rules.yml
@@ -119,6 +136,9 @@ export function getConfiguredColumns(config) {
     }
     if (bc.issue) {
       addIfValid(bc.issue.no_status);
+    }
+    if (Array.isArray(bc.on_add_by_label)) {
+      bc.on_add_by_label.forEach((rule) => addIfValid(rule?.column));
     }
   }
   if (config?.sprints) {

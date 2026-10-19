@@ -46,6 +46,37 @@ export function findExcludedLabel(labels, exclusionsConfig) {
   return labels.find((name) => excluded.has(name.toLowerCase())) || null;
 }
 
+/**
+ * Checks the item carries at least one of `exclusions.required_labels`, ignoring case.
+ * An empty list requires nothing.
+ * @param {Array<string>} labels - Label names on the issue or pull request
+ * @param {object} exclusionsConfig - `exclusions` from rules.yml, normalized by loadBoardRules
+ * @returns {boolean} True when the list is empty or any listed label is present
+ */
+export function hasRequiredLabel(labels, exclusionsConfig) {
+  if (!exclusionsConfig || !Array.isArray(exclusionsConfig.required_labels)) {
+    throw new Error('exclusions.required_labels from rules.yml is required');
+  }
+  if (exclusionsConfig.required_labels.length === 0) return true;
+  const required = new Set(exclusionsConfig.required_labels.map((name) => name.toLowerCase()));
+  return labels.some((name) => required.has(name.toLowerCase()));
+}
+
+/**
+ * Why an item's labels keep it off the board, or null when they don't.
+ * @param {Array<string>} labels - Label names on the issue or pull request
+ * @param {object} exclusionsConfig - `exclusions` from rules.yml, normalized by loadBoardRules
+ * @returns {string | null}
+ */
+export function labelSkipReason(labels, exclusionsConfig) {
+  const excluded = findExcludedLabel(labels, exclusionsConfig);
+  if (excluded) return `excluded label "${excluded}"`;
+  if (!hasRequiredLabel(labels, exclusionsConfig)) {
+    return `none of the required labels (${exclusionsConfig.required_labels.join(', ')})`;
+  }
+  return null;
+}
+
 // Up to 100 labels per item, the GraphQL page limit; labelNames fails on more
 export const LABELS_FRAGMENT = 'labels(first: 100) { totalCount nodes { name } }';
 

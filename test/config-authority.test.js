@@ -193,3 +193,24 @@ test('a non-list exclusions.exclude_labels is rejected', () => {
   });
   assert.throws(() => loadBoardRules(file), /exclude_labels must be array/);
 });
+
+test('a rules.yml without the optional label keys loads with empty defaults', () => {
+  const file = writeRules((config) => {
+    delete config.exclusions.exclude_labels;
+    delete config.exclusions.required_labels;
+    delete config.board_columns.on_add_by_label;
+  });
+  const config = loadBoardRules(file);
+  assert.deepStrictEqual(config.exclusions.required_labels, []);
+  assert.deepStrictEqual(config.board_columns.on_add_by_label, []);
+});
+
+test('label routing rules need a label and a column', () => {
+  const file = writeRules((config) => {
+    config.board_columns.on_add_by_label = [{ label: 'bug' }];
+  });
+  assert.throws(
+    () => loadBoardRules(file),
+    /missing required key board_columns\.on_add_by_label\.0\.column/
+  );
+});

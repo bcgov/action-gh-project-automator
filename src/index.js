@@ -6,12 +6,13 @@ import * as core from '@actions/core';
 import { loadBoardRules, resolveConfigPath } from './config/board-rules.js';
 import * as api from './github/api.js';
 import {
+  columnForLabelsOnAdd,
   determineLinkedIssueColumn,
   determineTargetColumn,
   getConfiguredColumns,
   validateBoardColumns,
 } from './utils/column-assignment.js';
-import { findExcludedLabel, isTitleExcluded, labelNames } from './utils/exclusions.js';
+import { isTitleExcluded, labelNames, labelSkipReason } from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
   columnAfterAdd,
@@ -195,9 +196,10 @@ async function run(options = {}) {
           core.info(`Skipping: Automated item excluded based on title ("${title}").`);
           continue;
         }
-        const excludedLabel = findExcludedLabel(labelNames(item.labels), config.exclusions);
-        if (excludedLabel) {
-          core.info(`Skipping: Item excluded based on label ("${excludedLabel}").`);
+        const itemLabels = labelNames(item.labels);
+        const labelSkip = labelSkipReason(itemLabels, config.exclusions);
+        if (labelSkip) {
+          core.info(`Skipping: Item excluded by labels: ${labelSkip}.`);
           continue;
         }
 
@@ -229,7 +231,11 @@ async function run(options = {}) {
 
         // Backfill only adds missing items; items already on the board aren't re-added or moved
         if (backfill) {
-          const plan = planBackfillItem(await board.stateFor(item, repoName), config.board_columns);
+          const plan = planBackfillItem(
+            await board.stateFor(item, repoName),
+            config.board_columns,
+            itemLabels
+          );
           if (plan.action === 'skip') {
             core.info(`Already on the board (${plan.projectItemId}); leaving it alone.`);
             continue;
@@ -263,6 +269,8 @@ async function run(options = {}) {
         let projectItemId = state?.projectItemId || null;
         let currentColumn = state?.column || null;
         let currentSprint = state?.sprint || null;
+        // Set only when this run adds the item with no Status and a label rule matches
+        let labelColumn = null;
 
         if (projectItemId) {
           core.info(`Item is already present on the board. Project Item ID: ${projectItemId}`);
@@ -277,16 +285,22 @@ async function run(options = {}) {
           const existing = await api.getProjectItemState(projectItemId);
           currentColumn = existing.column;
           currentSprint = existing.sprint;
+          if (!existing.column) {
+            labelColumn = columnForLabelsOnAdd(itemLabels, config.board_columns);
+            if (labelColumn) core.info(`Label rule routes the new item to "${labelColumn}".`);
+          }
         }
 
         // --- Column Assignment ---
         core.info(`Current Column: ${currentColumn || 'None'}`);
 
-        const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn, {
-          merged: isMerged,
-          draft: isDraft,
-          policy: config.board_columns,
-        });
+        const targetColumn =
+          labelColumn ||
+          determineTargetColumn(itemType, isClosed, currentColumn, {
+            merged: isMerged,
+            draft: isDraft,
+            policy: config.board_columns,
+          });
         let columnAction = '';
 
         if (!projectItemId) {
@@ -345,10 +359,10 @@ async function run(options = {}) {
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {
-            const linkedExcludedLabel = findExcludedLabel(linked.labels, config.exclusions);
-            if (linkedExcludedLabel) {
+            const linkedLabelSkip = labelSkipReason(linked.labels, config.exclusions);
+            if (linkedLabelSkip) {
               core.info(
-                `Skipping linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}: excluded based on label ("${linkedExcludedLabel}").`
+                `Skipping linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}: excluded by labels: ${linkedLabelSkip}.`
               );
               continue;
             }

@@ -1,3 +1,5 @@
+import { columnForLabelsOnAdd } from './column-assignment.js';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -28,14 +30,19 @@ export function backfillSince(backfill, now = new Date()) {
 
 /**
  * What a backfill run does with one item: items already on the board are left alone
- * (not re-added or moved); missing items are added in the policy's no-Status column.
+ * (not re-added or moved); missing items are added in the column a label rule
+ * (`board_columns.on_add_by_label`) picks, otherwise the policy's no-Status column.
  * @param {object|null} board - The item's board state (null when it isn't on the board)
- * @param {object} policy - `board_columns` from rules.yml
+ * @param {object} policy - `board_columns` from rules.yml, normalized by loadBoardRules
+ * @param {Array<string>} labels - Label names on the item
  * @returns {{ action: 'skip', projectItemId: string } | { action: 'add', column: string }}
  */
-export function planBackfillItem(board, policy) {
+export function planBackfillItem(board, policy, labels) {
   if (board) return { action: 'skip', projectItemId: board.projectItemId };
-  return { action: 'add', column: policy?.issue?.no_status || 'New' };
+  return {
+    action: 'add',
+    column: columnForLabelsOnAdd(labels, policy) || policy?.issue?.no_status || 'New',
+  };
 }
 
 /**

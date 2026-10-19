@@ -15,9 +15,12 @@ function loadBoardRules(configPath = resolveConfigPath()) {
   const loader = new ConfigLoader();
   const config = loader.load(configPath);
 
-  // exclusions.exclude_labels is optional (added after configs were in use): absent means none
-  if (config.exclusions.exclude_labels === undefined) {
-    config.exclusions.exclude_labels = [];
+  // Label settings are optional (added after configs were in use): absent means none
+  for (const key of ['exclude_labels', 'required_labels']) {
+    if (config.exclusions[key] === undefined) config.exclusions[key] = [];
+  }
+  if (config.board_columns.on_add_by_label === undefined) {
+    config.board_columns.on_add_by_label = [];
   }
 
   // Default allowedOrgs to the owner parsed from project.url when omitted

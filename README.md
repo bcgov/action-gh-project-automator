@@ -83,9 +83,23 @@ exclusions:
     - "ZAP: "
   exclude_labels:
     - "do not track"
+  required_labels: # Optional: only track items carrying ANY of these
+    - "devops"
 ```
 
-Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. Title matches are case-sensitive. An item carrying any label in `exclude_labels` is skipped; label names must match whole, ignoring case, as GitHub treats label names. The three title lists are required in `rules.yml`; there are no built-in defaults. `exclude_labels` is the one optional key: when it's absent, no labels are excluded (`[]`), so configs written before it keep working. Like title exclusions, a label exclusion skips the item on every run, so it isn't added, moved or assigned; it isn't removed from the board if it's already there.
+Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. Title matches are case-sensitive. An item carrying any label in `exclude_labels` is skipped; label names must match whole, ignoring case, as GitHub treats label names. The three title lists are required in `rules.yml`; there are no built-in defaults. When `required_labels` lists any labels, an item must carry at least one of them (ANY match, ignoring case) or it's skipped; an empty list requires nothing. `exclude_labels` is checked first, so an excluded label wins. The label lists are optional: when they're absent, they're `[]`, so configs written before them keep working. Like title exclusions, label filters skip the item on every run, so it isn't added, moved or assigned; it isn't removed from the board if it's already there. Label filters are global (they apply to every scope) and also apply to the issues a PR closes, so those aren't moved or assigned through the PR.
+
+### Label-Based Column Routing
+`board_columns.on_add_by_label` (optional, `[]` when absent) picks the column for an item when the sync adds it to the board with no Status:
+
+```yaml
+board_columns:
+  on_add_by_label:
+    - label: "security" # matched ignoring case; the first matching rule wins
+      column: "Next"
+```
+
+Routing happens only at that add (normal runs and catch-up runs). Later runs and label changes don't re-route an item, and an item that already has a Status is never changed by these rules. On later runs the normal `board_columns` rules still apply: a ready PR moves to `pull_request.ready` (unless that's `keep`), so routing mainly decides where new issues land. Routing columns are checked against the board at start-up like the other columns.
 
 ## Stability & Predictability
 

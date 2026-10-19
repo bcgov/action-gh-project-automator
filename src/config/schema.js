@@ -94,6 +94,19 @@ const schema = {
           },
           additionalProperties: false,
         },
+        // Optional, [] when absent: first matching label sets the column when an item is added
+        on_add_by_label: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['label', 'column'],
+            properties: {
+              label: { type: 'string', minLength: 1 },
+              column: { type: 'string', minLength: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
       },
       additionalProperties: false,
     },
@@ -133,6 +146,11 @@ const schema = {
         },
         // Optional: loadBoardRules sets [] when absent, so configs written before it still load
         exclude_labels: {
+          type: 'array',
+          items: { type: 'string', minLength: 1 },
+        },
+        // Optional, [] when absent: an item needs ANY one of these labels
+        required_labels: {
           type: 'array',
           items: { type: 'string', minLength: 1 },
         },
