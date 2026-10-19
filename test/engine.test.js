@@ -11,7 +11,7 @@ const { board_columns: policy, exclusions: shippedExclusions } = loadBoardRules(
 test('loadBoardRules resolves config and flattens scope', () => {
   const rules = loadBoardRules();
   assert.ok(rules.project);
-  assert.ok(rules.rules);
+  assert.strictEqual(rules.rules, undefined);
   assert.deepStrictEqual(rules.monitoredUsers, ['DerekRoberts']);
   assert.deepStrictEqual(rules.project.allowedOrgs, ['bcgov', 'bcgov-c']);
 });
