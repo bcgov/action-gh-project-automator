@@ -1,3 +1,6 @@
+# repository_scope.repositories is a hand-kept mirror of the Core, FSD and Maint groups in
+# DerekRoberts/brain repo-rules.md; update both together. bcgov/nr-fom is excluded on purpose
+# because it's frozen; don't add it. bcgov-c/nr-mof-db is tracked only through user_scope.
 # Project Board Sync Configuration
 # User-facing configuration template - users provide their own rules.yml in their repositories.
 # This file serves as an example template showing available configuration options.
