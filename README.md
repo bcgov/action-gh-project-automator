@@ -136,7 +136,7 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Fine-grained tokens**](https://github.com/settings/personal-access-tokens/new). A token owned by a team or service account is better than a personal one.
 2. Set **Token name** to `PROJECT_SYNC_TOKEN`.
 3. Set **Resource owner** to the organization that owns the project board.
-4. Under **Repository access**, choose the monitored repositories (or all repositories).
+4. Under **Repository access**, choose **All repositories** if `user_scope` is set: user searches aren't limited to the monitored list, and the token also needs the issues a PR closes and, without a checkout, the repository holding `rules.yml`. Otherwise you can select the monitored repositories plus those.
 5. Set these permissions:
    * **Organization → Projects: Read and write**, for the project board.
    * **Repository → Issues: Read** and **Pull requests: Read**, for search and item metadata. Choose **Read and write** for both if `user_scope` is set, because the run assigns authored items to their author.
