@@ -250,7 +250,8 @@ tokens:
 - Every other owner uses `github_token`.
 - There's no fallback: if a mapped variable is unset or empty, the run fails before it reads the board, naming the owner and the variable.
 - Without `tokens:`, every call uses `github_token`, as before.
-- Adding an item to the board uses the board owner's token, so that token must also be able to see items from other owners. With fine-grained tokens per owner, keep `github_token` broad enough for that, or track only the board owner's items.
+- Adding an item to the board uses the board owner's token, so that token must also be able to see items from other owners. When the board owner is mapped in `tokens:`, that mapped token is the one used for every board call, cross-owner additions included, so a broad `github_token` doesn't help there: either give the board owner's mapped token that visibility, or leave the board owner unmapped so the board uses a broad `github_token`. Otherwise, track only the board owner's items.
+- A pull request's linked issues are read with the PR owner's token, then with each other configured token, and the results are combined. A private issue in another owner is found only when one of those tokens can read both the pull request and the issue, such as a classic PAT as `github_token`.
 
 #### Access Failures
 

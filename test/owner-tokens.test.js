@@ -36,7 +36,8 @@ async function recordCalls(ownerTokens, projectOwner, fn, respond = () => ({ dat
     const body = options?.body ? JSON.parse(options.body) : {};
     const call = { token: headers.get('authorization')?.replace(/^(bearer|token) /i, ''), body };
     calls.push(call);
-    return json(respond(call));
+    const reply = respond(call);
+    return reply instanceof Response ? reply : json(reply);
   };
   try {
     await fn();
@@ -48,6 +49,12 @@ async function recordCalls(ownerTokens, projectOwner, fn, respond = () => ({ dat
   }
   return calls;
 }
+
+const badCredentials = () =>
+  new Response(JSON.stringify({ message: 'Bad credentials' }), {
+    status: 401,
+    headers: { 'content-type': 'application/json' },
+  });
 
 const emptySearch = (call) =>
   call.body.query.includes('search(')
@@ -198,4 +205,108 @@ test('board calls use the project owner token', async () => {
     ['b-token']
   );
   assert.strictEqual(api.tokenNameFor('bcgov'), 'github_token'); // reset after the call
+});
+
+test('an unusable token is reported and the access check continues', async () => {
+  const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
+  let result;
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0); // skip retry back-off
+  try {
+    await recordCalls(
+      tokens,
+      'bcgov',
+      async () => {
+        result = await api.checkAccess({
+          projectUrl: 'https://github.com/orgs/bcgov/projects/16',
+          org: 'bcgov',
+          repos: ['bcgov/a', 'bcgov-c/b'],
+        });
+      },
+      (call) => {
+        if (call.token === 'c-token') return badCredentials();
+        if (call.body.query.includes('projectV2(number'))
+          return { data: { organization: { projectV2: { id: 'P_1' } } } };
+        if (call.body.query.includes('viewerCanUpdate'))
+          return { data: { node: { viewerCanUpdate: true } } };
+        return {
+          data: Object.fromEntries(
+            [...call.body.query.matchAll(/(r\d+): repository/g)].map(([, k]) => [k, { id: k }])
+          ),
+        };
+      }
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+  assert.strictEqual(result.projectId, 'P_1');
+  assert.ok(
+    result.failures.some((l) => /^token BCGOV_C_TOKEN via BCGOV_C_TOKEN: unusable/.test(l))
+  );
+  assert.ok(result.failures.some((l) => /^repo bcgov-c\/b via BCGOV_C_TOKEN: cannot read/.test(l)));
+  assert.ok(result.lines.includes('repo bcgov/a via github_token: OK'));
+});
+
+test('linked issues another token can see are combined with the PR owner token results', async () => {
+  const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
+  const issue = (id, repo) => ({
+    id,
+    number: 1,
+    title: id,
+    state: 'OPEN',
+    repository: { nameWithOwner: repo },
+    labels: { nodes: [] },
+    projectItems: { nodes: [] },
+  });
+  let issues;
+  const calls = await recordCalls(
+    tokens,
+    'bcgov',
+    async () => {
+      issues = await api.fetchLinkedIssuesForPullRequest('PR_1', 'P_1', 'bcgov/a');
+    },
+    (call) =>
+      call.token === 'default-token'
+        ? { data: { node: { closingIssuesReferences: { nodes: [issue('I_a', 'bcgov/a')] } } } }
+        : {
+            data: {
+              node: {
+                closingIssuesReferences: {
+                  nodes: [issue('I_a', 'bcgov/a'), issue('I_c', 'bcgov-c/b')],
+                },
+              },
+            },
+          }
+  );
+  assert.deepStrictEqual(
+    calls.map((c) => c.token),
+    ['default-token', 'c-token']
+  );
+  assert.deepStrictEqual(
+    issues.map((i) => i.id),
+    ['I_a', 'I_c']
+  );
+});
+
+test('a failing extra token does not hide the PR owner token linked issues', async () => {
+  const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  let issues;
+  try {
+    await recordCalls(
+      tokens,
+      'bcgov',
+      async () => {
+        issues = await api.fetchLinkedIssuesForPullRequest('PR_1', 'P_1', 'bcgov/a');
+      },
+      (call) =>
+        call.token === 'c-token'
+          ? badCredentials()
+          : { data: { node: { closingIssuesReferences: { nodes: [] } } } }
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+  assert.deepStrictEqual(issues, []);
 });

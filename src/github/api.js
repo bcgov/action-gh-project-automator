@@ -445,7 +445,14 @@ async function checkAccess({ projectUrl, org, repos, allowedOrgs = [] }) {
   const groups = groupByToken(org, repos);
   const unreadable = new Set();
   for (const [owner, names] of groups) {
-    for (const name of await unreadableWith(getClients(owner).graphql, names)) unreadable.add(name);
+    try {
+      for (const name of await unreadableWith(getClients(owner).graphql, names))
+        unreadable.add(name);
+    } catch (err) {
+      // An invalid or revoked token: report it, count its repositories as unreadable, keep checking
+      report(`token ${tokenNameFor(owner)}`, tokenNameFor(owner), `unusable (${err.message})`);
+      for (const name of names) unreadable.add(name);
+    }
   }
 
   // One line per owner, then one per repository
@@ -879,7 +886,37 @@ async function getProjectItemState(projectItemId) {
  * @param {string} [nameWithOwner] - The PR's repository; its owner picks the token
  */
 async function fetchLinkedIssuesForPullRequest(pullRequestId, projectId, nameWithOwner) {
-  const { graphql } = getClients(ownerOf(nameWithOwner));
+  // The PR owner's token comes first and its errors stop the run. Each other configured token
+  // is also asked, so a linked issue the PR owner's token can't see (a private issue in another
+  // owner) is still found when another token can read both. Those extra reads are best effort.
+  const primary = getClients(ownerOf(nameWithOwner));
+  const others = [];
+  for (const owner of [null, ..._ownerTokens.keys()]) {
+    let clients;
+    try {
+      clients = getClients(owner);
+    } catch {
+      continue; // no default token
+    }
+    if (clients !== primary && !others.includes(clients)) others.push(clients);
+  }
+  const byId = new Map();
+  for (const issue of await linkedIssuesWith(primary.graphql, pullRequestId, projectId)) {
+    byId.set(issue.id, issue);
+  }
+  for (const { graphql } of others) {
+    let issues;
+    try {
+      issues = await linkedIssuesWith(graphql, pullRequestId, projectId);
+    } catch {
+      continue;
+    }
+    for (const issue of issues) if (!byId.has(issue.id)) byId.set(issue.id, issue);
+  }
+  return [...byId.values()];
+}
+
+async function linkedIssuesWith(graphql, pullRequestId, projectId) {
   const PROJECT_ITEMS_FRAGMENT = projectItemsFragment(getProjectFields());
   const query = `
     query($pullRequestId: ID!) {
