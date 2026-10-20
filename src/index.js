@@ -12,7 +12,8 @@ import {
   validateBoardColumns,
 } from './utils/column-assignment.js';
 import {
-  botOnlyPullRequestAuthor,
+  authorLogin,
+  findExcludedAuthor,
   findExcludedLabel,
   isTitleExcluded,
   labelNames,
@@ -205,11 +206,6 @@ async function run(options = {}) {
           core.info(`Skipping: Item excluded based on label ("${excludedLabel}").`);
           continue;
         }
-        const botAuthor = botOnlyPullRequestAuthor(item, config.exclusions);
-        if (botAuthor) {
-          core.info(`Skipping: PR by ${botAuthor} with no human commits.`);
-          continue;
-        }
 
         // Check Triggers for Board Addition
         const isMaintainerRepo = maintainerRepos.includes(repoName);
@@ -220,6 +216,14 @@ async function run(options = {}) {
           (item.reviewRequests?.nodes || []).some((req) =>
             monitoredUsers.includes(req.requestedReviewer?.login)
           );
+        const excludedAuthor = findExcludedAuthor(
+          { author: authorLogin(item.author), isReviewRequested: isReviewer },
+          config.exclusions
+        );
+        if (excludedAuthor) {
+          core.info(`Skipping: Item excluded based on author ("${excludedAuthor}").`);
+          continue;
+        }
         // The monitored user to assign: the author when monitored, otherwise the first listed (if any)
         const assignee = isAuthored ? author : monitoredUsers[0] || null;
 

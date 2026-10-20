@@ -87,18 +87,23 @@ exclusions:
 
 Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. Title matches are case-sensitive. An item carrying any label in `exclude_labels` is skipped; label names must match whole, ignoring case, as GitHub treats label names. The three title lists are required in `rules.yml`; there are no built-in defaults. `exclude_labels` is the one optional key: when it's absent, no labels are excluded (`[]`), so configs written before it keep working. Like title exclusions, a label exclusion skips the item on every run, so it isn't added, moved or assigned; it isn't removed from the board if it's already there. Title and label exclusions also apply to the issues a PR closes, so an excluded issue isn't moved, given a sprint or assigned through its PR.
 
-### Dependency-bot PRs
+### Author exclusions
 
-PRs opened by a bot in `exclude_bot_authors` are skipped unless a person authored at least one of their commits, so routine dependency updates don't count as sprint work:
+Two optional keys skip items by who opened them, such as dependency bots, so routine updates don't count as sprint work:
 
 ```yaml
 exclusions:
-  exclude_bot_authors:
+  authors:
     - renovate[bot]
     - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  unless_review_requested: true
 ```
 
-Use the bot's full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. A commit counts as human when one of its authors (co-authors included) is a GitHub user that isn't a bot, so a bot PR is added, or kept, once someone pushes a fix to it. The key is optional: when it's absent, no bot PRs are skipped. Like the other exclusions, it never removes an item that's already on the board.
+`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Both keys are off when absent (`[]` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
+
+`github-actions[bot]` is deliberately not listed: workflows use it to open real report PRs (for example in `bcgov/action-repo-reporter`), so excluding it would hide work. The trade-off is that any routine PR a workflow opens as `github-actions[bot]` still reaches the board. The title exclusions above stay as a fallback for bot issues such as the Dependency Dashboard and ZAP reports.
 
 ## Stability & Predictability
 

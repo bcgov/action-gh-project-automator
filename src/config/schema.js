@@ -134,11 +134,13 @@ const schema = {
           type: 'array',
           items: { type: 'string', minLength: 1 },
         },
-        // Optional: loadBoardRules sets [] when absent; bot logins such as "renovate[bot]"
-        exclude_bot_authors: {
+        // Optional: loadBoardRules sets [] when absent; logins, case-insensitive
+        authors: {
           type: 'array',
-          items: { type: 'string', pattern: '^[A-Za-z0-9-]+\\[bot\\]$' },
+          items: { type: 'string', minLength: 1 },
         },
+        // Optional: loadBoardRules sets false when absent
+        unless_review_requested: { type: 'boolean' },
       },
       additionalProperties: false,
     },

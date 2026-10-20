@@ -19,9 +19,12 @@ function loadBoardRules(configPath = resolveConfigPath()) {
   if (config.exclusions.exclude_labels === undefined) {
     config.exclusions.exclude_labels = [];
   }
-  // exclusions.exclude_bot_authors is optional too: absent means no bot PRs are skipped
-  if (config.exclusions.exclude_bot_authors === undefined) {
-    config.exclusions.exclude_bot_authors = [];
+  // exclusions.authors and unless_review_requested are optional too: absent means off
+  if (config.exclusions.authors === undefined) {
+    config.exclusions.authors = [];
+  }
+  if (config.exclusions.unless_review_requested === undefined) {
+    config.exclusions.unless_review_requested = false;
   }
 
   // Default allowedOrgs to the owner parsed from project.url when omitted

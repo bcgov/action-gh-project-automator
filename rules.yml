@@ -65,10 +65,15 @@ exclusions:
     # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
     - "ZAP: "
   exclude_labels: [] # Optional; label names, case-insensitive; an item with any of them is skipped
-  # Optional; PRs opened by these bots are skipped unless a person authored one of their commits
-  exclude_bot_authors:
+  # Optional; author logins, case-insensitive; their issues and PRs are skipped.
+  # github-actions[bot] is left out on purpose: it opens real report PRs.
+  authors:
     - renovate[bot]
     - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  # Optional; true still adds an excluded author's PR when a monitored user is a requested reviewer
+  unless_review_requested: true
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run
