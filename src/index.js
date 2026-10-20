@@ -109,8 +109,23 @@ async function run(options = {}) {
       return;
     }
 
-    core.info('Resolving Project Board ID...');
-    const projectId = await api.getProjectId(projectUrl);
+    // Per-owner tokens from rules.yml; a mapped owner with no token fails here, before any call
+    api.setOwnerTokens(api.resolveOwnerTokens(config.tokens), projectOwnerFromUrl(projectUrl));
+    for (const owner of Object.keys(config.tokens)) {
+      core.info(`Owner ${owner} uses token ${api.tokenNameFor(owner)}.`);
+    }
+
+    // Start-up access check: every project, owner and repository, before any write (dry runs too)
+    core.info('Checking token access...');
+    const access = await api.checkAccess({
+      projectUrl,
+      org: organization,
+      repos: maintainerRepos,
+      allowedOrgs,
+    });
+    for (const line of access.lines) core.info(`Access: ${line}`);
+    api.requireAccess(access);
+    const projectId = access.projectId;
     core.info(`Resolved Project ID: ${projectId}`);
 
     core.info('Fetching Project Metadata & Columns...');
@@ -136,7 +151,6 @@ async function run(options = {}) {
       core.info('Sprint tracking not configured; bypassing iteration resolution.');
     }
 
-    await api.requireReadableRepositories(organization, maintainerRepos);
     core.info(`✔ Token can read all ${maintainerRepos.length} monitored repositories.`);
 
     if (isValidateOnly) {
@@ -354,7 +368,11 @@ async function run(options = {}) {
         // --- Linked Issues Progression (Spec 3.2) ---
         if (itemType === 'PullRequest') {
           core.info('Checking for linked issues closing references...');
-          const linkedIssues = await api.fetchLinkedIssuesForPullRequest(item.id, projectId);
+          const linkedIssues = await api.fetchLinkedIssuesForPullRequest(
+            item.id,
+            projectId,
+            repoName
+          );
           core.info(`Found ${linkedIssues.length} linked issues.`);
 
           for (const linked of linkedIssues) {

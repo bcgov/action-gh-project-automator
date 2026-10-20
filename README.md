@@ -122,6 +122,68 @@ Designed for transparency. Every run provides:
 - **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
 - **Precision Metrics**: Real-time counters for processed, added, and skipped items.
 
+## Consumer Setup
+
+Run this action from your own repository, which holds your `rules.yml`, your workflow and your token secrets. This repository holds the engine and an example `rules.yml`.
+
+### Use a private consumer repository (strongly recommended)
+
+Your `rules.yml` names your boards, repositories and users, and the repository that runs the workflow stores tokens that can write to your boards. **Keep both in a private repository.** The action can't enforce this, but a private repository limits who can see your setup and who can change the workflow that receives the tokens.
+
+Example layout, one workflow job per board:
+
+```text
+board-sync/                     (private)
+├── .github/
+│   └── workflows/
+│       └── sync.yml            # one job per board; the action pinned by release commit SHA
+├── boards/
+│   ├── org-a-board.yml         # rules.yml for one board
+│   └── org-b-board.yml         # rules.yml for another board
+└── README.md                   # which boards this repository manages and who owns each token
+```
+
+- Give each job only the secrets for its own board, through that job's `env:` and `with:`, never at workflow level.
+- Pin the action by the full release commit SHA from the release notes, with the version as a comment, never by tag.
+- Start each board with `dry_run: 'true'`, check the access report and planned changes in the log, then switch it to `'false'`.
+
+### Choosing tokens
+
+| Your config covers | Token setup |
+| --- | --- |
+| One organization, with an organization-owned board | One fine-grained PAT as `github_token` (see [Authentication & Token Setup](#authentication--token-setup)). |
+| A user-owned board | A classic PAT as `github_token`: fine-grained tokens can't reach Projects owned by a user account. |
+| Several owners | A classic PAT as `github_token`, or a default token plus a fine-grained token per owner in `tokens:` (see [Per-Owner Tokens](#per-owner-tokens-optional)). |
+
+- A fine-grained token reaches only one owner. A classic PAT reaches everything its user can, so prefer fine-grained tokens where your organizations allow them.
+- The include and exclude lists in `rules.yml` limit what the action touches, **not** what a token can reach. Least privilege comes only from each token's scope.
+- Some organizations block classic PATs or require approval for fine-grained ones; check with an organization owner.
+
+### Example workflow
+
+```yaml
+name: Board Sync
+on:
+  schedule:
+    - cron: "30 * * * *" # hourly
+  workflow_dispatch:
+permissions: {}
+jobs:
+  org-a-board:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<release-commit-sha> # vX.Y.Z
+      - uses: bcgov/project-automator@<release-commit-sha> # vX.Y.Z
+        env:
+          ORG_B_TOKEN: ${{ secrets.ORG_B_TOKEN }} # only if boards/org-a-board.yml maps an owner to it in tokens:
+        with:
+          github_token: ${{ secrets.ORG_A_BOARD_TOKEN }}
+          config_path: boards/org-a-board.yml
+          dry_run: 'true' # 'false' once the log looks right
+```
+
 ## Configuration
 
 Configure your entire workflow in a single, version-controlled `rules.yml` file.
@@ -167,12 +229,43 @@ A fine-grained token reaches only one owner (one organization or user), so a con
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
+#### Per-Owner Tokens (optional)
+
+An optional `tokens:` map in `rules.yml` gives an owner (organization or user) its own token. Each entry names the environment variable that holds the token, never the token itself:
+
+```yaml
+tokens:
+  bcgov-c: BCGOV_C_TOKEN
+```
+
+```yaml
+      - uses: bcgov/project-automator@<sha> # vX.Y.Z
+        env:
+          BCGOV_C_TOKEN: ${{ secrets.BCGOV_C_TOKEN }}
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+```
+
+- A mapped owner's token is used for everything about that owner: its repositories, its items and their linked issues, its assignees, and (for the board's owner) the project board. User searches for a mapped organization in `allowedOrgs` run with its token, limited to that organization.
+- Every other owner uses `github_token`.
+- There's no fallback: if a mapped variable is unset or empty, the run fails before it reads the board, naming the owner and the variable.
+- Without `tokens:`, every call uses `github_token`, as before.
+- Adding an item to the board uses the board owner's token, so that token must also be able to see items from other owners. When the board owner is mapped in `tokens:`, that mapped token is the one used for every board call, cross-owner additions included, so a broad `github_token` doesn't help there: either give the board owner's mapped token that visibility, or leave the board owner unmapped so the board uses a broad `github_token`. Otherwise, track only the board owner's items.
+- A pull request's linked issues are read with the PR owner's token, then with each other configured token, and the results are combined. A private issue in another owner is found only when one of those tokens can read both the pull request and the issue, such as a classic PAT as `github_token`.
+
 #### Access Failures
+
+Every run, including `dry_run: true` and `--validate`, starts with an access check before any write. It logs one line for the project, each owner and each monitored repository, naming the token used (`github_token` or a `tokens:` variable, never its value):
+
+```text
+Access: project bcgov/16 via github_token: OK
+Access: org bcgov-c via BCGOV_C_TOKEN: cannot read 1 of 2 repositories
+Access: repo bcgov-c/app via BCGOV_C_TOKEN: cannot read; needs Metadata, Issues and Pull requests read
+```
 
 A run fails, with a non-zero exit and a message naming what to fix, when:
 
-- The token can't read the project board.
-- The token can't read a repository in `automation.repository_scope.repositories`. This is checked before any search, because GitHub search skips a repository it can't read without an error.
+- The access check finds a problem: the token can't read the project board or can't update it, or can't read a repository in `automation.repository_scope.repositories` (GitHub search skips a repository it can't read without an error). Every problem is listed, not just the first.
 - A search fails. The watermark isn't saved, so the next run searches the same window again.
 - The token is empty in an Actions run, including `dry_run: true`. From the command line, `--dry-run` and `--validate` without a token still check `rules.yml` offline.
 
