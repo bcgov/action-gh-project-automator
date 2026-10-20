@@ -17,7 +17,7 @@ test('loadBoardRules resolves config and flattens scope', () => {
 });
 
 test('getProjectId correctly rejects malformed project URLs', async () => {
-  process.env.GITHUB_TOKEN = 'test-token';
+  process.env.INPUT_GITHUB_TOKEN = 'test-token';
   await assert.rejects(
     () => getProjectId('https://github.com/invalid/format'),
     /Invalid project.url format/

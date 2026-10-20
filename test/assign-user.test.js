@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { assignUserToItem } from '../src/github/api.js';
 
 test('assignUserToItem skips a repository-admin 403 without retrying', async () => {
-  process.env.GITHUB_TOKEN = 'test-token';
+  process.env.INPUT_GITHUB_TOKEN = 'test-token';
   delete process.env.DRY_RUN;
 
   const originalFetch = globalThis.fetch;

@@ -4,7 +4,7 @@ How the sync works today. The README covers inputs and `rules.yml` keys; this no
 
 ## Configuration
 
-- `rules.yml` is the only source of settings. Every key the engine reads is required there; the few optional keys (for example `exclusions.exclude_labels`) default to an empty list. Unknown keys under fixed sections are rejected.
+- `rules.yml` is the only source of settings. Keys the engine reads are required unless documented as optional: `sprints` and `project.fields.sprint`, `automation.user_scope`, `project.allowedOrgs` (defaults to the project owner) and `exclusions.exclude_labels` (`[]`). Unknown keys under fixed sections are rejected.
 - The engine hardcodes no user, organization, project URL or column name.
 - `loadBoardRules` flattens `automation.repository_scope.repositories` into `project.repositories` and `automation.user_scope.monitored_users` into `monitoredUsers`. `project.allowedOrgs` defaults to the project owner.
 - There is no rule language: behaviour comes from the plain lists in `board_columns`, `sprints` and `exclusions`.

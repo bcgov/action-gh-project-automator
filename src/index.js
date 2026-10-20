@@ -11,7 +11,13 @@ import {
   getConfiguredColumns,
   validateBoardColumns,
 } from './utils/column-assignment.js';
-import { findExcludedLabel, isTitleExcluded, labelNames } from './utils/exclusions.js';
+import {
+  authorLogin,
+  findExcludedAuthor,
+  findExcludedLabel,
+  isTitleExcluded,
+  labelNames,
+} from './utils/exclusions.js';
 import { resolveSince } from './github/queries.js';
 import {
   columnAfterAdd,
@@ -87,8 +93,7 @@ async function run(options = {}) {
     core.info(`Monitored Users: ${monitoredUsers.join(', ')}`);
 
     // 2. Resolve Project Board and Fields
-    const token =
-      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+    const token = api.resolveToken();
     const isDryRun = process.env.DRY_RUN === 'true';
     const isValidateOnly = process.argv.includes('--validate');
 
@@ -210,6 +215,14 @@ async function run(options = {}) {
           (item.reviewRequests?.nodes || []).some((req) =>
             monitoredUsers.includes(req.requestedReviewer?.login)
           );
+        const excludedAuthor = findExcludedAuthor(
+          { author: authorLogin(item.author), isReviewRequested: isReviewer },
+          config.exclusions
+        );
+        if (excludedAuthor) {
+          core.info(`Skipping: Item excluded based on author ("${excludedAuthor}").`);
+          continue;
+        }
         // The monitored user to assign: the author when monitored, otherwise the first listed (if any)
         const assignee = isAuthored ? author : monitoredUsers[0] || null;
 

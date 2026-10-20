@@ -30,8 +30,7 @@ export async function validate(options = {}) {
   core.info('✔ Syntax and schema validation passed.');
 
   // 2. Check for credentials
-  const token =
-    process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+  const token = api.resolveToken();
 
   if (!token) {
     core.info(
