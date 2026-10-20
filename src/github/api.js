@@ -172,7 +172,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
     ... on Issue {
       id number title
       repository { nameWithOwner }
-      author { login }
+      author { __typename login }
       assignees(first: 5) { nodes { login } }
       ${LABELS_FRAGMENT}
       state updatedAt
@@ -181,7 +181,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
     ... on PullRequest {
       id number title
       repository { nameWithOwner }
-      author { login }
+      author { __typename login }
       assignees(first: 5) { nodes { login } }
       ${LABELS_FRAGMENT}
       state updatedAt isDraft
