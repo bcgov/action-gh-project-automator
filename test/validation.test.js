@@ -187,6 +187,19 @@ test('validate() verifies remote board and columns when credentials present', as
         { status: 200, headers: { 'content-type': 'application/json' } }
       );
     }
+    if (body.query?.includes('viewerCanUpdate')) {
+      return new Response(JSON.stringify({ data: { node: { viewerCanUpdate: true } } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (body.query?.includes('repository(owner:')) {
+      const aliases = [...body.query.matchAll(/(r\d+): repository\(/g)].map((m) => m[1]);
+      return new Response(
+        JSON.stringify({ data: Object.fromEntries(aliases.map((a) => [a, { id: `R_${a}` }])) }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    }
     return new Response(JSON.stringify({ data: {} }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -246,6 +259,19 @@ test('validate() rejects when board is missing required status columns', async (
             },
           },
         }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    }
+    if (body.query?.includes('viewerCanUpdate')) {
+      return new Response(JSON.stringify({ data: { node: { viewerCanUpdate: true } } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (body.query?.includes('repository(owner:')) {
+      const aliases = [...body.query.matchAll(/(r\d+): repository\(/g)].map((m) => m[1]);
+      return new Response(
+        JSON.stringify({ data: Object.fromEntries(aliases.map((a) => [a, { id: `R_${a}` }])) }),
         { status: 200, headers: { 'content-type': 'application/json' } }
       );
     }

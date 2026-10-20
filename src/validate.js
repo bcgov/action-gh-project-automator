@@ -47,7 +47,15 @@ export async function validate(options = {}) {
     api.resolveOwnerTokens(config.tokens),
     projectOwnerFromUrl(config.project.url)
   );
-  const projectId = await api.getProjectId(config.project.url);
+  const access = await api.checkAccess({
+    projectUrl: config.project.url,
+    org: config.project.organization,
+    repos: config.project.repositories,
+    allowedOrgs: config.project.allowedOrgs,
+  });
+  for (const line of access.lines) core.info(`Access: ${line}`);
+  api.requireAccess(access);
+  const projectId = access.projectId;
   core.info(`✔ Connected to Project Board (ID: ${projectId}).`);
 
   const meta = await api.getProjectMetadata(projectId);
@@ -63,7 +71,6 @@ export async function validate(options = {}) {
     `✔ Configured status columns verified against project board: ${configuredColumns.join(', ')}.`
   );
 
-  await api.requireReadableRepositories(config.project.organization, config.project.repositories);
   core.info(`✔ Token can read all ${config.project.repositories.length} monitored repositories.`);
 
   if (dryRun) {
