@@ -87,6 +87,24 @@ exclusions:
 
 Strings checked against `exact_titles` must match the issue or pull request title exactly (trailing/leading whitespaces and carriage returns are automatically trimmed before evaluation). Strings in `title_substrings` will exclude any item containing that substring, and strings in `title_prefixes` will exclude any item whose title starts with that prefix. Title matches are case-sensitive. An item carrying any label in `exclude_labels` is skipped; label names must match whole, ignoring case, as GitHub treats label names. The three title lists are required in `rules.yml`; there are no built-in defaults. `exclude_labels` is the one optional key: when it's absent, no labels are excluded (`[]`), so configs written before it keep working. Like title exclusions, a label exclusion skips the item on every run, so it isn't added, moved or assigned; it isn't removed from the board if it's already there. Title and label exclusions also apply to the issues a PR closes, so an excluded issue isn't moved, given a sprint or assigned through its PR.
 
+### Author exclusions
+
+Two optional keys skip items by who opened them, such as dependency bots, so routine updates don't count as sprint work:
+
+```yaml
+exclusions:
+  authors:
+    - renovate[bot]
+    - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  unless_review_requested: true
+```
+
+`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Both keys are off when absent (`[]` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
+
+`github-actions[bot]` is deliberately not listed: workflows use it to open real report PRs (for example in `bcgov/action-repo-reporter`), so excluding it would hide work. The trade-off is that any routine PR a workflow opens as `github-actions[bot]` still reaches the board. The title exclusions above stay as a fallback for bot issues such as the Dependency Dashboard and ZAP reports.
+
 ## Stability & Predictability
 
 We treat stability as a first-class feature. Our "Ludicrous Testing" philosophy ensures that every rule processed is verified against a comprehensive matrix of conditions.
@@ -207,7 +225,7 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 No organization membership permission (classic `read:org`) is needed.
 
-A fine-grained token can only reach one resource owner. For a user-owned board, or a board that tracks repositories in more than one organization or user account, use a classic PAT with the `project` and `repo` scopes instead (`public_repo` is enough when every monitored repository is public).
+A fine-grained token reaches only one owner (one organization or user), so a config spanning several organizations or users needs a classic PAT for now; per-owner tokens are planned. A user-owned board also needs a classic PAT, because fine-grained tokens can't reach Projects owned by a user account. Give the classic PAT the `project` and `repo` scopes (`public_repo` is enough when every monitored repository is public).
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 

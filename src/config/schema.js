@@ -140,6 +140,13 @@ const schema = {
           type: 'array',
           items: { type: 'string', minLength: 1 },
         },
+        // Optional: loadBoardRules sets [] when absent; logins, case-insensitive
+        authors: {
+          type: 'array',
+          items: { type: 'string', minLength: 1 },
+        },
+        // Optional: loadBoardRules sets false when absent
+        unless_review_requested: { type: 'boolean' },
       },
       additionalProperties: false,
     },

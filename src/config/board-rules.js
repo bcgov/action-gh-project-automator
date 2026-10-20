@@ -19,6 +19,13 @@ function loadBoardRules(configPath = resolveConfigPath()) {
   if (config.exclusions.exclude_labels === undefined) {
     config.exclusions.exclude_labels = [];
   }
+  // exclusions.authors and unless_review_requested are optional too: absent means off
+  if (config.exclusions.authors === undefined) {
+    config.exclusions.authors = [];
+  }
+  if (config.exclusions.unless_review_requested === undefined) {
+    config.exclusions.unless_review_requested = false;
+  }
 
   // tokens is optional: absent means every call uses the default github_token
   if (config.tokens === undefined) {

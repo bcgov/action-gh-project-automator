@@ -66,3 +66,36 @@ export function labelNames(labels) {
   }
   return labels.nodes.map((label) => label.name);
 }
+
+/**
+ * GitHub login of a GraphQL author: a Bot's login comes back without the "[bot]" suffix.
+ * @param {{ __typename?: string, login?: string } | null | undefined} author
+ * @returns {string | null}
+ */
+export function authorLogin(author) {
+  if (!author?.login) return null;
+  return author.__typename === 'Bot' ? `${author.login}[bot]` : author.login;
+}
+
+/**
+ * Checks if an item is excluded by its author (`exclusions.authors`, case-insensitive).
+ * With `exclusions.unless_review_requested`, a PR that requests review from a monitored
+ * user is still added.
+ * @param {{ author: string | null, isReviewRequested: boolean }} item
+ * @param {object} exclusionsConfig - `exclusions` from rules.yml
+ * @returns {string | null} The excluded author login, or null when the item isn't excluded
+ */
+export function findExcludedAuthor({ author, isReviewRequested }, exclusionsConfig) {
+  if (
+    !exclusionsConfig ||
+    !Array.isArray(exclusionsConfig.authors) ||
+    typeof exclusionsConfig.unless_review_requested !== 'boolean'
+  ) {
+    throw new Error('exclusions.authors and exclusions.unless_review_requested are required');
+  }
+  if (!author) return null;
+  const excluded = new Set(exclusionsConfig.authors.map((name) => name.toLowerCase()));
+  if (!excluded.has(author.toLowerCase())) return null;
+  if (exclusionsConfig.unless_review_requested && isReviewRequested) return null;
+  return author;
+}

@@ -24,32 +24,34 @@ automation:
 
   # Repositories whose issues and PRs are synced
   repository_scope:
-    # Hand-kept mirror of the Core, FSD and Maint groups in the maintainer's
-    # brain repo-rules.md (DerekRoberts/brain, private). Update this list by
-    # hand whenever those groups change; repo-rules.md wins if they disagree.
-    # Deliberate exceptions:
-    #   - bcgov/nr-fom (Maint) is left out because it is frozen.
+    # Hand-kept mirror of the repositories in roles 1 Develop and 2 Maintain in the
+    # maintainer's brain repo-rules.md (DerekRoberts/brain, private). Update this list
+    # by hand whenever those roles change; repo-rules.md wins if they disagree. Role 3
+    # Support repos aren't listed: their items are found through user_scope only.
     repositories:
-      # Core
+      # 1 Develop
+      - bcgov/action-repo-reporter
       - bcgov/actions
       - bcgov/actions-openshift
       - bcgov/devops-scripts
+      - bcgov/nr-containers
+      - bcgov-c/nr-mof-db
+      - bcgov/project-automator
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-modules
       - bcgov/renovate-config
-      # FSD
-      - bcgov/action-repo-reporter
-      - bcgov/nr-seedtransfer-map
-      - bcgov/project-automator
-      # Maint
+      # 2 Maintain
+      - bcgov/action-gherkin-issue-processor
       - bcgov/action-gwa-publish
+      - bcgov/nr-epd-organics-info
+      - bcgov/nr-fom
       - bcgov/nr-forest-client-commons
       - bcgov/nr-hydrometric-rating-curve
+      - bcgov/nr-metabase
       - bcgov/nr-old-growth
       - bcgov/nr-results-exam
+      - bcgov/nr-seedtransfer-map
       - bcgov/pubcode
-      # The maintainer's work (brain)
-      - DerekRoberts/brain
 
 # Exclusion rules to filter out automated noise by title or label
 exclusions:
@@ -65,6 +67,15 @@ exclusions:
     # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
     - "ZAP: "
   exclude_labels: [] # Optional; label names, case-insensitive; an item with any of them is skipped
+  # Optional; author logins, case-insensitive; their issues and PRs are skipped.
+  # github-actions[bot] is left out on purpose: it opens real report PRs.
+  authors:
+    - renovate[bot]
+    - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  # Optional; true still adds an excluded author's PR when a monitored user is a requested reviewer
+  unless_review_requested: true
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run
@@ -74,9 +85,9 @@ sprints:
   assign_current: # Set the current sprint
     - Active
     - Next
-    - Done
   assign_current_if_empty: # Set the current sprint only when the item has none
     - Waiting
+    - Done # Finished work keeps the sprint it was done in after a rollover
   clear: # Remove the sprint
     - New
     - Parked

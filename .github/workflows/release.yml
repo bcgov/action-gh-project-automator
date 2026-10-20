@@ -14,7 +14,7 @@ jobs:
   dist:
     name: Rebuild dist on release tag
     if: github.repository == 'bcgov/project-automator' && github.event.release.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     outputs:
@@ -100,7 +100,7 @@ jobs:
   smoke:
     name: Smoke test the release tag
     needs: dist
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -148,7 +148,7 @@ jobs:
     name: Publish the release
     needs: [dist, smoke]
     if: needs.dist.outputs.skip == 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write
