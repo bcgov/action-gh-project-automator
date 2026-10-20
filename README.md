@@ -104,6 +104,68 @@ Designed for transparency. Every run provides:
 - **Audit Logs**: Detailed console output with a `[AUDIT]` prefix for all state transitions.
 - **Precision Metrics**: Real-time counters for processed, added, and skipped items.
 
+## Consumer Setup
+
+Run this action from your own repository, which holds your `rules.yml`, your workflow and your token secrets. This repository holds the engine and an example `rules.yml`.
+
+### Use a private consumer repository (strongly recommended)
+
+Your `rules.yml` names your boards, repositories and users, and the repository that runs the workflow stores tokens that can write to your boards. **Keep both in a private repository.** The action can't enforce this, but a private repository limits who can see your setup and who can change the workflow that receives the tokens.
+
+Example layout, one workflow job per board:
+
+```text
+board-sync/                     (private)
+├── .github/
+│   └── workflows/
+│       └── sync.yml            # one job per board; the action pinned by release commit SHA
+├── boards/
+│   ├── org-a-board.yml         # rules.yml for one board
+│   └── org-b-board.yml         # rules.yml for another board
+└── README.md                   # which boards this repository manages and who owns each token
+```
+
+- Give each job only the secrets for its own board, through that job's `env:` and `with:`, never at workflow level.
+- Pin the action by the full release commit SHA from the release notes, with the version as a comment, never by tag.
+- Start each board with `dry_run: 'true'`, check the access report and planned changes in the log, then switch it to `'false'`.
+
+### Choosing tokens
+
+| Your config covers | Token setup |
+| --- | --- |
+| One organization, with an organization-owned board | One fine-grained PAT as `github_token` (see [Authentication & Token Setup](#authentication--token-setup)). |
+| A user-owned board | A classic PAT as `github_token`: fine-grained tokens can't reach Projects owned by a user account. |
+| Several owners | A classic PAT as `github_token`, or a default token plus a fine-grained token per owner in `tokens:` (see [Per-Owner Tokens](#per-owner-tokens-optional)). |
+
+- A fine-grained token reaches only one owner. A classic PAT reaches everything its user can, so prefer fine-grained tokens where your organizations allow them.
+- The include and exclude lists in `rules.yml` limit what the action touches, **not** what a token can reach. Least privilege comes only from each token's scope.
+- Some organizations block classic PATs or require approval for fine-grained ones; check with an organization owner.
+
+### Example workflow
+
+```yaml
+name: Board Sync
+on:
+  schedule:
+    - cron: "30 * * * *" # hourly
+  workflow_dispatch:
+permissions: {}
+jobs:
+  org-a-board:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<release-commit-sha> # vX.Y.Z
+      - uses: bcgov/project-automator@<release-commit-sha> # vX.Y.Z
+        env:
+          ORG_B_TOKEN: ${{ secrets.ORG_B_TOKEN }} # only if boards/org-a-board.yml maps an owner to it in tokens:
+        with:
+          github_token: ${{ secrets.ORG_A_BOARD_TOKEN }}
+          config_path: boards/org-a-board.yml
+          dry_run: 'true' # 'false' once the log looks right
+```
+
 ## Configuration
 
 Configure your entire workflow in a single, version-controlled `rules.yml` file.
