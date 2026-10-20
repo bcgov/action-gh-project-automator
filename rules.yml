@@ -78,9 +78,9 @@ sprints:
   assign_current: # Set the current sprint
     - Active
     - Next
-    - Done
   assign_current_if_empty: # Set the current sprint only when the item has none
     - Waiting
+    - Done # Finished work keeps the sprint it was done in after a rollover
   clear: # Remove the sprint
     - New
     - Parked
