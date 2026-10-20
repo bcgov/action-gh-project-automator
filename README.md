@@ -47,7 +47,7 @@ jobs:
 
 | Input | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `github_token` | **Yes** | — | Personal access token that can read and write the project board and read the monitored repositories. See [Authentication & Token Setup](#authentication--token-setup). |
+| `github_token` | **Yes** | `github.token` | Personal access token that can read and write the project board and read the monitored repositories. The default Actions token has no Projects access, so the run fails until you set this. A `GITHUB_TOKEN` environment variable never replaces it. See [Authentication & Token Setup](#authentication--token-setup). |
 | `config_path` | No | `rules.yml` | Path to rules configuration file in the repository. |
 | `dry_run` | No | `false` | Run in read-only mode without mutating board items or watermarks. |
 | `backfill` | No | `''` | Backfill window for open items: `30d`-style or `all`. |
@@ -157,6 +157,8 @@ A run fails, with a non-zero exit and a message naming what to fix, when:
 - The token can't read a repository in `automation.repository_scope.repositories`. This is checked before any search, because GitHub search skips a repository it can't read without an error.
 - A search fails. The watermark isn't saved, so the next run searches the same window again.
 - The token is empty in an Actions run, including `dry_run: true`. From the command line, `--dry-run` and `--validate` without a token still check `rules.yml` offline.
+
+The token comes only from the `github_token` input. A `GITHUB_TOKEN` environment variable is ignored in an Actions run; from the command line it's used only when there's no input.
 
 #### Adding the Secret to GitHub Actions
 

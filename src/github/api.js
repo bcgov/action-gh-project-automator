@@ -31,18 +31,31 @@ let _graphql = null;
 
 // Token permissions the engine needs, named in access errors
 export const TOKEN_HELP =
-  'The token needs Projects read and write on the board and read access to each monitored repository. Use a GitHub App installation token, or a PAT (required for user-owned boards); see the README token section.';
+  'The token needs Projects read and write on the board and read access to each monitored repository. Use a fine-grained PAT (a classic PAT for user-owned boards or several owners), or a GitHub App installation token; see the README token section.';
 
 export const NO_TOKEN_MESSAGE =
-  'No token: set the github_token action input (or GITHUB_TOKEN when running from the command line). An empty value usually means the secret name is wrong or the secret is not available to this workflow.';
+  'No token: set the github_token action input (or GITHUB_TOKEN when running from the command line; an Actions run ignores GITHUB_TOKEN). An empty value usually means the secret name is wrong or the secret is not available to this workflow.';
+
+/**
+ * The token to use. The github_token input always wins. GITHUB_TOKEN is only a
+ * command-line fallback: in an Actions run it's ignored, so a workflow-level
+ * GITHUB_TOKEN can't replace the input with a token that can't reach Projects.
+ * @param {object} [env] - Defaults to process.env
+ * @returns {string} The token, or '' when there's none
+ */
+export function resolveToken(env = process.env) {
+  const input = (env.INPUT_GITHUB_TOKEN || '').trim();
+  if (input) return input;
+  if (env.GITHUB_ACTIONS === 'true') return '';
+  return (env.GITHUB_TOKEN || '').trim();
+}
 
 /**
  * Lazy-initialize the REST and GraphQL clients
  */
 function getClients() {
   if (!_octokit || !_graphql) {
-    const token =
-      process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || core.getInput('github_token');
+    const token = resolveToken();
     if (!token) {
       throw new Error(NO_TOKEN_MESSAGE);
     }

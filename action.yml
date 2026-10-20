@@ -2,8 +2,9 @@ name: 'GitHub Project Automator'
 description: 'GitHub project board automation based on configurable rules'
 inputs:
   github_token:
-    description: 'GitHub token with project and repo access'
-    required: true
+    description: 'Token with Projects read and write on the board and read access to the monitored repositories. The default Actions token has no Projects access, so set this.'
+    required: false
+    default: ${{ github.token }}
   config_path:
     description: 'Path to rules configuration'
     required: false
