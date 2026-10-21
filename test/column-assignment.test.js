@@ -26,7 +26,7 @@ for (const policy of [shipped]) {
     );
 
   test(`[${label}] ready-for-review PR and its issue go to Active`, () => {
-    for (const col of [null, 'None', 'New', 'Backlog', 'Next']) {
+    for (const col of [null, 'None', 'Backlog', 'Next']) {
       assert.strictEqual(pr(col), 'Active', String(col));
       assert.strictEqual(linked(col), 'Active', String(col));
     }
@@ -79,21 +79,29 @@ for (const policy of [shipped]) {
     }
   });
 
-  test(`[${label}] nothing moves out of Waiting or Parked`, () => {
+  test(`[${label}] nothing moves out of New, Waiting, Parked or Done`, () => {
     const states = [
       {},
       { draft: true },
       { isClosed: true, merged: true },
       { isClosed: true, merged: false },
     ];
-    for (const col of ['Waiting', 'Parked']) {
+    for (const col of ['New', 'Waiting', 'Parked', 'Done']) {
       for (const state of states) {
         assert.strictEqual(pr(col, state), col, `${col} ${JSON.stringify(state)}`);
+        assert.strictEqual(pr(col, { ...state, authored: true }), col, `${col} authored`);
         assert.strictEqual(linked(col, state), col, `${col} ${JSON.stringify(state)}`);
       }
       assert.strictEqual(determineTargetColumn('Issue', true, col, { policy }), col);
       assert.strictEqual(determineTargetColumn('Issue', false, col, { policy }), col);
     }
+  });
+
+  test(`[${label}] PRs authored by a monitored user go straight to Active, never New`, () => {
+    assert.strictEqual(pr(null, { authored: true }), 'Active');
+    assert.strictEqual(pr(null, { draft: true, authored: true }), 'Active');
+    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { isClosed: true, authored: true }), null);
   });
 
   test(`[${label}] issues: no Status goes to New, closed issues are not moved`, () => {

@@ -312,6 +312,7 @@ async function run(options = {}) {
         const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn, {
           merged: isMerged,
           draft: isDraft,
+          authored: isAuthored,
           policy: config.board_columns,
         });
         let columnAction = '';
