@@ -71,3 +71,25 @@ test('assignUserToItem still fails on a non-permission error', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('assignUserToItem does not skip a rate-limited 403', async () => {
+  process.env.INPUT_GITHUB_TOKEN = 'test-token';
+  delete process.env.DRY_RUN;
+
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ message: 'API rate limit exceeded' }), {
+      status: 403,
+      headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '0' },
+    });
+  };
+
+  try {
+    await assert.rejects(assignUserToItem('bcgov/quickstart-openshift', 1, 'DerekRoberts'));
+    assert.ok(calls > 1, 'rate-limited assignment is retried');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

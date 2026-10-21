@@ -964,8 +964,19 @@ async function linkedIssuesWith(graphql, pullRequestId, projectId) {
  */
 const ASSIGN_PERMISSION_STATUSES = new Set([403, 404, 422]);
 
+function isRateLimited(err) {
+  const headers = err?.response?.headers || {};
+  return (
+    headers['x-ratelimit-remaining'] === '0' ||
+    headers['retry-after'] !== undefined ||
+    /rate limit/i.test(err?.message || '')
+  );
+}
+
 function isAssignPermissionDenied(err) {
-  return ASSIGN_PERMISSION_STATUSES.has(err?.status ?? err?.response?.status);
+  return (
+    ASSIGN_PERMISSION_STATUSES.has(err?.status ?? err?.response?.status) && !isRateLimited(err)
+  );
 }
 
 /**
