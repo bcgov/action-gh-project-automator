@@ -225,7 +225,7 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 No organization membership permission (classic `read:org`) is needed.
 
-A fine-grained token reaches only one owner (one organization or user), so a config spanning several organizations or users needs a classic PAT for now; per-owner tokens are planned. A user-owned board also needs a classic PAT, because fine-grained tokens can't reach Projects owned by a user account. Give the classic PAT the `project` and `repo` scopes (`public_repo` is enough when every monitored repository is public).
+A fine-grained token reaches only one owner (one organization or user), so a config spanning several organizations or users needs a classic PAT as `github_token`, or per-owner fine-grained tokens (see [Per-Owner Tokens](#per-owner-tokens-optional)). A user-owned board also needs a classic PAT, because fine-grained tokens can't reach Projects owned by a user account. Give the classic PAT the `project` and `repo` scopes (`public_repo` is enough when every monitored repository is public).
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
