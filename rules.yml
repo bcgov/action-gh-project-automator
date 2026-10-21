@@ -35,7 +35,6 @@ automation:
       - bcgov/actions-openshift
       - bcgov/devops-scripts
       - bcgov/nr-containers
-      - bcgov-c/nr-mof-db
       - bcgov/project-automator
       - bcgov/quickstart-openshift
       - bcgov/quickstart-openshift-modules
