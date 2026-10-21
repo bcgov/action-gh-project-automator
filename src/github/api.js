@@ -235,11 +235,16 @@ function groupByToken(org, repos) {
  * @param {object} [options]
  * @param {Array<string>} [options.allowedOrgs]
  * @param {boolean} [options.openOnly] - Open items only (backfill runs)
+ * @param {boolean} [options.commitAuthors] - Fetch each PR's commit authors (for `exclusions.unless_human_commit`)
  */
 async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
   const allowedOrgs = options.allowedOrgs || [];
   const PROJECT_ITEMS_FRAGMENT = projectItemsFragment(getProjectFields());
   const openOnly = options.openOnly === true;
+  const COMMIT_AUTHORS_FRAGMENT =
+    options.commitAuthors === true
+      ? 'commits(last: 50) { nodes { commit { authors(first: 3) { nodes { user { login } } } } } }'
+      : '';
   // Each repository is searched with its owner's token
   const repoGroups = groupByToken(org, repos);
   const { userQueries } = buildSearchQueries({ org, repos: [], monitoredUsers, since, openOnly });
@@ -263,7 +268,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       ${LABELS_FRAGMENT}
       state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
-      commits(last: 50) { nodes { commit { authors(first: 3) { nodes { user { login } } } } } }
+      ${COMMIT_AUTHORS_FRAGMENT}
       ${PROJECT_ITEMS_FRAGMENT}
     }
   `;

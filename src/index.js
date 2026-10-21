@@ -189,7 +189,13 @@ async function run(options = {}) {
       maintainerRepos,
       monitoredUsers,
       since,
-      { allowedOrgs, openOnly: Boolean(backfill) }
+      {
+        allowedOrgs,
+        openOnly: Boolean(backfill),
+        // Commit authors only matter when the human-commit exception can apply
+        commitAuthors:
+          config.exclusions.unless_human_commit && config.exclusions.authors.length > 0,
+      }
     );
     core.info(`Discovered ${recentItems.length} recent items to evaluate.`);
 

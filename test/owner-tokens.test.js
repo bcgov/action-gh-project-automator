@@ -127,6 +127,22 @@ test('without tokens every search uses the default token and the same queries as
   assert.ok(calls.every((c) => c.token === 'default-token'));
 });
 
+test('commit authors are fetched only when asked for', async () => {
+  const queryFor = async (options) => {
+    const calls = await recordCalls(
+      new Map(),
+      'bcgov',
+      () => api.getRecentItems('bcgov', ['bcgov/a'], [], null, options),
+      emptySearch
+    );
+    return calls[0].body.query;
+  };
+  assert.ok(!(await queryFor({ allowedOrgs: ['bcgov'] })).includes('commits('));
+  assert.ok(
+    (await queryFor({ allowedOrgs: ['bcgov'], commitAuthors: true })).includes('commits(last: 50)')
+  );
+});
+
 test('a mapped owner is searched with its own token; others use the default', async () => {
   const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
   const calls = await recordCalls(
