@@ -96,8 +96,9 @@ sprints:
 # "keep" leaves the item in its current column.
 # Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
 board_columns:
-  # Items in these columns are never moved
+  # Items in these columns are never moved; Done is final unless a person moves it
   locked:
+    - Done
     - Waiting
     - Parked
   pull_request:

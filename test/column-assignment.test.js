@@ -50,7 +50,16 @@ for (const policy of [shipped]) {
   test(`[${label}] PR closed without merging is not moved, its open issue goes back to Next`, () => {
     assert.strictEqual(pr('Active', { isClosed: true }), 'Active');
     assert.strictEqual(linked('Active', { isClosed: true }), 'Next');
-    assert.strictEqual(linked('Done', { isClosed: true }), 'Next');
+  });
+
+  test(`[${label}] Done is final: open items in Done are never moved out`, () => {
+    assert.strictEqual(pr('Done'), 'Done');
+    assert.strictEqual(pr('Done', { draft: true }), 'Done');
+    assert.strictEqual(pr('Done', { isClosed: true }), 'Done');
+    assert.strictEqual(pr('Done', { isClosed: true, merged: true }), 'Done');
+    assert.strictEqual(linked('Done'), 'Done');
+    assert.strictEqual(linked('Done', { isClosed: true }), 'Done');
+    assert.strictEqual(linked('Done', { draft: true }), 'Done');
   });
 
   test(`[${label}] closed linked issue is not moved`, () => {
