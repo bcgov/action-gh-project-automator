@@ -34,6 +34,7 @@ function pullRequestState({ isClosed, merged, draft }) {
  * @param {object} [options]
  * @param {boolean} [options.merged] - PR was merged
  * @param {boolean} [options.draft] - PR is a draft
+ * @param {boolean} [options.authored] - PR is authored by a monitored user
  * @param {object} options.policy - `board_columns` from rules.yml
  * @returns {string|null} The resolved target column name
  */
@@ -47,6 +48,9 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
 
   if (itemType === 'PullRequest') {
     const state = pullRequestState({ isClosed, merged: options.merged, draft: options.draft });
+    if (!current && options.authored && !isClosed) {
+      return policy.pull_request.ready;
+    }
     if (state === 'draft' && !current) {
       return policy.pull_request.draft_no_status;
     }

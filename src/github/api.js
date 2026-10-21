@@ -958,12 +958,25 @@ async function linkedIssuesWith(graphql, pullRequestId, projectId) {
 }
 
 /**
- * GitHub requires admin on the target repository to add assignees.
- * Repositories outside our control return this 403; it is not a sync failure.
+ * Assignment is refused when the token cannot write to the target repository:
+ * 403 (no admin/write), 404 (repository hidden from the token, e.g. a fork PR target)
+ * or 422 (assignee not allowed). Each is a per-item permission gap, not a sync failure.
  */
-function isRepositoryAdminDenied(err) {
-  const status = err?.status ?? err?.response?.status;
-  return status === 403 && (err?.message || '').includes('Must have admin rights to Repository');
+const ASSIGN_PERMISSION_STATUSES = new Set([403, 404, 422]);
+
+function isRateLimited(err) {
+  const headers = err?.response?.headers || {};
+  return (
+    headers['x-ratelimit-remaining'] === '0' ||
+    headers['retry-after'] !== undefined ||
+    /rate limit/i.test(err?.message || '')
+  );
+}
+
+function isAssignPermissionDenied(err) {
+  return (
+    ASSIGN_PERMISSION_STATUSES.has(err?.status ?? err?.response?.status) && !isRateLimited(err)
+  );
 }
 
 /**
@@ -987,8 +1000,8 @@ async function assignUserToItem(nameWithOwner, number, login) {
         assignees: [login],
       });
     } catch (err) {
-      if (isRepositoryAdminDenied(err)) {
-        skipped = true;
+      if (isAssignPermissionDenied(err)) {
+        skipped = `${err.status ?? err.response?.status}`;
         return;
       }
       throw err;
@@ -996,7 +1009,7 @@ async function assignUserToItem(nameWithOwner, number, login) {
   });
   if (skipped) {
     core.warning(
-      `Skipping assignee update for ${nameWithOwner}#${number}: token lacks admin rights on this repository.`
+      `Skipping assignee update for ${nameWithOwner}#${number}: assignment refused (HTTP ${skipped}); token lacks permission on this repository.`
     );
     return 'skipped';
   }

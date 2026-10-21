@@ -312,6 +312,7 @@ async function run(options = {}) {
         const targetColumn = determineTargetColumn(itemType, isClosed, currentColumn, {
           merged: isMerged,
           draft: isDraft,
+          authored: isAuthored,
           policy: config.board_columns,
         });
         let columnAction = '';
@@ -361,7 +362,7 @@ async function run(options = {}) {
             core.info('User successfully assigned!');
             assigneeAction = 'Assignee added';
           } else if (assignment === 'skipped') {
-            assigneeAction = 'Assignee skipped (no repository admin)';
+            assigneeAction = 'Assignee skipped (no repository permission)';
           }
         }
 
