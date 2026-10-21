@@ -42,7 +42,6 @@ automation:
       # 2 Maintain
       - bcgov/action-gherkin-issue-processor
       - bcgov/action-gwa-publish
-      - bcgov/nr-epd-organics-info
       - bcgov/nr-fom
       - bcgov/nr-forest-client-commons
       - bcgov/nr-hydrometric-rating-curve
