@@ -45,11 +45,7 @@ for (const status of [403, 404, 422]) {
     };
 
     try {
-      const outcome = await assignUserToItem(
-        'bcgov-c/nr-explore-by-location',
-        176,
-        'DerekRoberts'
-      );
+      const outcome = await assignUserToItem('bcgov-c/nr-explore-by-location', 176, 'DerekRoberts');
       assert.strictEqual(outcome, 'skipped');
       assert.strictEqual(calls, 1);
     } finally {
