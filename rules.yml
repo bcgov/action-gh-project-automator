@@ -75,7 +75,9 @@ exclusions:
     - mend-bolt-for-github[bot]
     - mend-for-github-com[bot]
   # Optional; true still adds an excluded author's PR when a monitored user is a requested reviewer
-  unless_review_requested: true
+  unless_review_requested: false
+  # Optional; true still adds an excluded author's PR once a person (not a bot) has pushed a commit
+  unless_human_commit: true
 
 technical:
   update_window_hours: 2 # Search window when there's no watermark from a previous run

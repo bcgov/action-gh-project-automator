@@ -78,24 +78,53 @@ export function authorLogin(author) {
 }
 
 /**
+ * GitHub logins of a PR's commit authors (`commits.nodes[].commit.authors`), without duplicates.
+ * A commit author with no linked GitHub account is left out.
+ * @param {object} item - Search result item
+ * @returns {string[]}
+ */
+export function commitAuthorLogins(item) {
+  const logins = (item?.commits?.nodes || []).flatMap((node) =>
+    (node.commit?.authors?.nodes || []).map((a) => a.user?.login).filter(Boolean)
+  );
+  return [...new Set(logins)];
+}
+
+/**
  * Checks if an item is excluded by its author (`exclusions.authors`, case-insensitive).
  * With `exclusions.unless_review_requested`, a PR that requests review from a monitored
- * user is still added.
- * @param {{ author: string | null, isReviewRequested: boolean }} item
+ * user is still added. With `exclusions.unless_human_commit`, a PR with a commit by an
+ * author that is neither a bot nor a listed author is still added.
+ * @param {{ author: string | null, isReviewRequested: boolean, commitAuthors: string[] }} item
  * @param {object} exclusionsConfig - `exclusions` from rules.yml
  * @returns {string | null} The excluded author login, or null when the item isn't excluded
  */
-export function findExcludedAuthor({ author, isReviewRequested }, exclusionsConfig) {
+export function findExcludedAuthor({ author, isReviewRequested, commitAuthors }, exclusionsConfig) {
   if (
     !exclusionsConfig ||
     !Array.isArray(exclusionsConfig.authors) ||
-    typeof exclusionsConfig.unless_review_requested !== 'boolean'
+    typeof exclusionsConfig.unless_review_requested !== 'boolean' ||
+    typeof exclusionsConfig.unless_human_commit !== 'boolean'
   ) {
-    throw new Error('exclusions.authors and exclusions.unless_review_requested are required');
+    throw new Error(
+      'exclusions.authors, unless_review_requested and unless_human_commit are required'
+    );
+  }
+  if (!Array.isArray(commitAuthors)) {
+    throw new Error('commitAuthors must be an array');
   }
   if (!author) return null;
   const excluded = new Set(exclusionsConfig.authors.map((name) => name.toLowerCase()));
   if (!excluded.has(author.toLowerCase())) return null;
   if (exclusionsConfig.unless_review_requested && isReviewRequested) return null;
+  if (
+    exclusionsConfig.unless_human_commit &&
+    commitAuthors.some((login) => {
+      const name = login.toLowerCase();
+      return !name.endsWith('[bot]') && !excluded.has(name);
+    })
+  ) {
+    return null;
+  }
   return author;
 }

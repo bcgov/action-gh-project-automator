@@ -98,10 +98,11 @@ exclusions:
     - dependabot[bot]
     - mend-bolt-for-github[bot]
     - mend-for-github-com[bot]
-  unless_review_requested: true
+  unless_review_requested: false
+  unless_human_commit: true
 ```
 
-`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Both keys are off when absent (`[]` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
+`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Bots often request reviews automatically through CODEOWNERS, so this lets most bot PRs through. With `unless_human_commit: true`, a PR by a listed author is still added once one of its last 20 commits has an author that is neither a bot (`[bot]` suffix) nor a listed author, meaning a person pushed a fix to it. Commits with no linked GitHub account don't count. All three keys are off when absent (`[]`, `false` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
 
 `github-actions[bot]` is deliberately not listed: workflows use it to open real report PRs (for example in `bcgov/action-repo-reporter`), so excluding it would hide work. The trade-off is that any routine PR a workflow opens as `github-actions[bot]` still reaches the board. The title exclusions above stay as a fallback for bot issues such as the Dependency Dashboard and ZAP reports.
 

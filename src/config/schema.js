@@ -147,6 +147,8 @@ const schema = {
         },
         // Optional: loadBoardRules sets false when absent
         unless_review_requested: { type: 'boolean' },
+        // Optional: loadBoardRules sets false when absent
+        unless_human_commit: { type: 'boolean' },
       },
       additionalProperties: false,
     },

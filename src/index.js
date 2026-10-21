@@ -13,6 +13,7 @@ import {
 } from './utils/column-assignment.js';
 import {
   authorLogin,
+  commitAuthorLogins,
   findExcludedAuthor,
   findExcludedLabel,
   isTitleExcluded,
@@ -230,7 +231,11 @@ async function run(options = {}) {
             monitoredUsers.includes(req.requestedReviewer?.login)
           );
         const excludedAuthor = findExcludedAuthor(
-          { author: authorLogin(item.author), isReviewRequested: isReviewer },
+          {
+            author: authorLogin(item.author),
+            isReviewRequested: isReviewer,
+            commitAuthors: commitAuthorLogins(item),
+          },
           config.exclusions
         );
         if (excludedAuthor) {
