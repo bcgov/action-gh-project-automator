@@ -263,6 +263,7 @@ async function getRecentItems(org, repos, monitoredUsers, since, options = {}) {
       ${LABELS_FRAGMENT}
       state updatedAt isDraft
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } } } }
+      commits(last: 50) { nodes { commit { authors(first: 3) { nodes { user { login } } } } } }
       ${PROJECT_ITEMS_FRAGMENT}
     }
   `;

@@ -89,7 +89,7 @@ Strings checked against `exact_titles` must match the issue or pull request titl
 
 ### Author exclusions
 
-Two optional keys skip items by who opened them, such as dependency bots, so routine updates don't count as sprint work:
+Three optional keys skip items by who opened them, such as dependency bots, so routine updates don't count as sprint work:
 
 ```yaml
 exclusions:
@@ -98,10 +98,11 @@ exclusions:
     - dependabot[bot]
     - mend-bolt-for-github[bot]
     - mend-for-github-com[bot]
-  unless_review_requested: true
+  unless_review_requested: false
+  unless_human_commit: true
 ```
 
-`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Both keys are off when absent (`[]` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
+`authors` lists GitHub logins, matched ignoring case; bots use their full login with the `[bot]` suffix. Renovate run by Mend opens PRs as `renovate[bot]`. An issue or PR by a listed author is skipped like any other exclusion. With `unless_review_requested: true`, a PR by a listed author is still added when a monitored user is a requested reviewer, so a bot PR that needs a person's attention still reaches the board. Renovate requests review on nearly every PR, so this repo's `rules.yml` turns it off. With `unless_human_commit: true`, a PR by a listed author is still added when one of its last 50 commits was authored by a person: a GitHub login without the `[bot]` suffix that isn't in `authors`. A commit whose author email isn't linked to a GitHub account doesn't count, and a PR with no commits fetched stays excluded. All three keys are off when absent (`[]`, `false` and `false`), and the engine has no built-in author list. Nothing already on the board is removed.
 
 `github-actions[bot]` is deliberately not listed: workflows use it to open real report PRs (for example in `bcgov/action-repo-reporter`), so excluding it would hide work. The trade-off is that any routine PR a workflow opens as `github-actions[bot]` still reaches the board. The title exclusions above stay as a fallback for bot issues such as the Dependency Dashboard and ZAP reports.
 
