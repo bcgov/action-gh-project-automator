@@ -210,3 +210,16 @@ test('linked issues with an excluded title are skipped before any linked-issue c
   assert.match(linkedQuery, /closingIssuesReferences[\s\S]*?\n\s+title\n/);
   assert.match(linkedQuery, /title: node\.title/);
 });
+
+test("a teammate's PR does not assign the monitored user to its linked issues", () => {
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(index.includes('const assignee = isAuthored ? author : null;'));
+  assert.ok(!index.includes('monitoredUsers[0]'), 'no fallback to the first monitored user');
+  const loop = index.indexOf('for (const linked of linkedIssues)');
+  const guard = index.indexOf('if (!linked.isClosed && assignee)', loop);
+  const assign = index.indexOf('api.assignUserToItem(', guard);
+  assert.ok(
+    loop !== -1 && guard > loop && assign > guard,
+    'linked issues are assigned only with an assignee'
+  );
+});
