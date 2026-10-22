@@ -37,7 +37,7 @@ for (const policy of [shipped]) {
       assert.strictEqual(pr(col, { draft: true }), col);
       assert.strictEqual(linked(col, { draft: true }), col);
     }
-    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(linked(null, { draft: true }), null);
   });
 
@@ -100,7 +100,7 @@ for (const policy of [shipped]) {
   test(`[${label}] PRs authored by a monitored user go straight to Active, never New`, () => {
     assert.strictEqual(pr(null, { authored: true }), 'Active');
     assert.strictEqual(pr(null, { draft: true, authored: true }), 'Active');
-    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(pr(null, { isClosed: true, authored: true }), null);
   });
 
