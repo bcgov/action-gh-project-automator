@@ -74,7 +74,6 @@ sprints:
     - Done # Finished work keeps the sprint it was done in after a rollover
   clear: # Remove the sprint
     - New
-    - Parked
     - Backlog
 
 # Board column moves, applied by src/utils/column-assignment.js
