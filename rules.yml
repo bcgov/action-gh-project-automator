@@ -94,6 +94,6 @@ board_columns:
   linked_issue: # Issues the PR closes, following the PR's state
     ready: Active
     draft: keep
-    closed: Next # PR closed without merging returns the issue to Next
+    closed: keep # PR closed without merging leaves the issue where it is
   issue:
     no_status: New
