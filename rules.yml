@@ -87,11 +87,12 @@ board_columns:
     - Waiting
     - Parked
   pull_request:
-    ready: Active # Open and ready for review
+    ready: Active # Open and ready for review; only PRs by a monitored user move here
     draft: keep # A draft PR is the lock on its issue, so it stays put
-    draft_no_status: Active # A new draft with no Status yet
+    draft_no_status: New # Someone else's new draft with no Status yet
+    ready_no_status: New # Someone else's new ready PR with no Status yet
   linked_issue: # Issues the PR closes, following the PR's state
-    ready: Active
+    ready: Active # Only for PRs by a monitored user
     draft: keep
     closed: Next # PR closed without merging returns the issue to Next
   issue:

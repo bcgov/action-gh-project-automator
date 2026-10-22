@@ -33,11 +33,16 @@ test('determineTargetColumn maps columns correctly', () => {
   // Pull Requests already in Waiting stay in Waiting
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Waiting');
 
-  // Open PRs outside locked columns go to Active; New is locked
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New', { policy }), 'New');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog', { policy }), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'None', { policy }), 'Active');
-  assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), 'Active');
+  // Open PRs by a monitored user outside locked columns go to Active; New is locked
+  const mine = { policy, authored: true };
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New', mine), 'New');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog', mine), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'None', mine), 'Active');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, null, mine), 'Active');
+
+  // Someone else's open PR lands in New and is never moved to Active
+  assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), 'New');
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog', { policy }), 'Backlog');
 
   // Issues without column go to New
   assert.strictEqual(determineTargetColumn('Issue', false, null, { policy }), 'New');

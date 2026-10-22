@@ -66,11 +66,12 @@ const schema = {
         locked: { type: 'array', items: { type: 'string' } },
         pull_request: {
           type: 'object',
-          required: ['ready', 'draft', 'draft_no_status'],
+          required: ['ready', 'draft', 'draft_no_status', 'ready_no_status'],
           properties: {
             ready: { type: 'string' },
             draft: { type: 'string' },
             draft_no_status: { type: 'string' },
+            ready_no_status: { type: 'string' },
           },
           additionalProperties: false,
         },

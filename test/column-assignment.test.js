@@ -25,11 +25,21 @@ for (const policy of [shipped]) {
       options
     );
 
-  test(`[${label}] ready-for-review PR and its issue go to Active`, () => {
+  test(`[${label}] ready-for-review PR by a monitored user and its issue go to Active`, () => {
     for (const col of [null, 'None', 'Backlog', 'Next']) {
-      assert.strictEqual(pr(col), 'Active', String(col));
-      assert.strictEqual(linked(col), 'Active', String(col));
+      assert.strictEqual(pr(col, { authored: true }), 'Active', String(col));
+      assert.strictEqual(linked(col, {}, { authored: true }), 'Active', String(col));
     }
+  });
+
+  test(`[${label}] someone else's ready PR lands in New, and neither it nor its issue moves to Active`, () => {
+    assert.strictEqual(pr(null), 'New');
+    assert.strictEqual(pr('None'), 'New');
+    for (const col of ['Backlog', 'Next']) {
+      assert.strictEqual(pr(col), col, col);
+      assert.strictEqual(linked(col), col, col);
+    }
+    assert.strictEqual(linked(null), null);
   });
 
   test(`[${label}] draft PR and its issue stay put`, () => {
@@ -37,7 +47,7 @@ for (const policy of [shipped]) {
       assert.strictEqual(pr(col, { draft: true }), col);
       assert.strictEqual(linked(col, { draft: true }), col);
     }
-    assert.strictEqual(pr(null, { draft: true }), 'Active');
+    assert.strictEqual(pr(null, { draft: true }), 'New');
     assert.strictEqual(linked(null, { draft: true }), null);
   });
 
@@ -105,8 +115,12 @@ for (const policy of [shipped]) {
   test(`[${label}] PRs authored by a monitored user go straight to Active, never New`, () => {
     assert.strictEqual(pr(null, { authored: true }), 'Active');
     assert.strictEqual(pr(null, { draft: true, authored: true }), 'Active');
-    assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(pr(null, { isClosed: true, authored: true }), null);
+  });
+
+  test(`[${label}] someone else's new draft lands in New, never Active`, () => {
+    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { isClosed: true }), null);
   });
 
   test(`[${label}] issues: no Status goes to New, closed issues are not moved`, () => {
@@ -124,5 +138,8 @@ test('board_columns values in rules.yml drive the moves', () => {
     determineLinkedIssueColumn({ isClosed: true, merged: false, draft: false }, 'Active', policy),
     'Backlog'
   );
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Active');
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'Waiting', { policy, authored: true }),
+    'Active'
+  );
 });

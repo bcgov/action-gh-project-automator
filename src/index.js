@@ -414,13 +414,13 @@ async function run(options = {}) {
                 `Processing linked Issue #${linked.number} inside ${linked.repository?.nameWithOwner}...`
               );
 
-              // Ready PR -> Active, draft PR -> stays put, closed unmerged -> Next
+              // Ready PR by a monitored user -> Active, draft PR -> stays put, closed unmerged -> Next
               const linkedCurrentCol = linked.column;
               const linkedTargetCol = determineLinkedIssueColumn(
                 { isClosed, merged: isMerged, draft: isDraft },
                 linkedCurrentCol,
                 config.board_columns,
-                { isClosed: linked.isClosed }
+                { isClosed: linked.isClosed, authored: isAuthored }
               );
 
               if (linkedTargetCol && linkedTargetCol !== linkedCurrentCol) {

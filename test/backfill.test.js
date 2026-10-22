@@ -111,6 +111,20 @@ test('backfill adds a missing PR authored by a monitored user to Active, never N
   }
 });
 
+test("backfill adds someone else's missing PR to New, never Active", () => {
+  for (const draft of [false, true]) {
+    assert.deepStrictEqual(
+      planBackfillItem(null, config.board_columns, {
+        itemType: 'PullRequest',
+        draft,
+        authored: false,
+      }),
+      { action: 'add', column: 'New' },
+      `draft ${draft}`
+    );
+  }
+});
+
 test('backfill uses the same exclusions as the sync, before any board change', () => {
   for (const title of ['Dependency Dashboard', 'ZAP: backendPy', 'ZAP Security Report']) {
     assert.strictEqual(isTitleExcluded(title, config.exclusions), true, title);

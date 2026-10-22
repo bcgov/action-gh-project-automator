@@ -48,12 +48,14 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
 
   if (itemType === 'PullRequest') {
     const state = pullRequestState({ isClosed, merged: options.merged, draft: options.draft });
-    if (!current && options.authored && !isClosed) {
-      return policy.pull_request.ready;
+    if (!current && !isClosed) {
+      if (options.authored) return policy.pull_request.ready;
+      return state === 'draft'
+        ? policy.pull_request.draft_no_status
+        : policy.pull_request.ready_no_status;
     }
-    if (state === 'draft' && !current) {
-      return policy.pull_request.draft_no_status;
-    }
+    // Only PRs written by a monitored user move to Active
+    if (state === 'ready' && !options.authored) return current;
     return apply(policy.pull_request[state], current);
   }
 
@@ -75,6 +77,7 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
  * @param {object} policy - `board_columns` from rules.yml
  * @param {object} [options]
  * @param {boolean} [options.isClosed] - Whether the linked issue itself is closed
+ * @param {boolean} [options.authored] - The PR is authored by a monitored user
  * @returns {string|null} The resolved target column name
  */
 export function determineLinkedIssueColumn(pr, currentColumn, policy, options = {}) {
@@ -88,6 +91,8 @@ export function determineLinkedIssueColumn(pr, currentColumn, policy, options = 
   if (current && resolved.locked.includes(current)) {
     return current;
   }
+  // A PR by someone else doesn't pull its issue into Active
+  if (pullRequestState(pr) === 'ready' && !options.authored) return current;
   return apply(resolved.linked_issue[pullRequestState(pr)], current);
 }
 
@@ -115,6 +120,7 @@ export function getConfiguredColumns(config) {
       addIfValid(bc.pull_request.ready);
       addIfValid(bc.pull_request.draft);
       addIfValid(bc.pull_request.draft_no_status);
+      addIfValid(bc.pull_request.ready_no_status);
     }
     if (bc.linked_issue) {
       addIfValid(bc.linked_issue.ready);
