@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import * as api from '../src/github/api.js';
+import { captureOutput } from './helpers/capture-output.js';
 
 const json = (payload) =>
   new Response(JSON.stringify(payload), {
@@ -33,16 +34,18 @@ test('unreadable monitored repositories are listed, qualified with the default o
         errors: [
           {
             type: 'NOT_FOUND',
-            message: "Could not resolve to a Repository with the name 'other/private'.",
+            message:
+              "test: simulated Could not resolve to a Repository with the name 'other/private'.",
           },
         ],
       });
     },
     async () => {
-      assert.deepStrictEqual(
-        await api.getUnreadableRepositories('acme', ['app', 'other/private']),
-        ['other/private']
-      );
+      let unreadable;
+      await captureOutput(async () => {
+        unreadable = await api.getUnreadableRepositories('acme', ['app', 'other/private']);
+      });
+      assert.deepStrictEqual(unreadable, ['other/private']);
     }
   );
 });
@@ -53,17 +56,22 @@ test('requireReadableRepositories fails with the repos and the token permissions
       json({
         data: { r0: null },
         errors: [
-          { type: 'FORBIDDEN', message: 'Resource not accessible by personal access token' },
+          {
+            type: 'FORBIDDEN',
+            message: 'test: simulated Resource not accessible by personal access token',
+          },
         ],
       }),
     async () => {
-      await assert.rejects(
-        () => api.requireReadableRepositories('acme', ['acme/secret']),
-        (err) =>
-          /cannot read 1 monitored repository\(s\): acme\/secret/.test(err.message) &&
-          /needs Projects read and write on the board and read access to each monitored repository\. Use a fine-grained PAT .*, or a GitHub App installation token/.test(
-            err.message
-          )
+      await captureOutput(() =>
+        assert.rejects(
+          () => api.requireReadableRepositories('acme', ['acme/secret']),
+          (err) =>
+            /cannot read 1 monitored repository\(s\): acme\/secret/.test(err.message) &&
+            /needs Projects read and write on the board and read access to each monitored repository\. Use a fine-grained PAT .*, or a GitHub App installation token/.test(
+              err.message
+            )
+        )
       );
     }
   );
@@ -93,12 +101,15 @@ test('a project the token cannot see fails with the token permissions to check',
 test('a failed search fails the run instead of logging a warning', async () => {
   api.setProjectFields({ status: 'Status', sprint: 'Sprint' });
   await withFetch(
-    () => json({ errors: [{ message: 'Search exploded' }] }),
+    () => json({ errors: [{ message: 'test: simulated search failure' }] }),
     async () => {
-      await assert.rejects(
-        () => api.getRecentItems('acme', ['acme/app'], [], '2026-10-01T00:00:00Z'),
-        /Search failed for "repo:acme\/app [^"]*": [\s\S]*Search exploded/
+      const output = await captureOutput(() =>
+        assert.rejects(
+          () => api.getRecentItems('acme', ['acme/app'], [], '2026-10-01T00:00:00Z'),
+          /Search failed for "repo:acme\/app [^"]*": [\s\S]*test: simulated search failure/
+        )
       );
+      assert.match(output, /GitHub API call failed \(attempt 1\/3\)/);
     }
   );
 });

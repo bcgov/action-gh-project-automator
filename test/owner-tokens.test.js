@@ -7,6 +7,7 @@ import * as yaml from 'js-yaml';
 import * as api from '../src/github/api.js';
 import { buildSearchQueries } from '../src/github/queries.js';
 import { loadBoardRules } from '../src/config/board-rules.js';
+import { captureOutput } from './helpers/capture-output.js';
 
 const json = (payload) =>
   new Response(JSON.stringify(payload), {
@@ -51,7 +52,7 @@ async function recordCalls(ownerTokens, projectOwner, fn, respond = () => ({ dat
 }
 
 const badCredentials = () =>
-  new Response(JSON.stringify({ message: 'Bad credentials' }), {
+  new Response(JSON.stringify({ message: 'test: simulated Bad credentials' }), {
     status: 401,
     headers: { 'content-type': 'application/json' },
   });
@@ -210,10 +211,8 @@ test('board calls use the project owner token', async () => {
 test('an unusable token is reported and the access check continues', async () => {
   const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
   let result;
-  const originalSetTimeout = globalThis.setTimeout;
-  globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0); // skip retry back-off
-  try {
-    await recordCalls(
+  const output = await captureOutput(() =>
+    recordCalls(
       tokens,
       'bcgov',
       async () => {
@@ -235,10 +234,9 @@ test('an unusable token is reported and the access check continues', async () =>
           ),
         };
       }
-    );
-  } finally {
-    globalThis.setTimeout = originalSetTimeout;
-  }
+    )
+  );
+  assert.match(output, /test: simulated Bad credentials/);
   assert.strictEqual(result.projectId, 'P_1');
   assert.ok(
     result.failures.some((l) => /^token BCGOV_C_TOKEN via BCGOV_C_TOKEN: unusable/.test(l))
@@ -290,11 +288,9 @@ test('linked issues another token can see are combined with the PR owner token r
 
 test('a failing extra token does not hide the PR owner token linked issues', async () => {
   const tokens = new Map([['bcgov-c', { variable: 'BCGOV_C_TOKEN', token: 'c-token' }]]);
-  const originalSetTimeout = globalThis.setTimeout;
-  globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
   let issues;
-  try {
-    await recordCalls(
+  const output = await captureOutput(() =>
+    recordCalls(
       tokens,
       'bcgov',
       async () => {
@@ -304,9 +300,8 @@ test('a failing extra token does not hide the PR owner token linked issues', asy
         call.token === 'c-token'
           ? badCredentials()
           : { data: { node: { closingIssuesReferences: { nodes: [] } } } }
-    );
-  } finally {
-    globalThis.setTimeout = originalSetTimeout;
-  }
+    )
+  );
+  assert.match(output, /test: simulated Bad credentials/);
   assert.deepStrictEqual(issues, []);
 });
