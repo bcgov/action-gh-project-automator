@@ -90,10 +90,10 @@ board_columns:
   pull_request:
     ready: Active # Open and ready for review
     draft: keep # A draft PR is the lock on its issue, so it stays put
-    draft_no_status: New # A new draft with no Status yet
+    draft_no_status: Active # A new draft with no Status yet
   linked_issue: # Issues the PR closes, following the PR's state
     ready: Active
     draft: keep
-    closed: keep # PR closed without merging leaves the issue where it is
+    closed: Next # PR closed without merging returns the issue to Next
   issue:
     no_status: New

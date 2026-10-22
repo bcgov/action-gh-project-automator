@@ -37,7 +37,7 @@ for (const policy of [shipped]) {
       assert.strictEqual(pr(col, { draft: true }), col);
       assert.strictEqual(linked(col, { draft: true }), col);
     }
-    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(linked(null, { draft: true }), null);
   });
 
@@ -47,9 +47,12 @@ for (const policy of [shipped]) {
     assert.strictEqual(linked('Done', { isClosed: true, merged: true }), 'Done');
   });
 
-  test(`[${label}] PR closed without merging is not moved, nor is its open issue`, () => {
+  test(`[${label}] PR closed without merging is not moved, its open issue goes back to Next`, () => {
     assert.strictEqual(pr('Active', { isClosed: true }), 'Active');
     for (const col of ['Backlog', 'Next', 'Active']) {
+      assert.strictEqual(linked(col, { isClosed: true }), 'Next', col);
+    }
+    for (const col of ['Waiting', 'Parked']) {
       assert.strictEqual(linked(col, { isClosed: true }), col, col);
     }
   });
@@ -102,7 +105,7 @@ for (const policy of [shipped]) {
   test(`[${label}] PRs authored by a monitored user go straight to Active, never New`, () => {
     assert.strictEqual(pr(null, { authored: true }), 'Active');
     assert.strictEqual(pr(null, { draft: true, authored: true }), 'Active');
-    assert.strictEqual(pr(null, { draft: true }), 'New');
+    assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(pr(null, { isClosed: true, authored: true }), null);
   });
 
