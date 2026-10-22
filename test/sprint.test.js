@@ -17,3 +17,9 @@ test('Active and Next still move to the current sprint after a rollover', () => 
   assert.strictEqual(sprintAction('Active', { id: 'sprint-90' }, 'sprint-91', sprints), 'assign');
   assert.strictEqual(sprintAction('Next', { id: 'sprint-90' }, 'sprint-91', sprints), 'assign');
 });
+
+test('Parked keeps its sprint; New and Backlog clear it', () => {
+  assert.strictEqual(sprintAction('Parked', { id: 'sprint-90' }, 'sprint-91', sprints), null);
+  assert.strictEqual(sprintAction('New', { id: 'sprint-90' }, 'sprint-91', sprints), 'clear');
+  assert.strictEqual(sprintAction('Backlog', { id: 'sprint-90' }, 'sprint-91', sprints), 'clear');
+});

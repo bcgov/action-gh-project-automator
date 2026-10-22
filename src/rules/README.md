@@ -34,6 +34,7 @@ These rules determine which sprint an item belongs to:
 |-----------|---------------------|----------------|----------------------------|
 | PR, Issue | Column=Next, Active | Sprint=current | Sprint=current already set |
 | PR, Issue | Column=Done         | Sprint=current | Sprint=any already set     |
+| PR, Issue | Column=New, Backlog | Sprint cleared | No sprint set              |
 
 ## 4. Linked Issue Rules
 
