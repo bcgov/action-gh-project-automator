@@ -6,6 +6,7 @@ import path from 'node:path';
 import { getConfiguredColumns, validateBoardColumns } from '../src/utils/column-assignment.js';
 import { validate } from '../src/validate.js';
 import { updateItemColumn } from '../src/github/api.js';
+import { captureOutput } from './helpers/capture-output.js';
 
 test('getConfiguredColumns extracts unique columns and ignores "keep"', () => {
   const config = {
@@ -100,7 +101,10 @@ test('validate() executes offline syntax and schema check when no GITHUB_TOKEN',
   const originalToken = process.env.INPUT_GITHUB_TOKEN;
   delete process.env.INPUT_GITHUB_TOKEN;
   try {
-    const result = await validate();
+    let result;
+    await captureOutput(async () => {
+      result = await validate();
+    });
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.offline, true);
     assert.ok(result.config);
@@ -118,7 +122,9 @@ test('validate() fails fast on invalid schema', async () => {
   fs.writeFileSync(tmpFile, 'invalid_yaml: [}', 'utf8');
 
   try {
-    await assert.rejects(() => validate({ configPath: tmpFile }), /YAMLException|YAML/i);
+    await captureOutput(() =>
+      assert.rejects(() => validate({ configPath: tmpFile }), /YAMLException|YAML/i)
+    );
   } finally {
     if (originalToken !== undefined) process.env.INPUT_GITHUB_TOKEN = originalToken;
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -207,7 +213,11 @@ test('validate() verifies remote board and columns when credentials present', as
   };
 
   try {
-    const result = await validate({ dryRun: false });
+    let result;
+    const output = await captureOutput(async () => {
+      result = await validate({ dryRun: false });
+    });
+    assert.match(output, /Syntax and schema validation passed/);
     assert.strictEqual(result.valid, true);
     assert.strictEqual(result.offline, false);
     assert.strictEqual(result.projectId, 'PVT_ONLINE_TEST');
@@ -282,9 +292,11 @@ test('validate() rejects when board is missing required status columns', async (
   };
 
   try {
-    await assert.rejects(
-      () => validate({ dryRun: false }),
-      /Status columns in rules\.yml not found on project board/
+    await captureOutput(() =>
+      assert.rejects(
+        () => validate({ dryRun: false }),
+        /Status columns in rules\.yml not found on project board/
+      )
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -327,7 +339,10 @@ test('updateItemColumn in DRY_RUN mode validates column existence before logging
 
   try {
     // Valid column succeeds in dry run
-    await assert.doesNotReject(() => updateItemColumn('PVT_DRY', 'ITEM_1', 'ValidCol'));
+    const output = await captureOutput(() =>
+      assert.doesNotReject(() => updateItemColumn('PVT_DRY', 'ITEM_1', 'ValidCol'))
+    );
+    assert.match(output, /\[DRY RUN\] Would update item ITEM_1 Status to "ValidCol"/);
 
     // Non-existent column rejects even in dry run
     await assert.rejects(
@@ -398,14 +413,20 @@ test('validate() with dryRun propagates engine failures to caller', async () => 
       );
     }
     // Fail getProjectMetadata during dry-run execution
-    return new Response(JSON.stringify({ errors: [{ message: 'GraphQL failure' }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ errors: [{ message: 'test: simulated GraphQL failure' }] }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
   };
 
   try {
-    await assert.rejects(() => validate({ dryRun: true }), /GraphQL failure/);
+    const output = await captureOutput(() =>
+      assert.rejects(() => validate({ dryRun: true }), /test: simulated GraphQL failure/)
+    );
+    assert.match(output, /GitHub API call failed \(attempt 1\/3\)/);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalToken !== undefined) {
