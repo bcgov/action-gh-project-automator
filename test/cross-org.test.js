@@ -13,6 +13,8 @@ import { planBackfillItem } from '../src/utils/backfill.js';
 import { determineTargetColumn } from '../src/utils/column-assignment.js';
 import { sprintAction } from '../src/utils/sprint.js';
 
+const ISSUE = { itemType: 'Issue', draft: false, authored: false };
+
 const { board_columns: policy, sprints, project } = loadBoardRules();
 const P16 = 'PVT_project16';
 const CURRENT = 'sprint-90';
@@ -66,7 +68,7 @@ test('a cross-org item already on the board is not reset', async () => {
     assert.strictEqual(sprintAction(column, state.sprint, CURRENT, sprints), null, column);
 
     // Backfill: left alone, not re-added
-    assert.deepStrictEqual(planBackfillItem(state, policy), {
+    assert.deepStrictEqual(planBackfillItem(state, policy, ISSUE), {
       action: 'skip',
       projectItemId: 'PVTI_p16_743',
     });
@@ -77,7 +79,7 @@ test('a cross-org item not on the board is added to New', async () => {
   const { lookup } = fakeBoard([]);
   const state = await lookup.stateFor(crossOrgIssue, crossOrgIssue.repository.nameWithOwner);
   assert.strictEqual(state, null);
-  assert.deepStrictEqual(planBackfillItem(state, policy), { action: 'add', column: 'New' });
+  assert.deepStrictEqual(planBackfillItem(state, policy, ISSUE), { action: 'add', column: 'New' });
   // Just added, with no Status yet
   assert.strictEqual(columnAfterAdd({ projectItemId: 'PVTI_new', column: null }, 'New'), 'New');
   assert.strictEqual(determineTargetColumn('Issue', false, null, { policy }), 'New');

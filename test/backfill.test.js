@@ -11,6 +11,8 @@ import { buildSearchQueries, resolveSince } from '../src/github/queries.js';
 import { loadBoardRules } from '../src/config/board-rules.js';
 import { isTitleExcluded } from '../src/utils/exclusions.js';
 
+const ISSUE = { itemType: 'Issue', draft: false, authored: false };
+
 const config = loadBoardRules();
 const repos = config.project.repositories;
 const now = new Date('2026-10-11T12:00:00Z');
@@ -84,15 +86,29 @@ test('backfill searches open items only; normal runs keep closed-unmerged PRs', 
 });
 
 test('backfill adds missing items to New and leaves existing items alone', () => {
-  assert.deepStrictEqual(planBackfillItem(null, config.board_columns), {
+  assert.deepStrictEqual(planBackfillItem(null, config.board_columns, ISSUE), {
     action: 'add',
     column: 'New',
   });
   const existing = { projectItemId: 'PVTI_1', column: 'Waiting', sprint: null };
-  assert.deepStrictEqual(planBackfillItem(existing, config.board_columns), {
+  assert.deepStrictEqual(planBackfillItem(existing, config.board_columns, ISSUE), {
     action: 'skip',
     projectItemId: 'PVTI_1',
   });
+});
+
+test('backfill adds a missing PR authored by a monitored user to Active, never New', () => {
+  for (const draft of [false, true]) {
+    assert.deepStrictEqual(
+      planBackfillItem(null, config.board_columns, {
+        itemType: 'PullRequest',
+        draft,
+        authored: true,
+      }),
+      { action: 'add', column: 'Active' },
+      `draft ${draft}`
+    );
+  }
 });
 
 test('backfill uses the same exclusions as the sync, before any board change', () => {

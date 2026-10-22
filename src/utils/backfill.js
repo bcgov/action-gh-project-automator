@@ -1,3 +1,5 @@
+import { determineTargetColumn } from './column-assignment.js';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -28,14 +30,17 @@ export function backfillSince(backfill, now = new Date()) {
 
 /**
  * What a backfill run does with one item: items already on the board are left alone
- * (not re-added or moved); missing items are added in the policy's no-Status column.
+ * (not re-added or moved); missing items are added in the column the normal sync would
+ * pick for an item with no Status (backfill only finds open items).
  * @param {object|null} board - The item's board state (null when it isn't on the board)
  * @param {object} policy - `board_columns` from rules.yml
+ * @param {{ itemType: string, draft: boolean, authored: boolean }} item
  * @returns {{ action: 'skip', projectItemId: string } | { action: 'add', column: string }}
  */
-export function planBackfillItem(board, policy) {
+export function planBackfillItem(board, policy, { itemType, draft, authored }) {
   if (board) return { action: 'skip', projectItemId: board.projectItemId };
-  return { action: 'add', column: policy?.issue?.no_status || 'New' };
+  const column = determineTargetColumn(itemType, false, null, { draft, authored, policy });
+  return { action: 'add', column };
 }
 
 /**
