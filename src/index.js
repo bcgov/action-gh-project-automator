@@ -256,7 +256,11 @@ async function run(options = {}) {
 
         // Backfill only adds missing items; items already on the board aren't re-added or moved
         if (backfill) {
-          const plan = planBackfillItem(await board.stateFor(item, repoName), config.board_columns);
+          const plan = planBackfillItem(
+            await board.stateFor(item, repoName),
+            config.board_columns,
+            { itemType, draft: isDraft, authored: isAuthored }
+          );
           if (plan.action === 'skip') {
             core.info(`Already on the board (${plan.projectItemId}); leaving it alone.`);
             continue;
