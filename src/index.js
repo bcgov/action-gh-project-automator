@@ -237,8 +237,8 @@ async function run(options = {}) {
           core.info(`Skipping: Item excluded based on author ("${excludedAuthor}").`);
           continue;
         }
-        // The monitored user to assign: the author when monitored, otherwise the first listed (if any)
-        const assignee = isAuthored ? author : monitoredUsers[0] || null;
+        // Linked issues inherit the PR's author as assignee only when a monitored user wrote the PR
+        const assignee = isAuthored ? author : null;
 
         const shouldBeAdded = isMaintainerRepo || isAuthored || isAssigned || isReviewer;
         let addReason = '';

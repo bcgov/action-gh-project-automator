@@ -20,7 +20,7 @@ These rules decide which column an item goes in. They're configured in `board_co
 | Item / event                  | PR column                 | Linked issue column |
 |-------------------------------|---------------------------|---------------------|
 | PR open, ready for review     | Active                    | Active              |
-| PR is a draft                 | Stays put (New if no Status) | Stays put (the draft PR is the lock) |
+| PR is a draft                 | Stays put (Active if no Status) | Stays put (the draft PR is the lock) |
 | PR closed without merging     | Not moved                 | Next                |
 | PR merged / item closed       | Not moved (GitHub's built-in project workflows move it to Done) | Not moved |
 | Issue with no Status          | -                         | New                 |
@@ -41,7 +41,7 @@ When a PR is linked to issues using closing keywords (e.g., "fixes #123"), those
 
 1. A column based on the PR's state (see Column Rules)
 2. The same sprint as the PR
-3. The same assignee(s) as the PR
+3. The PR's author as assignee, only when a monitored user wrote the PR (a teammate's PR assigns no one)
 
 This ensures that related issues are properly tracked alongside their fixing PRs.
 
@@ -51,7 +51,7 @@ These rules govern how assignees are managed:
 
 1. PRs should have at least one assignee
 2. If no assignee is set, assign to PR author. If GitHub refuses the assignment for permission reasons (HTTP 403, 404 or 422, e.g. a fork PR target the token can't write to), the assignee update is skipped with a warning and the board update still proceeds.
-3. Linked issues inherit assignees from their linked PRs
+3. Open linked issues get the PR's author as assignee only when a monitored user wrote the PR; otherwise their assignees are left unchanged
 
 ## Implementation Notes
 

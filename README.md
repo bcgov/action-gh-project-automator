@@ -13,7 +13,7 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 - **Intelligent Intake**: Automatically adds PRs and issues to the project board based on authorship, assignment, or repository source.
 - **Dynamic Workflows**: Moves items between columns (e.g., `New` → `Active`) based on real-time state changes.
 - **Sprint Orchestration**: Seamlessly manages sprint assignments and rollovers.
-- **Smart Inheritance**: Propagates PR metadata (assignees, sprints, columns) to linked issues.
+- **Smart Inheritance**: Propagates PR metadata (sprints, columns, and the author as assignee when a monitored user wrote the PR) to linked issues.
 - **Multi-Org Mastery**: Monitors activity across `bcgov` and `bcgov-c` simultaneously.
 
 ## Usage as a GitHub Action
