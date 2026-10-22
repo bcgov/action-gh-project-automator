@@ -90,7 +90,7 @@ board_columns:
     ready: Active # Open and ready for review; only PRs by a monitored user move here
     draft: keep # A draft PR is the lock on its issue, so it stays put
     draft_no_status: New # Someone else's new draft with no Status yet
-    ready_no_status: New # Someone else's new ready PR with no Status yet
+    ready_no_status: New # Someone else's new ready PR with no Status yet (optional; defaults to issue.no_status)
   linked_issue: # Issues the PR closes, following the PR's state
     ready: Active # Only for PRs by a monitored user
     draft: keep

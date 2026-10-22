@@ -143,3 +143,17 @@ test('board_columns values in rules.yml drive the moves', () => {
     'Active'
   );
 });
+
+test('ready_no_status is optional and falls back to issue.no_status; keep leaves Status unset', () => {
+  const policy = structuredClone(shipped);
+  delete policy.pull_request.ready_no_status;
+  policy.issue.no_status = 'Backlog';
+  assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), 'Backlog');
+  policy.pull_request.ready_no_status = 'keep';
+  policy.pull_request.draft_no_status = 'keep';
+  assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), null);
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, null, { policy, draft: true }),
+    null
+  );
+});

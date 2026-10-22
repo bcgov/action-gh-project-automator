@@ -50,9 +50,8 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
     const state = pullRequestState({ isClosed, merged: options.merged, draft: options.draft });
     if (!current && !isClosed) {
       if (options.authored) return policy.pull_request.ready;
-      return state === 'draft'
-        ? policy.pull_request.draft_no_status
-        : policy.pull_request.ready_no_status;
+      const { draft_no_status, ready_no_status = policy.issue.no_status } = policy.pull_request;
+      return apply(state === 'draft' ? draft_no_status : ready_no_status, current);
     }
     // Only PRs written by a monitored user move to Active
     if (state === 'ready' && !options.authored) return current;

@@ -436,3 +436,22 @@ test('validate() with dryRun propagates engine failures to caller', async () => 
     }
   }
 });
+
+test('a rules file without ready_no_status still passes the schema', async () => {
+  const originalToken = process.env.INPUT_GITHUB_TOKEN;
+  delete process.env.INPUT_GITHUB_TOKEN;
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'val-'));
+  const tmpFile = path.join(tmpDir, 'older-rules.yml');
+  const shipped = fs.readFileSync(new URL('../rules.yml', import.meta.url), 'utf8');
+  const older = shipped.replace(/^\s*ready_no_status:.*\n/m, '');
+  assert.notStrictEqual(older, shipped);
+  fs.writeFileSync(tmpFile, older, 'utf8');
+
+  try {
+    await captureOutput(() => assert.doesNotReject(() => validate({ configPath: tmpFile })));
+  } finally {
+    if (originalToken !== undefined) process.env.INPUT_GITHUB_TOKEN = originalToken;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
