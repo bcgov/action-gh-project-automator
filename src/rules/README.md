@@ -41,7 +41,7 @@ When a PR is linked to issues using closing keywords (e.g., "fixes #123"), those
 
 1. A column based on the PR's state (see Column Rules)
 2. The same sprint as the PR
-3. The same assignee(s) as the PR
+3. The PR's author as assignee, only when a monitored user wrote the PR (a teammate's PR assigns no one)
 
 This ensures that related issues are properly tracked alongside their fixing PRs.
 
