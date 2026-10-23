@@ -48,7 +48,7 @@ concurrency:
 jobs:
   sync:
     name: Sync Board
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -191,7 +191,7 @@ Set up a consumer repository for GitHub Project board automation under the `<ORG
    - Port the `rules.yml` template from `bcgov/project-automator`.
    - Update `project.url` to `<PROJECT_BOARD_URL>` (e.g. `https://github.com/orgs/<ORG>/projects/<NUMBER>`).
    - Configure `automation.repository_scope` and/or `automation.user_scope` for the target repositories and users.
-   - Configure `.github/workflows/sync.yml` with an hourly schedule (`0 * * * *`), `workflow_dispatch`, explicit LTS runner (`ubuntu-24.04`), and minimal permissions (`permissions: {}` top-level, `contents: read` on job).
+   - Configure `.github/workflows/sync.yml` with an hourly schedule (`0 * * * *`), `workflow_dispatch`, explicit LTS runner (`ubuntu-26.04`), and minimal permissions (`permissions: {}` top-level, `contents: read` on job).
 4. **Safety & Verification**:
    - Configure `dry_run: true` for the initial verification run.
    - Guide the user to add the required `PROJECT_SYNC_TOKEN` secret to repository secrets.
@@ -244,7 +244,7 @@ on:
 permissions: {}
 jobs:
   org-a-board:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
