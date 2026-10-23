@@ -1,0 +1,98 @@
+# Project Board Sync Configuration
+# User-facing configuration template - users provide their own rules.yml in their repositories.
+# This file serves as an example template showing available configuration options.
+# For design notes, see docs/design.md.
+# Changes here will be applied on the next sync run.
+
+# Every key the engine reads is required here; there are no built-in defaults.
+# Exception: exclusions.exclude_labels is optional and means [] (no label exclusions) when absent.
+project:
+  url: "https://github.com/orgs/bcgov/projects/16" # Project board
+  organization: "bcgov" # Default organization for unqualified repository names
+  allowedOrgs: # Organizations to search for user-scoped items (author/assignee)
+    - bcgov
+    - bcgov-c
+  fields: # Project field names
+    status: "Status"
+    sprint: "Sprint"
+
+automation:
+  # Users whose PRs and assigned items are followed across all repositories
+  user_scope:
+    monitored_users:
+      - DerekRoberts
+
+  # Repositories whose issues and PRs are synced
+  repository_scope:
+    # Repositories where every issue and PR is tracked. Repositories not listed
+    # here are covered through user_scope only.
+    repositories:
+      - bcgov/action-repo-reporter
+      - bcgov/actions
+      - bcgov/actions-openshift
+      - bcgov/devops-scripts
+      - bcgov/nr-containers
+      - bcgov/project-automator
+      - bcgov/quickstart-openshift
+      - bcgov/quickstart-openshift-modules
+      - bcgov/renovate-config
+
+# Exclusion rules to filter out automated noise by title or label
+exclusions:
+  exact_titles:
+    - "Dependency Dashboard"
+  title_substrings:
+    - "ZAP Security Report"
+    # Default issue_title of zaproxy/action-full-scan, action-baseline and action-api-scan
+    - "ZAP Full Scan Report"
+    - "ZAP Scan Baseline Report"
+    - "ZAP API Scan Report"
+  title_prefixes:
+    # Custom issue_title in quickstart-openshift-modules pentests.yml ("ZAP: <name>")
+    - "ZAP: "
+  exclude_labels: [] # Optional; label names, case-insensitive; an item with any of them is skipped
+  # Optional; author logins, case-insensitive; their issues and PRs are skipped.
+  # github-actions[bot] is left out on purpose: it opens real report PRs.
+  authors:
+    - renovate[bot]
+    - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  # Optional; true still adds an excluded author's PR when a monitored user is a requested reviewer
+  unless_review_requested: true
+
+technical:
+  update_window_hours: 2 # Search window when there's no watermark from a previous run
+
+# Sprint field, applied by src/utils/sprint.js after the column is set
+sprints:
+  assign_current: # Set the current sprint
+    - Active
+    - Next
+  assign_current_if_empty: # Set the current sprint only when the item has none
+    - Waiting
+    - Done # Finished work keeps the sprint it was done in after a rollover
+  clear: # Remove the sprint
+    - New
+    - Backlog
+
+# Board column moves, applied by src/utils/column-assignment.js
+# "keep" leaves the item in its current column.
+# Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
+board_columns:
+  # Items in these columns are never moved out by the action; only a person moves them
+  locked:
+    - New
+    - Done
+    - Waiting
+    - Parked
+  pull_request:
+    ready: Active # Open and ready for review
+    draft: keep # A draft PR is the lock on its issue, so it stays put
+    draft_no_status: Active # A new draft with no Status yet
+  linked_issue: # Issues the PR closes, following the PR's state
+    ready: Active
+    draft: keep
+    closed: Next # PR closed without merging returns the issue to Next
+  issue:
+    no_status: New
