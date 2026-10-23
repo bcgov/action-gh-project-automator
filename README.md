@@ -152,12 +152,21 @@ Designed for transparency. Every run provides:
 
 Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and an example [`rules.yml`](rules.yml).
 
-### Automated Consumer Scaffolding
+### Automated Consumer Scaffolding (1-Line Setup)
 
-To quickly scaffold a consumer repository without copying files manually, run the built-in initializer:
+To bootstrap a consumer repository in seconds without installing Node.js or cloning this repository, run the curl bootstrap command:
 
 ```bash
-npm run init -- --board https://github.com/orgs/<ORG>/projects/<NUMBER> --repos <ORG>/<REPO1>,<ORG>/<REPO2> --users <USER1> --out ./project-sync
+curl -fsSL https://raw.githubusercontent.com/bcgov/project-automator/main/scripts/setup-consumer.sh | bash
+```
+
+Or pass your arguments directly:
+```bash
+curl -fsSL https://raw.githubusercontent.com/bcgov/project-automator/main/scripts/setup-consumer.sh | bash -s -- \
+  --board https://github.com/orgs/<ORG>/projects/<NUMBER> \
+  --repos <ORG>/<REPO1>,<ORG>/<REPO2> \
+  --users <USER1> \
+  --dir ./project-sync
 ```
 
 This generates `rules.yml`, `.github/workflows/sync.yml`, `.github/workflows/validate.yml`, `.gitignore`, and `README.md` pre-populated with your board and repository settings, alongside the exact pre-scoped token setup URL.

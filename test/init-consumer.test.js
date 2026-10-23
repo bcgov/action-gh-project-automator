@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { scaffoldConsumer } from '../scripts/init-consumer.js';
 import { loadBoardRules } from '../src/config/board-rules.js';
 
@@ -57,6 +58,35 @@ test('scaffoldConsumer detects multi-org configuration and recommends Classic PA
     const loadedConfig = loadBoardRules(path.join(tmpDir, 'rules.yml'));
     assert.ok(loadedConfig.project.allowedOrgs.includes('bcgov'));
     assert.ok(loadedConfig.project.allowedOrgs.includes('bcgov-c'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('scripts/setup-consumer.sh bootstraps a valid consumer repository', () => {
+  const tmpDir = path.resolve('.tmp', `test-bash-scaffold-${Date.now()}`);
+  const scriptPath = path.resolve('scripts/setup-consumer.sh');
+  try {
+    execFileSync(scriptPath, [
+      '--board',
+      'https://github.com/orgs/bcgov/projects/16',
+      '--repos',
+      'bcgov/actions,bcgov-c/nr-mof-db',
+      '--users',
+      'DerekRoberts',
+      '--dir',
+      tmpDir,
+      '--non-interactive',
+    ]);
+
+    assert.ok(fs.existsSync(path.join(tmpDir, 'rules.yml')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.github/workflows/sync.yml')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.github/workflows/validate.yml')));
+
+    const loaded = loadBoardRules(path.join(tmpDir, 'rules.yml'));
+    assert.strictEqual(loaded.project.url, 'https://github.com/orgs/bcgov/projects/16');
+    assert.ok(loaded.project.allowedOrgs.includes('bcgov'));
+    assert.ok(loaded.project.allowedOrgs.includes('bcgov-c'));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
