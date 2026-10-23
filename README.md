@@ -213,7 +213,9 @@ project:
 
 The sync engine requires authentication via a repository secret named `PROJECT_SYNC_TOKEN` configured in your workflow (`.github/workflows/sync.yml`).
 
-#### Fine-Grained Personal Access Token (recommended)
+#### Fine-Grained Personal Access Token (Single Organization)
+
+Use a fine-grained PAT when the board and all monitored repositories belong to a single organization:
 
 1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Fine-grained tokens**](https://github.com/settings/personal-access-tokens/new). A token owned by a team or service account is better than a personal one.
 2. Set **Token name** to `PROJECT_SYNC_TOKEN`.
@@ -227,7 +229,17 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 No organization membership permission (classic `read:org`) is needed.
 
-A fine-grained token reaches only one owner (one organization or user), so a config spanning several organizations or users needs a classic PAT for now; per-owner tokens are planned. A user-owned board also needs a classic PAT, because fine-grained tokens can't reach Projects owned by a user account. Give the classic PAT the `project` and `repo` scopes (`public_repo` is enough when every monitored repository is public).
+#### Classic Personal Access Token (Multi-Organization or User Boards)
+
+A fine-grained token reaches only one owner (one organization or user). When your configuration spans multiple organizations (such as `bcgov` and `bcgov-c` without per-owner tokens), or when targeting a user-owned project board (which fine-grained tokens cannot access), use a classic PAT:
+
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new).
+2. Set **Note** to `PROJECT_SYNC_TOKEN`.
+3. Choose an expiration matching your organization's token rotation policy.
+4. Select the required scopes:
+   * **`project`**: Read and write access to organization and user project boards.
+   * **`repo`**: Full control of private and public repositories, issues, and pull requests (**`public_repo`** is sufficient if all monitored repositories and your consumer repository are public).
+5. Click **Generate token** and copy the string.
 
 Adding an assignee requires admin rights on that repository. When GitHub responds `Must have admin rights to Repository`, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
 
