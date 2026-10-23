@@ -10,6 +10,7 @@
   "scripts": {
     "build": "ncc build src/index.js -o dist",
     "validate": "node src/validate.js",
+    "init": "node scripts/init-consumer.js",
     "test": "node --test test/*.test.* test/*/*.test.*",
     "start": "node src/index.js",
     "test:state": "node --test test/state-verifier.test.js",

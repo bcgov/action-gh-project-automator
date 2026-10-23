@@ -1,0 +1,33 @@
+name: Validate Rules
+
+on:
+  pull_request:
+    paths:
+      - 'rules.yml'
+      - 'boards/**'
+      - '.github/workflows/validate.yml'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Configuration
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Rules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate Rules & Connectivity
+        uses: bcgov/project-automator@343c42ff06360e4db6d9cebde5693f6e50148336 # v1.0.0
+        with:
+          github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
+          config_path: rules.yml
+          validate_only: 'true'

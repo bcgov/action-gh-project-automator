@@ -28,7 +28,7 @@ import {
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
 import { sprintAction } from './utils/sprint.js';
-import { formatResultCounts } from './utils/summary.js';
+import { formatAccessSummary, formatResultCounts } from './utils/summary.js';
 import {
   backfillSince,
   parseBackfill,
@@ -95,7 +95,11 @@ async function run(options = {}) {
     // 2. Resolve Project Board and Fields
     const token = api.resolveToken();
     const isDryRun = process.env.DRY_RUN === 'true';
-    const isValidateOnly = process.argv.includes('--validate');
+    const isValidateOnly =
+      options.validateOnly === true ||
+      core.getInput('validate_only') === 'true' ||
+      process.argv.includes('--validate') ||
+      process.env.VALIDATE_ONLY === 'true';
 
     // Command-line dry runs and --validate can check the config offline; an action run needs a token
     if (!token) {
@@ -124,6 +128,11 @@ async function run(options = {}) {
       allowedOrgs,
     });
     for (const line of access.lines) core.info(`Access: ${line}`);
+
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      await core.summary.addRaw(formatAccessSummary(access)).write();
+    }
+
     api.requireAccess(access);
     const projectId = access.projectId;
     core.info(`Resolved Project ID: ${projectId}`);
@@ -155,6 +164,17 @@ async function run(options = {}) {
 
     if (isValidateOnly) {
       core.info('✔ Remote board connectivity and status columns validated successfully.');
+      if (process.env.GITHUB_STEP_SUMMARY) {
+        await core.summary
+          .addRaw(
+            `\n### 🔍 Validation Successful\n\n` +
+              `- Configuration syntax and schema: **Valid**\n` +
+              `- Project Board connectivity: **Verified** (ID: \`${projectId}\`)\n` +
+              `- Configured status columns: **Verified** (${getConfiguredColumns(config).join(', ')})\n` +
+              `- Monitored repositories: **All readable** (${maintainerRepos.length} repos)\n`
+          )
+          .write();
+      }
       return;
     }
 

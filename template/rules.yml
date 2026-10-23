@@ -1,0 +1,68 @@
+# Project Board Sync Configuration
+# Place this file in the root of your consumer repository (or boards/<name>.yml for multi-board setups).
+project:
+  url: "https://github.com/orgs/<ORG>/projects/<NUMBER>" # Replace with your project board URL
+  organization: "<ORG>" # Default organization for unqualified repository names
+  allowedOrgs: # Organizations to search for user-scoped items
+    - "<ORG>"
+  fields:
+    status: "Status"
+    sprint: "Sprint"
+
+automation:
+  user_scope:
+    monitored_users:
+      - "<USERNAME>"
+
+  repository_scope:
+    repositories:
+      - "<ORG>/<REPO>"
+
+exclusions:
+  exact_titles:
+    - "Dependency Dashboard"
+  title_substrings:
+    - "ZAP Security Report"
+    - "ZAP Full Scan Report"
+    - "ZAP Scan Baseline Report"
+    - "ZAP API Scan Report"
+  title_prefixes:
+    - "ZAP: "
+  exclude_labels: []
+  authors:
+    - renovate[bot]
+    - dependabot[bot]
+    - mend-bolt-for-github[bot]
+    - mend-for-github-com[bot]
+  unless_review_requested: true
+
+technical:
+  update_window_hours: 2
+
+sprints:
+  assign_current:
+    - Active
+    - Next
+  assign_current_if_empty:
+    - Waiting
+    - Done
+  clear:
+    - New
+    - Backlog
+
+board_columns:
+  locked:
+    - New
+    - Done
+    - Waiting
+    - Parked
+  pull_request:
+    ready: Active
+    draft: keep
+    draft_no_status: Active
+  linked_issue:
+    ready: Active
+    draft: keep
+    closed: Next
+  issue:
+    no_status: New

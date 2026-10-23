@@ -77,6 +77,7 @@ Always pin the action to a full 40-character release commit SHA rather than a fl
 | `dry_run` | No | `false` | Run in read-only mode without mutating board items or watermarks. |
 | `backfill` | No | `''` | Backfill window for open items: `30d`-style or `all`. |
 | `verbose` | No | `true` | Enable verbose log output. |
+| `validate_only` | No | `false` | Verify configuration syntax, remote board connectivity, and status columns without syncing or mutating items. |
 
 ## Automated Noise Exclusions
 
@@ -150,6 +151,25 @@ Designed for transparency. Every run provides:
 ## Consumer Setup
 
 Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and an example [`rules.yml`](rules.yml).
+
+### Automated Consumer Scaffolding (1-Line Setup)
+
+To bootstrap a consumer repository in seconds without installing Node.js or cloning this repository, run the curl bootstrap command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bcgov/project-automator/main/scripts/setup-consumer.sh | bash
+```
+
+Or pass your arguments directly:
+```bash
+curl -fsSL https://raw.githubusercontent.com/bcgov/project-automator/main/scripts/setup-consumer.sh | bash -s -- \
+  --board https://github.com/orgs/<ORG>/projects/<NUMBER> \
+  --repos <ORG>/<REPO1>,<ORG>/<REPO2> \
+  --users <USER1> \
+  --dir ./project-sync
+```
+
+This generates `rules.yml`, `.github/workflows/sync.yml`, `.github/workflows/validate.yml`, `.gitignore`, and `README.md` pre-populated with your board and repository settings, alongside the exact pre-scoped token setup URL.
 
 ### Step-by-Step Consumer Quickstart
 
