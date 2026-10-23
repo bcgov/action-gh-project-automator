@@ -36,12 +36,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run Project Automator
-        uses: bcgov/project-automator@v1
+        uses: bcgov/project-automator@<release-commit-sha> # vX.Y.Z
         with:
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
           config_path: rules.yml
           dry_run: false
 ```
+
+Always pin the action to a full 40-character release commit SHA rather than a floating tag (such as `@v1`). Floating tags can be retargeted or mutated, introducing unexpected behavioral changes or supply-chain risks into scheduled workflows.
 
 ### Action Inputs
 
