@@ -18,7 +18,7 @@ This tool transforms your GitHub Project into a self-driving productivity engine
 
 ## Usage as a GitHub Action
 
-You can consume Project Automator directly in your workflow without checking out the repository:
+You can consume Project Automator as a standalone GitHub Action in your own consumer repository:
 
 ```yaml
 name: Project Sync
@@ -27,23 +27,46 @@ on:
   schedule:
     - cron: "0 * * * *" # Hourly
   workflow_dispatch:
+    inputs:
+      catch_up:
+        description: 'Catch up: add all missing open items'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run: execute in read-only mode'
+        required: false
+        default: false
+        type: boolean
 
 permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   sync:
     name: Sync Board
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
+      - name: Checkout Rules
+        uses: actions/checkout@<checkout-release-sha> # v7.0.1
+
       - name: Run Project Automator
         uses: bcgov/project-automator@<release-commit-sha> # vX.Y.Z
         with:
           github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}
           config_path: rules.yml
-          dry_run: false
+          dry_run: ${{ inputs.dry_run || false }}
+          backfill: ${{ inputs.catch_up && 'all' || '' }}
+          verbose: 'true'
 ```
 
-Always pin the action to a full 40-character release commit SHA rather than a floating tag (such as `@v1`). Floating tags can be retargeted or mutated, introducing unexpected behavioral changes or supply-chain risks into scheduled workflows.
+Always pin the action to a full 40-character release commit SHA rather than a floating tag (such as `@v1`). Floating tags can be retargeted or mutated, introducing unexpected behavioral changes or supply-chain risks into scheduled workflows. Release SHAs are published in each [GitHub Release](https://github.com/bcgov/project-automator/releases).
 
 ### Action Inputs
 
@@ -126,7 +149,33 @@ Designed for transparency. Every run provides:
 
 ## Consumer Setup
 
-Run this action from your own repository, which holds your `rules.yml`, your workflow and your token secrets. This repository holds the engine and an example `rules.yml`.
+Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and an example [`rules.yml`](rules.yml).
+
+### Step-by-Step Consumer Quickstart
+
+Follow these 5 steps to configure automated synchronization for your GitHub Project:
+
+1. **Create a Dedicated Consumer Repository**:
+   Create a repository (e.g. `your-org/project-sync`). Using a private repository is strongly recommended to protect board metadata, repository scopes, and workflow secrets.
+2. **Add `rules.yml`**:
+   Copy [`rules.yml`](rules.yml) into the root of your consumer repository (or into `boards/<name>.yml` for multi-board setups). Customize:
+   - `project.url`: Your GitHub Project (v2) URL (e.g. `https://github.com/orgs/my-org/projects/1`).
+   - `project.organization`: Default organization for unqualified repository names.
+   - `project.allowedOrgs`: Organizations to query for user-scoped items.
+   - `automation.repository_scope.repositories`: Repositories whose open items are synced unconditionally.
+   - `automation.user_scope.monitored_users`: Logins whose authored, assigned, or review-requested items are tracked.
+   - `board_columns` & `sprints`: Status columns and active sprint assignments.
+3. **Generate & Configure Token Secret (`PROJECT_SYNC_TOKEN`)**:
+   Choose the required token type (see [Authentication & Token Setup](#authentication--token-setup)):
+   - **Single Organization**: [Fine-Grained PAT](https://github.com/settings/personal-access-tokens/new) (`Projects: Read and write`, `Issues: Read and write`, `Pull requests: Read and write`).
+   - **Multi-Organization or User Boards**: [Classic PAT](https://github.com/settings/tokens/new) (`project` and `repo` scopes).
+   Save the token in your consumer repository under **Settings** → **Secrets and variables** → **Actions** as `PROJECT_SYNC_TOKEN`.
+4. **Set Up Workflow (`.github/workflows/sync.yml`)**:
+   Add [`.github/workflows/sync.yml`](#usage-as-a-github-action) with your scheduled cron (e.g. `0 * * * *`) and `workflow_dispatch`. Pin `bcgov/project-automator` to its full 40-character release commit SHA.
+5. **Verify and Catch Up**:
+   - Run an initial verification via **Actions** → **Sync** → **Run workflow** with `dry_run: true`.
+   - Inspect the job log: verify that the startup access report confirms access to the project board and all monitored repositories (`Access: ...: OK`).
+   - Run workflow dispatch with `catch_up: true` once to backfill any existing open issues and pull requests onto the board.
 
 ### Use a private consumer repository (strongly recommended)
 
