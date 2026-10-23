@@ -181,7 +181,7 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
 
 You can copy and paste this prompt directly into an AI coding assistant (such as GitHub Copilot, Cursor, or Claude) to set up and verify a dedicated consumer repository:
 
-````markdown
+```text
 Set up a consumer repository for GitHub Project board automation under the `<ORG_OR_USER>` account to run automated board synchronization using `bcgov/project-automator`.
 
 ### Target & Requirements:
@@ -198,7 +198,7 @@ Set up a consumer repository for GitHub Project board automation under the `<ORG
    - Trigger or run the startup access check to confirm board and repository connectivity.
    - Once verified green, switch `dry_run` to `false` for live scheduled runs.
    - Trigger a manual `workflow_dispatch` with `catch_up: true` to backfill existing open issues and pull requests onto the board.
-````
+```
 
 ### Use a private consumer repository (strongly recommended)
 
