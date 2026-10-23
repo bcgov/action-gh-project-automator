@@ -77,6 +77,7 @@ Always pin the action to a full 40-character release commit SHA rather than a fl
 | `dry_run` | No | `false` | Run in read-only mode without mutating board items or watermarks. |
 | `backfill` | No | `''` | Backfill window for open items: `30d`-style or `all`. |
 | `verbose` | No | `true` | Enable verbose log output. |
+| `validate_only` | No | `false` | Verify configuration syntax, remote board connectivity, and status columns without syncing or mutating items. |
 
 ## Automated Noise Exclusions
 
@@ -150,6 +151,16 @@ Designed for transparency. Every run provides:
 ## Consumer Setup
 
 Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and an example [`rules.yml`](rules.yml).
+
+### Automated Consumer Scaffolding
+
+To quickly scaffold a consumer repository without copying files manually, run the built-in initializer:
+
+```bash
+npm run init -- --board https://github.com/orgs/<ORG>/projects/<NUMBER> --repos <ORG>/<REPO1>,<ORG>/<REPO2> --users <USER1> --out ./project-sync
+```
+
+This generates `rules.yml`, `.github/workflows/sync.yml`, `.github/workflows/validate.yml`, `.gitignore`, and `README.md` pre-populated with your board and repository settings, alongside the exact pre-scoped token setup URL.
 
 ### Step-by-Step Consumer Quickstart
 

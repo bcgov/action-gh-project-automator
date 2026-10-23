@@ -30,8 +30,11 @@ import { buildSearchQueries } from './queries.js';
 export const TOKEN_HELP =
   'The token needs Projects read and write on the board and read access to each monitored repository. Use a fine-grained PAT (a classic PAT for user-owned boards or several owners), or a GitHub App installation token; see the README token section.';
 
-export const NO_TOKEN_MESSAGE =
-  'No token: set the github_token action input (or GITHUB_TOKEN when running from the command line; an Actions run ignores GITHUB_TOKEN). An empty value usually means the secret name is wrong or the secret is not available to this workflow.';
+const secretSettingsUrl = process.env.GITHUB_REPOSITORY
+  ? `https://github.com/${process.env.GITHUB_REPOSITORY}/settings/secrets/actions/new`
+  : 'https://github.com/<OWNER>/<REPO>/settings/secrets/actions/new';
+
+export const NO_TOKEN_MESSAGE = `No token: set the github_token action input (or GITHUB_TOKEN when running from the command line; an Actions run ignores GITHUB_TOKEN). An empty value usually means the secret name is wrong or the secret is not available to this workflow. If configuring a consumer repository, add your token under 'PROJECT_SYNC_TOKEN' at: ${secretSettingsUrl}`;
 
 /**
  * The token to use. The github_token input always wins. GITHUB_TOKEN is only a

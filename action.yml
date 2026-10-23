@@ -21,6 +21,10 @@ inputs:
     description: 'Enable verbose logging'
     required: false
     default: 'true'
+  validate_only:
+    description: 'Verify configuration, board connectivity, and status columns without syncing or mutating items'
+    required: false
+    default: 'false'
 
 runs:
   using: 'node24'

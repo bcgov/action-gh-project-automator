@@ -26,6 +26,9 @@ test('action.yml defines required and optional inputs with standard defaults', (
 
   assert.strictEqual(inputs.dry_run.required, false);
   assert.strictEqual(inputs.dry_run.default, 'false');
+
+  assert.strictEqual(inputs.validate_only.required, false);
+  assert.strictEqual(inputs.validate_only.default, 'false');
 });
 
 test('resolveConfigPath respects custom path and INPUT_CONFIG_PATH', () => {
