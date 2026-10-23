@@ -177,6 +177,29 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
    - Inspect the job log: verify that the startup access report confirms access to the project board and all monitored repositories (`Access: ...: OK`).
    - Run workflow dispatch with `catch_up: true` once to backfill any existing open issues and pull requests onto the board.
 
+### Sample AI Agent Prompt
+
+You can copy and paste this prompt directly into an AI coding assistant (such as GitHub Copilot, Cursor, or Claude) to set up and verify a dedicated consumer repository:
+
+````markdown
+Set up a consumer repository for GitHub Project board automation under the `<ORG_OR_USER>` account to run automated board synchronization using `bcgov/project-automator`.
+
+### Target & Requirements:
+1. **Repository**: Create or configure a dedicated repository under `<ORG_OR_USER>` (e.g. `<ORG_OR_USER>/project-sync`).
+2. **Action Pin**: Reference the immutable release commit SHA from `bcgov/project-automator` releases (e.g. `uses: bcgov/project-automator@<RELEASE_SHA> # vX.Y.Z`).
+3. **Configuration**:
+   - Port the `rules.yml` template from `bcgov/project-automator`.
+   - Update `project.url` to `<PROJECT_BOARD_URL>` (e.g. `https://github.com/orgs/<ORG>/projects/<NUMBER>`).
+   - Configure `automation.repository_scope` and/or `automation.user_scope` for the target repositories and users.
+   - Configure `.github/workflows/sync.yml` with an hourly schedule (`0 * * * *`), `workflow_dispatch`, explicit LTS runner (`ubuntu-24.04`), and minimal permissions (`permissions: {}` top-level, `contents: read` on job).
+4. **Safety & Verification**:
+   - Configure `dry_run: true` for the initial verification run.
+   - Guide the user to add the required `PROJECT_SYNC_TOKEN` secret to repository secrets.
+   - Trigger or run the startup access check to confirm board and repository connectivity.
+   - Once verified green, switch `dry_run` to `false` for live scheduled runs.
+   - Trigger a manual `workflow_dispatch` with `catch_up: true` to backfill existing open issues and pull requests onto the board.
+````
+
 ### Use a private consumer repository (strongly recommended)
 
 Your `rules.yml` names your boards, repositories and users, and the repository that runs the workflow stores tokens that can write to your boards. **Keep both in a private repository.** The action can't enforce this, but a private repository limits who can see your setup and who can change the workflow that receives the tokens.
