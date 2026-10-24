@@ -31,6 +31,7 @@ automation:
       - bcgov/actions
       - bcgov/actions-openshift
       - bcgov/devops-scripts
+      - bcgov/nr-cert-monitor
       - bcgov/nr-containers
       - bcgov/project-automator
       - bcgov/quickstart-openshift
