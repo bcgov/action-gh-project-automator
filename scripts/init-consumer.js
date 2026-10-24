@@ -79,14 +79,12 @@ export function scaffoldConsumer(options = {}) {
   fs.copyFileSync(path.join(TEMPLATE_DIR, 'README.md'), path.join(outDir, 'README.md'));
   fs.copyFileSync(path.join(TEMPLATE_DIR, '.gitignore'), path.join(outDir, '.gitignore'));
 
-  // 3. Compute token guidance links (Fine-Grained PAT for org boards; Classic PAT with project+public_repo fallback when org blocks fine-grained PATs or for user boards)
-  const tokenType = isUserBoard ? 'classic' : 'fine_grained';
+  // 3. Compute token guidance links (default to Classic PAT with project+public_repo since most users only have user-scoped PATs; also provide Fine-Grained PAT link for orgs that allow org-scoped tokens)
+  const tokenType = 'classic';
   const classicTokenUrl =
     'https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN';
-  const tokenUrl =
-    tokenType === 'classic'
-      ? classicTokenUrl
-      : 'https://github.com/settings/personal-access-tokens/new';
+  const fineGrainedTokenUrl = 'https://github.com/settings/personal-access-tokens/new';
+  const tokenUrl = classicTokenUrl;
 
   return {
     outDir,
@@ -100,6 +98,7 @@ export function scaffoldConsumer(options = {}) {
     tokenType,
     tokenUrl,
     classicTokenUrl,
+    fineGrainedTokenUrl,
     filesCreated: [
       'rules.yml',
       '.github/workflows/sync.yml',
@@ -174,7 +173,7 @@ async function runCli() {
   }
 
   console.log('\n--- 🔑 Authentication Setup ---');
-  if (result.tokenType === 'classic') {
+  if (result.isUserBoard) {
     console.log(
       'Setup targets a user-owned board (fine-grained tokens do not support user boards):'
     );
@@ -187,12 +186,12 @@ async function runCli() {
       'Most users only have user-scoped PATs (organizations often block org-scoped tokens and GitHub Apps).'
     );
     console.log(
-      `\nOption A — User-scoped PAT only (most users, or if "${result.inferredOrg}" blocks org-scoped tokens):`
+      `\nOption A (Default) — User-scoped PAT only (most users, or if "${result.inferredOrg}" blocks org-scoped tokens):`
     );
     console.log('Use a Classic PAT scoped to project and public_repo (no private repo access):');
     console.log(`--> ${result.classicTokenUrl}`);
     console.log(`\nOption B — If "${result.inferredOrg}" allows org-scoped Fine-Grained PATs:`);
-    console.log(`--> ${result.tokenUrl}`);
+    console.log(`--> ${result.fineGrainedTokenUrl}`);
     console.log(
       'Permissions: Organization > Projects: Read & Write, Repository > Issues & PRs: Read & Write'
     );

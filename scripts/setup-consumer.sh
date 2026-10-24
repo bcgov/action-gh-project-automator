@@ -348,7 +348,7 @@ if [ "$IS_USER_BOARD" = true ]; then
 else
   echo "Most users only have user-scoped PATs (organizations often block org-scoped tokens and GitHub Apps)."
   echo ""
-  echo "Option A — User-scoped PAT only (most users, or if $DEFAULT_ORG blocks org-scoped tokens):"
+  echo "Option A (Default) — User-scoped PAT only (most users, or if $DEFAULT_ORG blocks org-scoped tokens):"
   echo "  Generate a Classic PAT with 'project' and 'public_repo' (or 'repo' if tracking private repos):"
   echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
   echo ""
