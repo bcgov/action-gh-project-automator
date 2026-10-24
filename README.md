@@ -150,7 +150,7 @@ Designed for transparency. Every run provides:
 
 ## Consumer Setup
 
-Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and an example [`rules.yml`](rules.yml).
+Run this action from your own dedicated consumer repository, which holds your `rules.yml`, your workflow, and your token secrets. This engine repository provides the reusable action logic and a clean consumer template in [`template/rules.yml`](template/rules.yml).
 
 ### Automated Consumer Scaffolding (1-Line Setup)
 
@@ -178,7 +178,7 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
 1. **Create a Dedicated Consumer Repository**:
    Create a repository (e.g. `your-org/project-sync`), public by default (use a private repository only if your board metadata or repository names are sensitive).
 2. **Add `rules.yml`**:
-   Copy [`rules.yml`](rules.yml) into the root of your consumer repository (or into `boards/<name>.yml` for multi-board setups). Customize:
+   Copy [`template/rules.yml`](template/rules.yml) into `rules.yml` at the root of your consumer repository (or into `boards/<name>.yml` for multi-board setups). Customize:
    - `project.url`: Your GitHub Project (v2) URL (e.g. `https://github.com/orgs/my-org/projects/1`).
    - `project.organization`: Default organization for unqualified repository names.
    - `project.allowedOrgs`: Organizations to query for user-scoped items.
@@ -187,7 +187,7 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
    - `board_columns` & `sprints`: Status columns and active sprint assignments.
 3. **Generate & Configure Token Secret (`PROJECT_SYNC_TOKEN`)**:
    Choose the token type that matches your access (see [Authentication & Token Setup](#authentication--token-setup) — most users only have user-scoped PATs because organizations often block org-scoped fine-grained tokens and GitHub Apps):
-   - **User-scoped PAT only (most users, `bcgov`, or User-Owned Boards)**: Because GitHub only offers the `Projects` permission on Fine-Grained PATs when the organization is the Resource owner (a user-scoped Fine-Grained PAT has no `Projects` permission), use a [Classic PAT with `project` and `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) for public repositories (or `project` and `repo` if tracking private repositories).
+   - **User-scoped PAT only (most users, or User-Owned Boards)**: Because GitHub only offers the `Projects` permission on Fine-Grained PATs when the organization is the Resource owner (a user-scoped Fine-Grained PAT has no `Projects` permission), use a [Classic PAT with `project` and `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) for public repositories (or `project` and `repo` if tracking private repositories).
    - **Organization allows org-scoped Fine-Grained PATs**: Create a [Fine-Grained PAT](https://github.com/settings/personal-access-tokens/new) with **Resource owner** set to the board's organization (`Organization → Projects: Read and write`, `Repository → Issues: Read and write`, `Repository → Pull requests: Read and write`).
    Save the token in your consumer repository under **Settings** → **Secrets and variables** → **Actions** as `PROJECT_SYNC_TOKEN`.
 4. **Set Up Workflow (`.github/workflows/sync.yml`)**:
@@ -203,12 +203,12 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
 You can copy and paste this prompt directly into an AI coding assistant (such as GitHub Copilot, Cursor, or Claude) to set up and verify a dedicated consumer repository (also available in [`.github/prompts/consumer-setup.prompt.md`](.github/prompts/consumer-setup.prompt.md)):
 
 ```text
-Set up a consumer repository for GitHub Project board automation under `<CONSUMER_REPO>` (e.g. `DerekRoberts/project-sync`, public by default unless private is requested) to run automated board synchronization using `bcgov/project-automator`.
+Set up a consumer repository for GitHub Project board automation under `<CONSUMER_REPO>` (e.g. `<ORG_OR_USER>/project-sync`, public by default unless private is requested) to run automated board synchronization using `bcgov/project-automator`.
 
 ### 1. Gather Inputs (ask the user for any missing values before writing files)
 - **Consumer Repository**: `<CONSUMER_REPO>` (create as a public repository if it does not exist yet).
 - **Project Board URL**: `<PROJECT_BOARD_URL>` (e.g. `https://github.com/orgs/<ORG>/projects/<NUMBER>`).
-- **Monitored Repositories**: `<REPOSITORIES>` for `automation.repository_scope.repositories` (or copy the current `rules.yml` from `bcgov/project-automator` if migrating the existing board config).
+- **Monitored Repositories**: `<REPOSITORIES>` for `automation.repository_scope.repositories`.
 - **Monitored Users**: `<USERS>` for `automation.user_scope.monitored_users`.
 - **Allowed Organizations**: `<ALLOWED_ORGS>` for `project.allowedOrgs` (defaults to the project board's organization plus any additional organizations whose repositories or user items are tracked).
 - **Token Type Direction**: Assume by default that the user only has **user-scoped PATs** (since most organizations block org-scoped fine-grained tokens and GitHub Apps), and ask the user to confirm whether to use the default **Classic PAT (`project` + `public_repo`)** or an **org-scoped Fine-Grained PAT** if their organization explicitly allows it.
@@ -224,11 +224,11 @@ Set up a consumer repository for GitHub Project board automation under `<CONSUME
   - If `rules.yml` defines per-owner `tokens:`, pass each mapped environment variable in the step's `env:` block from `secrets.<VAR_NAME>`.
 
 ### 3. Configuration (`rules.yml` & `README.md`)
-- Port `rules.yml` from `bcgov/project-automator` (or `template/rules.yml`) and populate `project.url`, `project.organization`, `project.allowedOrgs`, `automation.user_scope.monitored_users`, and `automation.repository_scope.repositories`.
+- Port `template/rules.yml` from `bcgov/project-automator` into `rules.yml` and populate `project.url`, `project.organization`, `project.allowedOrgs`, `automation.user_scope.monitored_users`, and `automation.repository_scope.repositories`.
 - Add a concise `README.md` and `.gitignore` (`.tmp/`, `node_modules/`, `*.log`).
 
 ### 4. Authentication (Default to User-Scoped Classic PAT; Ask User Before Choosing)
-Most users cannot create org-level Fine-Grained PATs (many organizations, such as `bcgov`, block org-scoped fine-grained tokens and custom GitHub Apps), and GitHub only exposes the `Organization -> Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all). Ask the user for direction and guide them through setting `PROJECT_SYNC_TOKEN` in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set PROJECT_SYNC_TOKEN -R <CONSUMER_REPO>`):
+Most users cannot create org-level Fine-Grained PATs (many organizations block org-scoped fine-grained tokens and custom GitHub Apps), and GitHub only exposes the `Organization -> Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all). Ask the user for direction and guide them through setting `PROJECT_SYNC_TOKEN` in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set PROJECT_SYNC_TOKEN -R <CONSUMER_REPO>`):
 - **Option A (Default — Most Users) — User-scoped Classic PAT**:
   - Create a **Classic PAT** with least-privilege scopes:
     - **Public repositories only (recommended)**: `project` and `public_repo` scopes (`https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN`). This grants read/write on the project board and assignee updates on public repos across all `allowedOrgs` without granting access to any private repositories (`project` alone is sufficient if automatic self-assignment of authored items is not needed).
@@ -274,7 +274,7 @@ Most users only have user-scoped PATs (many organizations block org-scoped fine-
 
 | Your access / config | Token setup |
 | --- | --- |
-| User-scoped PAT only *(most users, e.g. `bcgov`)*, user-owned board, or private cross-organization board additions | **Classic PAT** as `github_token`: use [`project` + `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) when all monitored repositories are public (avoids exposing private repos), or `project` + `repo` if private repositories are monitored. |
+| User-scoped PAT only *(most users)*, user-owned board, or private cross-organization board additions | **Classic PAT** as `github_token`: use [`project` + `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) when all monitored repositories are public (avoids exposing private repos), or `project` + `repo` if private repositories are monitored. |
 | Organization allows org-scoped Fine-Grained PATs (single-org, or multi-org with public cross-org items) | **Fine-Grained PAT** with Resource owner set to the board's organization as `github_token` (also covers adding public items from other `allowedOrgs`), plus an optional per-owner Fine-Grained PAT in `tokens:` for cross-org public-repository assignee writes (see [Authentication & Token Setup](#authentication--token-setup)). |
 
 - The include and exclude lists in `rules.yml` limit what the action touches, **not** what a token can reach. Least privilege comes only from each token's scope.
@@ -333,7 +333,7 @@ The sync engine requires authentication via a repository secret named `PROJECT_S
 
 #### Classic Personal Access Token (Default — Most Users & User-Scoped PATs)
 
-Most users only have user-scoped PATs (many organizations, such as `bcgov`, block org-scoped fine-grained tokens and custom GitHub Apps). Because GitHub only exposes the `Organization → Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all), use a classic PAT with least-privilege scopes:
+Most users only have user-scoped PATs (many organizations block org-scoped fine-grained tokens and custom GitHub Apps). Because GitHub only exposes the `Organization → Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all), use a classic PAT with least-privilege scopes:
 
 1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN).
 2. Set **Note** to `PROJECT_SYNC_TOKEN`.

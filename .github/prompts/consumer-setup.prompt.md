@@ -4,12 +4,12 @@ Use this prompt to instruct an AI coding assistant to create and configure a ded
 
 ---
 
-Set up a consumer repository for GitHub Project board automation under `<CONSUMER_REPO>` (e.g. `DerekRoberts/project-sync`, public by default unless private is requested) to run automated board synchronization using `bcgov/project-automator`.
+Set up a consumer repository for GitHub Project board automation under `<CONSUMER_REPO>` (e.g. `<ORG_OR_USER>/project-sync`, public by default unless private is requested) to run automated board synchronization using `bcgov/project-automator`.
 
 ### 1. Gather Inputs (ask the user for any missing values before writing files)
 - **Consumer Repository**: `<CONSUMER_REPO>` (create as a public repository if it does not exist yet).
 - **Project Board URL**: `<PROJECT_BOARD_URL>` (e.g. `https://github.com/orgs/<ORG>/projects/<NUMBER>`).
-- **Monitored Repositories**: `<REPOSITORIES>` for `automation.repository_scope.repositories` (or copy the current `rules.yml` from `bcgov/project-automator` if migrating the existing board config).
+- **Monitored Repositories**: `<REPOSITORIES>` for `automation.repository_scope.repositories`.
 - **Monitored Users**: `<USERS>` for `automation.user_scope.monitored_users`.
 - **Allowed Organizations**: `<ALLOWED_ORGS>` for `project.allowedOrgs` (defaults to the project board's organization plus any additional organizations whose repositories or user items are tracked).
 - **Token Type Direction**: Assume by default that the user only has **user-scoped PATs** (since most organizations block org-scoped fine-grained tokens and GitHub Apps), and ask the user to confirm whether to use the default **Classic PAT (`project` + `public_repo`)** or an **org-scoped Fine-Grained PAT** if their organization explicitly allows it.
@@ -25,11 +25,11 @@ Set up a consumer repository for GitHub Project board automation under `<CONSUME
   - If `rules.yml` defines per-owner `tokens:`, pass each mapped environment variable in the step's `env:` block from `secrets.<VAR_NAME>`.
 
 ### 3. Configuration (`rules.yml` & `README.md`)
-- Port `rules.yml` from `bcgov/project-automator` (or `template/rules.yml`) and populate `project.url`, `project.organization`, `project.allowedOrgs`, `automation.user_scope.monitored_users`, and `automation.repository_scope.repositories`.
+- Port `template/rules.yml` from `bcgov/project-automator` into `rules.yml` and populate `project.url`, `project.organization`, `project.allowedOrgs`, `automation.user_scope.monitored_users`, and `automation.repository_scope.repositories`.
 - Add a concise `README.md` and `.gitignore` (`.tmp/`, `node_modules/`, `*.log`).
 
 ### 4. Authentication (Default to User-Scoped Classic PAT; Ask User Before Choosing)
-Most users cannot create org-level Fine-Grained PATs (many organizations, such as `bcgov`, block org-scoped fine-grained tokens and custom GitHub Apps), and GitHub only exposes the `Organization -> Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all). Ask the user for direction and guide them through setting `PROJECT_SYNC_TOKEN` in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set PROJECT_SYNC_TOKEN -R <CONSUMER_REPO>`):
+Most users cannot create org-level Fine-Grained PATs (many organizations block org-scoped fine-grained tokens and custom GitHub Apps), and GitHub only exposes the `Organization -> Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner** (a user-scoped Fine-Grained PAT has no `Projects` permission at all). Ask the user for direction and guide them through setting `PROJECT_SYNC_TOKEN` in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set PROJECT_SYNC_TOKEN -R <CONSUMER_REPO>`):
 - **Option A (Default — Most Users) — User-scoped Classic PAT**:
   - Create a **Classic PAT** with least-privilege scopes:
     - **Public repositories only (recommended)**: `project` and `public_repo` scopes (`https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN`). This grants read/write on the project board and assignee updates on public repos across all `allowedOrgs` without granting access to any private repositories (`project` alone is sufficient if automatic self-assignment of authored items is not needed).
