@@ -341,25 +341,20 @@ echo "--------------------------------------------------------"
 
 if [ "$IS_USER_BOARD" = true ]; then
   echo "Your configuration targets a user-owned board (fine-grained tokens do not support user boards)."
-  echo "Generate a Classic Personal Access Token with pre-scoped 'project' and 'repo' permissions:"
+  echo "Generate a Classic Personal Access Token with 'project' and 'public_repo' (or 'repo' for private repos):"
   echo ""
-  echo "  --> https://github.com/settings/tokens/new?scopes=project,repo&description=PROJECT_SYNC_TOKEN"
+  echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
   echo ""
 else
-  echo "Generate a Fine-Grained Personal Access Token targeting resource owner: $DEFAULT_ORG"
-  echo ""
+  echo "Option A — If $DEFAULT_ORG allows org-scoped Fine-Grained PATs:"
+  echo "  Target resource owner '$DEFAULT_ORG' with Organization > Projects (Read & write)"
+  echo "  and Repository > Issues & Pull requests (Read & write):"
   echo "  --> https://github.com/settings/personal-access-tokens/new"
   echo ""
-  echo "Required Permissions:"
-  echo "  - Organization > Projects: Read and write"
-  echo "  - Repository > Issues: Read and write"
-  echo "  - Repository > Pull requests: Read and write"
-  if [ "$IS_MULTI_ORG" = true ]; then
-    echo ""
-    echo "Multi-organization note: this token also covers public items across your other organizations."
-    echo "For private repositories or assignee writes in another organization, generate a second"
-    echo "Fine-Grained PAT for that organization and map it under 'tokens:' in rules.yml."
-  fi
+  echo "Option B — If $DEFAULT_ORG blocks org-scoped Fine-Grained PATs / GitHub Apps:"
+  echo "  Generate a Classic PAT with 'project' and 'public_repo' (or 'repo' if tracking private repos):"
+  echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
+  echo ""
 fi
 
 echo "--------------------------------------------------------"

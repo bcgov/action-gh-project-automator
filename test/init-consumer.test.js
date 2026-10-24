@@ -55,6 +55,7 @@ test('scaffoldConsumer detects multi-org configuration and recommends Fine-Grain
     assert.strictEqual(result.tokenType, 'fine_grained');
     assert.strictEqual(result.isMultiOrg, true);
     assert.strictEqual(result.tokenUrl, 'https://github.com/settings/personal-access-tokens/new');
+    assert.ok(result.classicTokenUrl.includes('scopes=project,public_repo'));
 
     const loadedConfig = loadBoardRules(path.join(tmpDir, 'rules.yml'));
     assert.ok(loadedConfig.project.allowedOrgs.includes('bcgov'));
@@ -76,7 +77,7 @@ test('scaffoldConsumer recommends Classic PAT only for user-owned boards', () =>
 
     assert.strictEqual(result.tokenType, 'classic');
     assert.strictEqual(result.isUserBoard, true);
-    assert.ok(result.tokenUrl.includes('scopes=project,repo'));
+    assert.ok(result.tokenUrl.includes('scopes=project,public_repo'));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

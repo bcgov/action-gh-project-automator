@@ -186,9 +186,9 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
    - `automation.user_scope.monitored_users`: Logins whose authored, assigned, or review-requested items are tracked.
    - `board_columns` & `sprints`: Status columns and active sprint assignments.
 3. **Generate & Configure Token Secret (`PROJECT_SYNC_TOKEN`)**:
-   Prefer **Fine-Grained PATs** (see [Authentication & Token Setup](#authentication--token-setup)):
-   - **Organization Boards (Single or Multi-Organization)**: Create a [Fine-Grained PAT](https://github.com/settings/personal-access-tokens/new) scoped to the board's organization (`Organization → Projects: Read and write`, `Repository → Issues: Read and write`, `Repository → Pull requests: Read and write`). It can also search and add **public** items from other organizations in `allowedOrgs` (e.g. `bcgov-c`). If another organization has private repositories or needs assignee writes, map a second fine-grained PAT for that organization under [`tokens:`](#per-owner-tokens-optional).
-   - **User-Owned Boards (`github.com/users/.../projects/...`)**: Fine-grained tokens cannot access user-owned Projects v2; use a [Classic PAT](https://github.com/settings/tokens/new) (`project` and `repo` scopes).
+   Choose the token type your organization supports (see [Authentication & Token Setup](#authentication--token-setup)):
+   - **Organization allows Fine-Grained PATs**: Create a [Fine-Grained PAT](https://github.com/settings/personal-access-tokens/new) scoped to the board's organization (`Organization → Projects: Read and write`, `Repository → Issues: Read and write`, `Repository → Pull requests: Read and write`).
+   - **Organization blocks org-scoped Fine-Grained PATs / GitHub Apps (e.g. `bcgov`), or User-Owned Boards**: Because GitHub only offers the `Projects` permission on Fine-Grained PATs when the organization is the Resource owner, use a [Classic PAT with `project` and `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) for public repositories (or `project` and `repo` if tracking private repositories).
    Save the token in your consumer repository under **Settings** → **Secrets and variables** → **Actions** as `PROJECT_SYNC_TOKEN`.
 4. **Set Up Workflow (`.github/workflows/sync.yml`)**:
    Add [`.github/workflows/sync.yml`](#usage-as-a-github-action) on your default branch (`main`) with a staggered hourly cron (e.g. `17 * * * *`) and `workflow_dispatch`. Pin `bcgov/project-automator` to its full 40-character release commit SHA. (`workflow_dispatch` is only available once the workflow file is merged to the default branch.)
@@ -225,17 +225,16 @@ Set up a consumer repository for GitHub Project board automation under `<CONSUME
 - Port `rules.yml` from `bcgov/project-automator` (or `template/rules.yml`) and populate `project.url`, `project.organization`, `project.allowedOrgs`, `automation.user_scope.monitored_users`, and `automation.repository_scope.repositories`.
 - Add a concise `README.md` and `.gitignore` (`.tmp/`, `node_modules/`, `*.log`).
 
-### 4. Authentication (Prefer Fine-Grained PATs)
-Guide the user to create Fine-Grained Personal Access Token(s) at `https://github.com/settings/personal-access-tokens/new` and store the secret(s) in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set <NAME> -R <CONSUMER_REPO>`):
-- **Primary token (`PROJECT_SYNC_TOKEN`)**:
-  - **Resource owner**: The organization that owns the project board (`<ORG>`).
-  - **Repository access**: **All repositories** (required when `user_scope` is set or to read linked issues across the org; otherwise select the monitored repositories).
-  - **Permissions**: **Organization -> Projects: Read and write**, **Repository -> Issues: Read and write**, **Repository -> Pull requests: Read and write** (read-only on Issues/PRs is sufficient if automatic self-assignment of authored items is not needed).
-- **Additional organizations (multi-org setup with Fine-Grained PATs)**:
-  - A fine-grained token is scoped to a single organization, but its GraphQL search and board-item mutations can still read and add **public** issues and PRs from other organizations in `allowedOrgs` (e.g. public repos in `bcgov-c`).
-  - If another organization in `allowedOrgs` or `repository_scope` has **private** repositories (or needs assignee writes in that org), create a second Fine-Grained PAT with **Resource owner** set to that organization (**All repositories**, **Repository -> Issues & Pull requests: Read and write**), add it as a repository secret (e.g. `BCGOV_C_TOKEN`), map it under `tokens:` in `rules.yml` (`bcgov-c: BCGOV_C_TOKEN`), and pass it in `sync.yml` under `env:`. Note: adding a private item from another organization onto the board requires the board's token to also have visibility into that item; if the board organization's fine-grained token cannot see another organization's private repository, only public items from that organization can be added to the board without a Classic PAT (`project`, `repo`).
-- **User-owned boards (`https://github.com/users/<USER>/projects/<N>`)**:
-  - GitHub Fine-Grained PATs do not support user-owned Projects v2; only then fall back to a Classic PAT (`project`, `repo`).
+### 4. Authentication (Fine-Grained PAT vs. Classic PAT When Org-Scoped Tokens Are Blocked)
+Guide the user to create a `PROJECT_SYNC_TOKEN` and store it in `<CONSUMER_REPO>` (`Settings -> Secrets and variables -> Actions`, or `gh secret set PROJECT_SYNC_TOKEN -R <CONSUMER_REPO>`):
+- **Option A — Organization allows Fine-Grained PATs**:
+  - Create at `https://github.com/settings/personal-access-tokens/new` with **Resource owner** set to the board's organization (`<ORG>`), **Repository access** set to **All repositories**, and permissions **Organization -> Projects: Read and write**, **Repository -> Issues: Read and write**, **Repository -> Pull requests: Read and write**.
+  - If a second organization in `allowedOrgs` or `repository_scope` has private repositories, create a second Fine-Grained PAT for that organization and map it under `tokens:` in `rules.yml` + `env:` in `sync.yml`.
+- **Option B — Organization blocks org-scoped Fine-Grained PATs and GitHub Apps (e.g. `bcgov`), or User-Owned Boards**:
+  - Because GitHub only exposes `Projects` on Fine-Grained PATs when the organization is selected as the **Resource owner**, an organization that blocks org-scoped Fine-Grained PATs cannot use Fine-Grained PATs for its project board.
+  - Instead, create a **Classic PAT** with least-privilege scopes:
+    - **Public repositories only (recommended)**: `project` and `public_repo` scopes (`https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN`). This grants read/write on the project board and assignee updates on public repos without granting access to any private repositories (`project` alone is sufficient if automatic self-assignment of authored items is not needed).
+    - **Private repositories included**: `project` and `repo` scopes (`https://github.com/settings/tokens/new?scopes=project,repo&description=PROJECT_SYNC_TOKEN`).
 
 ### 5. Merge & Verification
 - Open a PR (or push to `main` if initializing an empty repo) and wait for `.github/workflows/sync.yml` to be on the default branch (`main`) — GitHub Actions `workflow_dispatch` cannot run until the workflow file is on the default branch.
@@ -271,13 +270,12 @@ project-sync/
 
 | Your config covers | Token setup |
 | --- | --- |
-| One organization, with an organization-owned board | One **Fine-Grained PAT** as `github_token` (see [Authentication & Token Setup](#authentication--token-setup)). |
-| Multiple organizations, with an organization-owned board | **Fine-Grained PATs** (recommended): one Fine-Grained PAT for the board's organization as `github_token` (which also covers public items in other `allowedOrgs`), plus an optional per-owner Fine-Grained PAT in `tokens:` for any additional organization that has private repositories or needs assignee writes (see [Per-Owner Tokens](#per-owner-tokens-optional)). A Classic PAT is only needed if a private item from another organization must be added onto the board. |
-| A user-owned board (`github.com/users/.../projects/...`) | A **Classic PAT** as `github_token`: GitHub Fine-Grained PATs do not support user-owned Projects v2. |
+| Organization allows Fine-Grained PATs (single or multi-org) | **Fine-Grained PAT** for the board's organization as `github_token` (also covers public items in other `allowedOrgs`), plus an optional per-owner Fine-Grained PAT in `tokens:` for any additional organization with private repositories (see [Authentication & Token Setup](#authentication--token-setup)). |
+| Organization blocks org-scoped Fine-Grained PATs & GitHub Apps (e.g. `bcgov`) | **Classic PAT** as `github_token`: use [`project` + `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) when all monitored repositories are public (avoids exposing private repos), or `project` + `repo` if private repositories are monitored. |
+| A user-owned board (`github.com/users/.../projects/...`) | **Classic PAT** as `github_token`: GitHub Fine-Grained PATs do not support user-owned Projects v2. |
 
-- Prefer Fine-Grained PATs over Classic PATs: a fine-grained token is scoped to a single organization with explicit permissions, whereas a classic PAT grants broad `repo` access across every organization the user belongs to.
+- Prefer Fine-Grained PATs where your organization allows them. When an organization blocks org-scoped Fine-Grained PATs, GitHub does not expose the `Organization → Projects` permission on a user-scoped Fine-Grained PAT, so a Classic PAT (`project` + `public_repo`) is the least-privilege option that works.
 - The include and exclude lists in `rules.yml` limit what the action touches, **not** what a token can reach. Least privilege comes only from each token's scope.
-- Some organizations require administrator approval for fine-grained tokens; check with an organization owner if token requests are queued for approval.
 
 ### Example workflow
 
@@ -349,16 +347,17 @@ No organization membership permission (classic `read:org`) is needed.
 
 - **Multi-organization setups with Fine-Grained PATs**: A fine-grained PAT is scoped to one organization, but its GraphQL search and board mutations can still discover and add **public** issues and pull requests from other organizations listed in `project.allowedOrgs` (e.g. public repositories in `bcgov-c`). If another organization has **private** repositories in `repository_scope` or `allowedOrgs` (or needs assignee writes in that organization), create a second fine-grained PAT with **Resource owner** set to that organization (**All repositories**, **Repository → Issues & Pull requests: Read and write**) and map it under [`tokens:`](#per-owner-tokens-optional).
 
-#### Classic Personal Access Token (User-Owned Boards or Cross-Org Private Board Additions)
+#### Classic Personal Access Token (When Org Blocks Fine-Grained PATs / Apps, or User Boards)
 
-GitHub Fine-Grained PATs cannot access Projects v2 owned by a personal user account (`github.com/users/<USER>/projects/<N>`), and an organization-scoped fine-grained PAT cannot add a private issue or PR from a *different* organization onto the board. In those cases only, use a classic PAT:
+GitHub only exposes the `Organization → Projects` permission on a Fine-Grained PAT when the organization is selected as the **Resource owner**. If your organization blocks org-scoped Fine-Grained PATs and GitHub Apps (such as `bcgov`), or if your board is owned by a user account (`github.com/users/<USER>/projects/<N>`), use a classic PAT with least-privilege scopes:
 
-1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new).
+1. Go to GitHub **Settings** → **Developer Settings** → **Personal Access Tokens** → [**Tokens (classic)**](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN).
 2. Set **Note** to `PROJECT_SYNC_TOKEN`.
 3. Choose an expiration matching your organization's token rotation policy.
 4. Select the required scopes:
-   * **`project`**: Read and write access to organization and user project boards.
-   * **`repo`**: Full control of private and public repositories, issues, and pull requests (**`public_repo`** is sufficient if all monitored repositories and your consumer repository are public).
+   * **`project`**: Read and write access to organization and user project boards (and read access to public repositories).
+   * **`public_repo`** *(recommended when all monitored repositories are public)*: Allows self-assigning authored items on public repositories without granting access to any private repositories. (`project` alone is sufficient if you do not need automatic assignee updates on GitHub.)
+   * **`repo`** *(only if monitoring private repositories)*: Full control of private and public repositories.
 5. Click **Generate token** and copy the string.
 
 Adding an assignee requires write/triage rights on that repository. When GitHub refuses the assignee update, the engine logs a warning, leaves the GitHub assignee unchanged, and continues. The item is still added to the project, and its status and sprint are still updated.
