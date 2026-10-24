@@ -183,16 +183,19 @@ async function runCli() {
     );
     console.log(`--> ${result.tokenUrl}`);
   } else {
-    console.log(`Option A (if "${result.inferredOrg}" allows org-scoped Fine-Grained PATs):`);
+    console.log(
+      'Most users only have user-scoped PATs (organizations often block org-scoped tokens and GitHub Apps).'
+    );
+    console.log(
+      `\nOption A — User-scoped PAT only (most users, or if "${result.inferredOrg}" blocks org-scoped tokens):`
+    );
+    console.log('Use a Classic PAT scoped to project and public_repo (no private repo access):');
+    console.log(`--> ${result.classicTokenUrl}`);
+    console.log(`\nOption B — If "${result.inferredOrg}" allows org-scoped Fine-Grained PATs:`);
     console.log(`--> ${result.tokenUrl}`);
     console.log(
       'Permissions: Organization > Projects: Read & Write, Repository > Issues & PRs: Read & Write'
     );
-    console.log(
-      `\nOption B (if "${result.inferredOrg}" blocks org-scoped Fine-Grained PATs / GitHub Apps):`
-    );
-    console.log('Use a Classic PAT scoped to project and public_repo (no private repo access):');
-    console.log(`--> ${result.classicTokenUrl}`);
   }
 
   console.log('\nSave your token as repository secret "PROJECT_SYNC_TOKEN" in your consumer repo:');

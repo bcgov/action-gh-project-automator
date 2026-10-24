@@ -346,14 +346,16 @@ if [ "$IS_USER_BOARD" = true ]; then
   echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
   echo ""
 else
-  echo "Option A — If $DEFAULT_ORG allows org-scoped Fine-Grained PATs:"
+  echo "Most users only have user-scoped PATs (organizations often block org-scoped tokens and GitHub Apps)."
+  echo ""
+  echo "Option A — User-scoped PAT only (most users, or if $DEFAULT_ORG blocks org-scoped tokens):"
+  echo "  Generate a Classic PAT with 'project' and 'public_repo' (or 'repo' if tracking private repos):"
+  echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
+  echo ""
+  echo "Option B — If $DEFAULT_ORG allows org-scoped Fine-Grained PATs:"
   echo "  Target resource owner '$DEFAULT_ORG' with Organization > Projects (Read & write)"
   echo "  and Repository > Issues & Pull requests (Read & write):"
   echo "  --> https://github.com/settings/personal-access-tokens/new"
-  echo ""
-  echo "Option B — If $DEFAULT_ORG blocks org-scoped Fine-Grained PATs / GitHub Apps:"
-  echo "  Generate a Classic PAT with 'project' and 'public_repo' (or 'repo' if tracking private repos):"
-  echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
   echo ""
 fi
 
