@@ -188,9 +188,13 @@ async function runCli() {
     console.log(
       `\nOption A (Default) — User-scoped PAT only (most users, or if "${result.inferredOrg}" blocks org-scoped tokens):`
     );
-    console.log('Use a Classic PAT scoped to project and public_repo (no private repo access):');
+    console.log(
+      'Use a Classic PAT with project and public_repo scopes (or project and repo for private repos):'
+    );
     console.log(`--> ${result.classicTokenUrl}`);
-    console.log(`\nOption B — If "${result.inferredOrg}" allows org-scoped Fine-Grained PATs:`);
+    console.log(
+      `\nOption B — If "${result.inferredOrg}" allows org-scoped Fine-Grained PATs (single-org, or public cross-org items; private cross-org additions require Option A with project and repo):`
+    );
     console.log(`--> ${result.fineGrainedTokenUrl}`);
     console.log(
       'Permissions: Organization > Projects: Read & Write, Repository > Issues & PRs: Read & Write'

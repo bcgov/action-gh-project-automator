@@ -352,7 +352,7 @@ else
   echo "  Generate a Classic PAT with 'project' and 'public_repo' (or 'repo' if tracking private repos):"
   echo "  --> https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN"
   echo ""
-  echo "Option B — If $DEFAULT_ORG allows org-scoped Fine-Grained PATs:"
+  echo "Option B — If $DEFAULT_ORG allows org-scoped Fine-Grained PATs (single-org, or public cross-org items; private cross-org additions require Option A with 'project' and 'repo'):"
   echo "  Target resource owner '$DEFAULT_ORG' with Organization > Projects (Read & write)"
   echo "  and Repository > Issues & Pull requests (Read & write):"
   echo "  --> https://github.com/settings/personal-access-tokens/new"

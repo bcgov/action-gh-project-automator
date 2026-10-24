@@ -191,10 +191,11 @@ Follow these 5 steps to configure automated synchronization for your GitHub Proj
    - **Organization allows org-scoped Fine-Grained PATs**: Create a [Fine-Grained PAT](https://github.com/settings/personal-access-tokens/new) with **Resource owner** set to the board's organization (`Organization → Projects: Read and write`, `Repository → Issues: Read and write`, `Repository → Pull requests: Read and write`).
    Save the token in your consumer repository under **Settings** → **Secrets and variables** → **Actions** as `PROJECT_SYNC_TOKEN`.
 4. **Set Up Workflow (`.github/workflows/sync.yml`)**:
-   Add [`.github/workflows/sync.yml`](#usage-as-a-github-action) on your default branch (`main`) with a staggered hourly cron (e.g. `17 * * * *`) and `workflow_dispatch`. Pin `bcgov/project-automator` to its full 40-character release commit SHA. (`workflow_dispatch` is only available once the workflow file is merged to the default branch.)
-5. **Verify and Catch Up**:
+   Add [`.github/workflows/sync.yml`](#usage-as-a-github-action) on your default branch (`main`) with a staggered hourly cron (e.g. `17 * * * *`), `workflow_dispatch`, and `dry_run: 'true'` during initial setup so scheduled runs cannot write before verification finishes. Pin `bcgov/project-automator` to its full 40-character release commit SHA. (`workflow_dispatch` is only available once the workflow file is merged to the default branch.)
+5. **Verify, Enable Live Runs, and Catch Up**:
    - Run an initial verification via **Actions** → **Board Sync** → **Run workflow** with `dry_run: true` (`gh workflow run sync.yml -R <OWNER>/<REPO> -f dry_run=true`).
    - Inspect the job log: verify that the startup access report confirms access to the project board and all monitored repositories (`Access: ...: OK`).
+   - Once verified green, update `.github/workflows/sync.yml` to set `dry_run: ${{ inputs.dry_run || false }}` on `main` to enable live scheduled runs.
    - Run workflow dispatch with `catch_up: true` once to backfill any existing open issues and pull requests onto the board (`gh workflow run sync.yml -R <OWNER>/<REPO> -f catch_up=true`).
 
 ### Sample AI Agent Prompt
@@ -219,7 +220,7 @@ Set up a consumer repository for GitHub Project board automation under `<CONSUME
   - Permissions: `permissions: {}` at top level; `contents: read` on the job.
   - Concurrency: `group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}` with `cancel-in-progress: true` so scheduled runs never cancel a manual `catch_up` run.
   - Runner & Timeout: `runs-on: ubuntu-26.04` and `timeout-minutes: ${{ inputs.catch_up && 60 || 5 }}`.
-  - Step inputs: `github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}`, `config_path: rules.yml`, `dry_run: ${{ inputs.dry_run || false }}`, `backfill: ${{ inputs.catch_up && 'all' || '' }}`, `verbose: 'true'`.
+  - Step inputs: `github_token: ${{ secrets.PROJECT_SYNC_TOKEN }}`, `config_path: rules.yml`, `dry_run: 'true'` (keep unconditionally in dry-run mode during initial setup so scheduled runs do not mutate the board before verification completes), `backfill: ${{ inputs.catch_up && 'all' || '' }}`, `verbose: 'true'`.
   - If `rules.yml` defines per-owner `tokens:`, pass each mapped environment variable in the step's `env:` block from `secrets.<VAR_NAME>`.
 
 ### 3. Configuration (`rules.yml` & `README.md`)
@@ -234,13 +235,14 @@ Most users cannot create org-level Fine-Grained PATs (many organizations, such a
     - **Private repositories included**: `project` and `repo` scopes (`https://github.com/settings/tokens/new?scopes=project,repo&description=PROJECT_SYNC_TOKEN`).
 - **Option B (If Available) — Organization allows org-scoped Fine-Grained PATs**:
   - Create a **Fine-Grained PAT** at `https://github.com/settings/personal-access-tokens/new` with **Resource owner** set to the board's organization (`<ORG>`), **Repository access** set to **All repositories**, and permissions **Organization -> Projects: Read and write**, **Repository -> Issues: Read and write**, **Repository -> Pull requests: Read and write**.
-  - If a second organization in `allowedOrgs` or `repository_scope` has private repositories (or needs assignee writes), create a second Fine-Grained PAT for that organization and map it under `tokens:` in `rules.yml` + `env:` in `sync.yml`.
+  - Note: Adding an item to the board uses only the board owner's token, so Fine-Grained PATs only support cross-organization board additions when the other organization's items are **public** (you may optionally map a second Fine-Grained PAT under `tokens:` in `rules.yml` + `env:` in `sync.yml` for cross-org public-repository assignee writes). Adding **private** items from another organization requires a board token with access to both resources (use Option A: Classic PAT with `project` and `repo`).
 
 ### 5. Merge & Verification
 - Open a PR (or push to `main` if initializing an empty repo) and wait for `.github/workflows/sync.yml` to be on the default branch (`main`) — GitHub Actions `workflow_dispatch` cannot run until the workflow file is on the default branch.
 - Once on `main` and `PROJECT_SYNC_TOKEN` is set, trigger a dry-run verification:
   `gh workflow run sync.yml -R <CONSUMER_REPO> -f dry_run=true`
 - Inspect the run log (`gh run view --log`) to confirm `Access: ...: OK` across the project board, organizations, and repositories.
+- Once verified green, update `dry_run` in `.github/workflows/sync.yml` from `'true'` to `${{ inputs.dry_run || false }}` on `main` to enable live scheduled runs.
 - Trigger a manual catch-up run to backfill existing open items onto the board:
   `gh workflow run sync.yml -R <CONSUMER_REPO> -f catch_up=true`
 ```
@@ -272,8 +274,8 @@ Most users only have user-scoped PATs (many organizations block org-scoped fine-
 
 | Your access / config | Token setup |
 | --- | --- |
-| User-scoped PAT only *(most users, e.g. `bcgov`)*, or a user-owned board | **Classic PAT** as `github_token`: use [`project` + `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) when all monitored repositories are public (avoids exposing private repos), or `project` + `repo` if private repositories are monitored. |
-| Organization allows org-scoped Fine-Grained PATs (single or multi-org) | **Fine-Grained PAT** with Resource owner set to the board's organization as `github_token` (also covers public items in other `allowedOrgs`), plus an optional per-owner Fine-Grained PAT in `tokens:` for any additional organization with private repositories (see [Authentication & Token Setup](#authentication--token-setup)). |
+| User-scoped PAT only *(most users, e.g. `bcgov`)*, user-owned board, or private cross-organization board additions | **Classic PAT** as `github_token`: use [`project` + `public_repo`](https://github.com/settings/tokens/new?scopes=project,public_repo&description=PROJECT_SYNC_TOKEN) when all monitored repositories are public (avoids exposing private repos), or `project` + `repo` if private repositories are monitored. |
+| Organization allows org-scoped Fine-Grained PATs (single-org, or multi-org with public cross-org items) | **Fine-Grained PAT** with Resource owner set to the board's organization as `github_token` (also covers adding public items from other `allowedOrgs`), plus an optional per-owner Fine-Grained PAT in `tokens:` for cross-org public-repository assignee writes (see [Authentication & Token Setup](#authentication--token-setup)). |
 
 - The include and exclude lists in `rules.yml` limit what the action touches, **not** what a token can reach. Least privilege comes only from each token's scope.
 
@@ -360,7 +362,7 @@ If your organization explicitly allows members (or a service account) to create 
 
 No organization membership permission (classic `read:org`) is needed.
 
-- **Multi-organization setups with Fine-Grained PATs**: A fine-grained PAT is scoped to one organization, but its GraphQL search and board mutations can still discover and add **public** issues and pull requests from other organizations listed in `project.allowedOrgs`. If another organization has **private** repositories in `repository_scope` or `allowedOrgs` (or needs assignee writes in that organization), create a second fine-grained PAT with **Resource owner** set to that organization (**All repositories**, **Repository → Issues & Pull requests: Read and write**) and map it under [`tokens:`](#per-owner-tokens-optional).
+- **Multi-organization setups with Fine-Grained PATs**: Because adding an item to the project board (`addItemToProject`) uses only the board owner's token, a fine-grained PAT (which is scoped to one organization) can only add **public** issues and pull requests from other organizations listed in `project.allowedOrgs`. To perform assignee writes on **public** repositories in another organization, you can create a second fine-grained PAT with **Resource owner** set to that organization (**All repositories**, **Repository → Issues & Pull requests: Read and write**) and map it under [`tokens:`](#per-owner-tokens-optional). Adding **private** items from another organization to the board requires a board token with access to both resources (use a **Classic PAT** with `project` and `repo` as `github_token`).
 
 #### Per-Owner Tokens (optional)
 
