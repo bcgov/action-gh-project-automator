@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { scaffoldConsumer } from '../scripts/init-consumer.js';
 import { loadBoardRules } from '../src/config/board-rules.js';
 
-test('scaffoldConsumer creates valid single-org consumer repository structure', () => {
+test('scaffoldConsumer creates valid single-org consumer repository structure and defaults to user-scoped Classic PAT', () => {
   const tmpDir = path.resolve('.tmp', `test-scaffold-${Date.now()}`);
   try {
     const result = scaffoldConsumer({
@@ -16,7 +16,12 @@ test('scaffoldConsumer creates valid single-org consumer repository structure', 
       outDir: tmpDir,
     });
 
-    assert.strictEqual(result.tokenType, 'fine_grained');
+    assert.strictEqual(result.tokenType, 'classic');
+    assert.ok(result.tokenUrl.includes('scopes=project,public_repo'));
+    assert.strictEqual(
+      result.fineGrainedTokenUrl,
+      'https://github.com/settings/personal-access-tokens/new'
+    );
     assert.strictEqual(result.inferredOrg, 'my-org');
 
     const expectedFiles = [
@@ -42,7 +47,7 @@ test('scaffoldConsumer creates valid single-org consumer repository structure', 
   }
 });
 
-test('scaffoldConsumer detects multi-org configuration and recommends Classic PAT', () => {
+test('scaffoldConsumer detects multi-org configuration and defaults to Classic PAT with Fine-Grained alternative', () => {
   const tmpDir = path.resolve('.tmp', `test-scaffold-multiorg-${Date.now()}`);
   try {
     const result = scaffoldConsumer({
@@ -53,11 +58,34 @@ test('scaffoldConsumer detects multi-org configuration and recommends Classic PA
     });
 
     assert.strictEqual(result.tokenType, 'classic');
-    assert.ok(result.tokenUrl.includes('scopes=project,repo'));
+    assert.strictEqual(result.isMultiOrg, true);
+    assert.ok(result.tokenUrl.includes('scopes=project,public_repo'));
+    assert.strictEqual(
+      result.fineGrainedTokenUrl,
+      'https://github.com/settings/personal-access-tokens/new'
+    );
 
     const loadedConfig = loadBoardRules(path.join(tmpDir, 'rules.yml'));
     assert.ok(loadedConfig.project.allowedOrgs.includes('bcgov'));
     assert.ok(loadedConfig.project.allowedOrgs.includes('bcgov-c'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('scaffoldConsumer recommends Classic PAT only for user-owned boards', () => {
+  const tmpDir = path.resolve('.tmp', `test-scaffold-userboard-${Date.now()}`);
+  try {
+    const result = scaffoldConsumer({
+      boardUrl: 'https://github.com/users/alice/projects/1',
+      repos: ['alice/repo-a'],
+      users: ['alice'],
+      outDir: tmpDir,
+    });
+
+    assert.strictEqual(result.tokenType, 'classic');
+    assert.strictEqual(result.isUserBoard, true);
+    assert.ok(result.tokenUrl.includes('scopes=project,public_repo'));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
