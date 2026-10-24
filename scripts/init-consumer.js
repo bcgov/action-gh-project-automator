@@ -79,8 +79,8 @@ export function scaffoldConsumer(options = {}) {
   fs.copyFileSync(path.join(TEMPLATE_DIR, 'README.md'), path.join(outDir, 'README.md'));
   fs.copyFileSync(path.join(TEMPLATE_DIR, '.gitignore'), path.join(outDir, '.gitignore'));
 
-  // 3. Compute token guidance links
-  const tokenType = isMultiOrg || isUserBoard ? 'classic' : 'fine_grained';
+  // 3. Compute token guidance links (Fine-Grained PAT for all org boards; Classic PAT only for user boards)
+  const tokenType = isUserBoard ? 'classic' : 'fine_grained';
   const tokenUrl =
     tokenType === 'classic'
       ? 'https://github.com/settings/tokens/new?scopes=project,repo&description=PROJECT_SYNC_TOKEN'
@@ -91,6 +91,8 @@ export function scaffoldConsumer(options = {}) {
     boardUrl,
     inferredOrg,
     distinctOrgs: Array.from(distinctOrgs),
+    isMultiOrg,
+    isUserBoard,
     repos,
     users,
     tokenType,
@@ -170,16 +172,23 @@ async function runCli() {
 
   console.log('\n--- 🔑 Authentication Setup ---');
   if (result.tokenType === 'classic') {
-    console.log('Setup covers multiple organizations or a user-owned board:');
+    console.log(
+      'Setup targets a user-owned board (fine-grained tokens do not support user boards):'
+    );
     console.log('Use a Classic PAT with project and repo scopes:');
     console.log(`--> ${result.tokenUrl}`);
   } else {
-    console.log('Setup covers a single organization:');
     console.log(`Use a Fine-Grained PAT targeting resource owner: "${result.inferredOrg}":`);
     console.log(`--> ${result.tokenUrl}`);
     console.log(
       'Permissions: Organization > Projects: Read & Write, Repository > Issues & PRs: Read & Write'
     );
+    if (result.isMultiOrg) {
+      const extraOrgs = result.distinctOrgs.filter((o) => o !== result.inferredOrg);
+      console.log(
+        `Multi-organization note: this token also covers public items in ${extraOrgs.join(', ')}. For private repos or assignee writes in ${extraOrgs.join(', ')}, create a second Fine-Grained PAT and map it under "tokens:" in rules.yml.`
+      );
+    }
   }
 
   console.log('\nSave your token as repository secret "PROJECT_SYNC_TOKEN" in your consumer repo:');

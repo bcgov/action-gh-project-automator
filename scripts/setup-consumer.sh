@@ -339,14 +339,13 @@ echo "--------------------------------------------------------"
 echo "  🔑 STEP 1: GENERATE YOUR GITHUB TOKEN"
 echo "--------------------------------------------------------"
 
-if [ "$IS_MULTI_ORG" = true ] || [ "$IS_USER_BOARD" = true ]; then
-  echo "Your configuration spans multiple organizations or a user-owned board."
+if [ "$IS_USER_BOARD" = true ]; then
+  echo "Your configuration targets a user-owned board (fine-grained tokens do not support user boards)."
   echo "Generate a Classic Personal Access Token with pre-scoped 'project' and 'repo' permissions:"
   echo ""
   echo "  --> https://github.com/settings/tokens/new?scopes=project,repo&description=PROJECT_SYNC_TOKEN"
   echo ""
 else
-  echo "Your configuration covers a single organization ($DEFAULT_ORG)."
   echo "Generate a Fine-Grained Personal Access Token targeting resource owner: $DEFAULT_ORG"
   echo ""
   echo "  --> https://github.com/settings/personal-access-tokens/new"
@@ -355,6 +354,12 @@ else
   echo "  - Organization > Projects: Read and write"
   echo "  - Repository > Issues: Read and write"
   echo "  - Repository > Pull requests: Read and write"
+  if [ "$IS_MULTI_ORG" = true ]; then
+    echo ""
+    echo "Multi-organization note: this token also covers public items across your other organizations."
+    echo "For private repositories or assignee writes in another organization, generate a second"
+    echo "Fine-Grained PAT for that organization and map it under 'tokens:' in rules.yml."
+  fi
 fi
 
 echo "--------------------------------------------------------"
