@@ -24,7 +24,8 @@ These rules decide which column an item goes in. They're configured in `board_co
 | PR closed without merging     | Not moved                 | Next                |
 | PR merged / item closed       | Not moved (GitHub's built-in project workflows move it to Done) | Not moved |
 | Issue with no Status          | -                         | New                 |
-| Item in Waiting or Parked     | Never moved               | Never moved         |
+| PR open, Status=New (GitHub's add default) | Active (New is issues-only) | - |
+| Item in Done, Waiting or Parked (`locked`) | Never moved | Never moved |
 
 ## 3. Sprint Assignment Rules
 

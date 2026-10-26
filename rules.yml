@@ -83,7 +83,6 @@ sprints:
 board_columns:
   # Items in these columns are never moved out by the action; only a person moves them
   locked:
-    - New
     - Done
     - Waiting
     - Parked

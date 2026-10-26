@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
+import { sprintAction } from '../src/utils/sprint.js';
 import {
   determineLinkedIssueColumn,
   determineTargetColumn,
 } from '../src/utils/column-assignment.js';
 
-const { board_columns: shipped } = loadBoardRules();
+const { board_columns: shipped, sprints } = loadBoardRules();
 
 test('column moves require board_columns: there are no built-in defaults', () => {
   assert.throws(() => determineTargetColumn('Issue', false, null, {}), /board_columns/);
@@ -148,4 +149,31 @@ test('regression: open PR stamped New on add goes to Active (nr-spar#2819)', () 
     determineTargetColumn('PullRequest', false, 'New', { policy: shipped }),
     'Active'
   );
+});
+
+test('policy: New is issues-only; locked is Done, Waiting, Parked', () => {
+  assert.deepStrictEqual([...shipped.locked].sort(), ['Done', 'Parked', 'Waiting']);
+  assert.ok(sprints.assign_current.includes('New'));
+  assert.ok(!(sprints.clear || []).includes('New'));
+});
+
+test('add path: GitHub stamps Status=New on add, open PR ends Active with current sprint', () => {
+  // addProjectV2ItemById -> Status=New, Sprint unset
+  for (const state of [{}, { authored: true }, { draft: true }, { draft: true, authored: true }]) {
+    const column = determineTargetColumn('PullRequest', false, 'New', {
+      ...state,
+      policy: shipped,
+    });
+    assert.strictEqual(column, 'Active', JSON.stringify(state));
+    assert.strictEqual(sprintAction(column, null, 'sprint-91', sprints), 'assign');
+  }
+  // Issue with no Status lands in New and still gets the current sprint
+  const issueColumn = determineTargetColumn('Issue', false, null, { policy: shipped });
+  assert.strictEqual(issueColumn, 'New');
+  assert.strictEqual(sprintAction(issueColumn, null, 'sprint-91', sprints), 'assign');
+  // Human-owned columns stay put for open PRs and issues
+  for (const col of ['Done', 'Waiting', 'Parked']) {
+    assert.strictEqual(determineTargetColumn('PullRequest', false, col, { policy: shipped }), col);
+    assert.strictEqual(determineTargetColumn('Issue', false, col, { policy: shipped }), col);
+  }
 });

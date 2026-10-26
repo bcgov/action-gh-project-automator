@@ -52,7 +52,6 @@ sprints:
 
 board_columns:
   locked:
-    - New
     - Done
     - Waiting
     - Parked
