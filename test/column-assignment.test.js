@@ -151,8 +151,15 @@ test('regression: open PR stamped New on add goes to Active (nr-spar#2819)', () 
   );
 });
 
-test('policy: New is issues-only; locked is Done, Waiting, Parked', () => {
-  assert.deepStrictEqual([...shipped.locked].sort(), ['Done', 'Parked', 'Waiting']);
+test('policy: New is locked for issues only; Done keeps its sprint after rollover', () => {
+  assert.deepStrictEqual([...shipped.locked].sort(), ['Done', 'New', 'Parked', 'Waiting']);
+  assert.strictEqual(shipped.issue.no_status, 'New');
+  assert.ok(sprints.assign_current_if_empty.includes('Done'));
+  assert.ok(!sprints.assign_current.includes('Done'));
+  assert.strictEqual(
+    determineLinkedIssueColumn({ isClosed: false, merged: false, draft: false }, 'New', shipped),
+    'New'
+  );
   assert.ok(sprints.assign_current.includes('New'));
   assert.ok(!(sprints.clear || []).includes('New'));
 });
@@ -171,6 +178,25 @@ test('add path: GitHub stamps Status=New on add, open PR ends Active with curren
   const issueColumn = determineTargetColumn('Issue', false, null, { policy: shipped });
   assert.strictEqual(issueColumn, 'New');
   assert.strictEqual(sprintAction(issueColumn, null, 'sprint-91', sprints), 'assign');
+  // keep targets resolve to the current column, never a literal 'keep'
+  const keepPolicy = {
+    ...shipped,
+    pull_request: { ...shipped.pull_request, ready: 'keep', draft_no_status: 'keep' },
+  };
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: keepPolicy, authored: true }),
+    'New'
+  );
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: keepPolicy, draft: true }),
+    'New'
+  );
+  // Intake column comes from issue.no_status, not a literal
+  const inboxPolicy = { ...shipped, locked: ['Inbox', 'Done'], issue: { no_status: 'Inbox' } };
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'Inbox', { policy: inboxPolicy }),
+    'Active'
+  );
   // Human-owned columns stay put for open PRs and issues
   for (const col of ['Done', 'Waiting', 'Parked']) {
     assert.strictEqual(determineTargetColumn('PullRequest', false, col, { policy: shipped }), col);

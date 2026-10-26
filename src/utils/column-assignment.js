@@ -40,9 +40,12 @@ function pullRequestState({ isClosed, merged, draft }) {
  */
 export function determineTargetColumn(itemType, isClosed, currentColumn, options) {
   const policy = resolvePolicy(options.policy);
-  // New is issues-only; open PRs move on (GitHub stamps New on add, so treat it as no Status).
+  // The intake column (issue.no_status, e.g. New) is issues-only: GitHub stamps it on
+  // every add, so an open PR there is treated as having no Status and moves on.
   const raw = normalizeColumn(currentColumn);
-  const current = itemType === 'PullRequest' && !isClosed && raw === 'New' ? null : raw;
+  const isOpenPrInIntake =
+    itemType === 'PullRequest' && !isClosed && raw === policy.issue.no_status;
+  const current = isOpenPrInIntake ? null : raw;
 
   if (current && policy.locked.includes(current)) {
     return current;
@@ -51,12 +54,12 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
   if (itemType === 'PullRequest') {
     const state = pullRequestState({ isClosed, merged: options.merged, draft: options.draft });
     if (!current && options.authored && !isClosed) {
-      return policy.pull_request.ready;
+      return apply(policy.pull_request.ready, raw);
     }
     if (state === 'draft' && !current) {
-      return policy.pull_request.draft_no_status;
+      return apply(policy.pull_request.draft_no_status, raw);
     }
-    return apply(policy.pull_request[state], current);
+    return apply(policy.pull_request[state], current ?? raw);
   }
 
   if (itemType === 'Issue') {
