@@ -42,16 +42,19 @@ export function determineTargetColumn(itemType, isClosed, currentColumn, options
   const policy = resolvePolicy(options.policy);
   const current = normalizeColumn(currentColumn);
 
-  if (current && policy.locked.includes(current)) {
+  // New is a catch-net for issues; open PRs sitting in New (GitHub's add-time
+  // default) must still move on, so New is not locked for them.
+  const openPrInNew = itemType === 'PullRequest' && current === 'New' && !isClosed;
+  if (current && policy.locked.includes(current) && !openPrInNew) {
     return current;
   }
 
   if (itemType === 'PullRequest') {
     const state = pullRequestState({ isClosed, merged: options.merged, draft: options.draft });
-    if (!current && options.authored && !isClosed) {
+    if ((!current || openPrInNew) && options.authored && !isClosed) {
       return policy.pull_request.ready;
     }
-    if (state === 'draft' && !current) {
+    if (state === 'draft' && (!current || openPrInNew)) {
       return policy.pull_request.draft_no_status;
     }
     return apply(policy.pull_request[state], current);

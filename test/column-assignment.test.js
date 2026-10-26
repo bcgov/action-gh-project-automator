@@ -33,10 +33,12 @@ for (const policy of [shipped]) {
   });
 
   test(`[${label}] draft PR and its issue stay put`, () => {
-    for (const col of ['New', 'Backlog', 'Next', 'Active']) {
+    for (const col of ['Backlog', 'Next', 'Active']) {
       assert.strictEqual(pr(col, { draft: true }), col);
       assert.strictEqual(linked(col, { draft: true }), col);
     }
+    assert.strictEqual(linked('New', { draft: true }), 'New');
+    assert.strictEqual(pr('New', { draft: true }), 'Active');
     assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(linked(null, { draft: true }), null);
   });
@@ -84,14 +86,24 @@ for (const policy of [shipped]) {
     }
   });
 
-  test(`[${label}] nothing moves out of New, Waiting, Parked or Done`, () => {
+  test(`[${label}] open PRs in New move on; issues and closed PRs in New stay`, () => {
+    assert.strictEqual(pr('New', {}), 'Active');
+    assert.strictEqual(pr('New', { authored: true }), 'Active');
+    assert.strictEqual(pr('New', { draft: true, authored: true }), 'Active');
+    assert.strictEqual(pr('New', { isClosed: true, merged: true }), 'New');
+    assert.strictEqual(pr('New', { isClosed: true, merged: false }), 'New');
+    assert.strictEqual(determineTargetColumn('Issue', false, 'New', { policy }), 'New');
+    assert.strictEqual(determineTargetColumn('Issue', true, 'New', { policy }), 'New');
+  });
+
+  test(`[${label}] nothing moves out of Waiting, Parked or Done`, () => {
     const states = [
       {},
       { draft: true },
       { isClosed: true, merged: true },
       { isClosed: true, merged: false },
     ];
-    for (const col of ['New', 'Waiting', 'Parked', 'Done']) {
+    for (const col of ['Waiting', 'Parked', 'Done']) {
       for (const state of states) {
         assert.strictEqual(pr(col, state), col, `${col} ${JSON.stringify(state)}`);
         assert.strictEqual(pr(col, { ...state, authored: true }), col, `${col} authored`);
@@ -125,4 +137,15 @@ test('board_columns values in rules.yml drive the moves', () => {
     'Backlog'
   );
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Active');
+});
+
+test('regression: open PR stamped New on add goes to Active (nr-spar#2819)', () => {
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: shipped, authored: true }),
+    'Active'
+  );
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: shipped }),
+    'Active'
+  );
 });
