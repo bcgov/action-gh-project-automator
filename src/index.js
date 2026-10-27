@@ -28,7 +28,7 @@ import {
 import { apiUsage, formatApiUsage } from './utils/api-usage.js';
 import { getWatermark, saveWatermark } from './utils/watermark.js';
 import { sprintAction } from './utils/sprint.js';
-import { formatAccessSummary, formatResultCounts } from './utils/summary.js';
+import { formatAccessSummary, formatResultCounts, formatSummaryRow } from './utils/summary.js';
 import {
   backfillSince,
   parseBackfill,
@@ -507,9 +507,8 @@ async function run(options = {}) {
 
     let hasFailure = false;
     for (const s of summaryReport) {
-      const icon = s.status === 'Success' ? '✅' : '❌';
       if (s.status === 'Failed') hasFailure = true;
-      summaryHtml += `| **${s.type} #${s.number}** (${s.repo}) | ${s.title} | ${icon} ${s.status} | ${s.action} |\n`;
+      summaryHtml += formatSummaryRow(s);
     }
 
     summaryHtml += formatResultCounts(summaryReport);
