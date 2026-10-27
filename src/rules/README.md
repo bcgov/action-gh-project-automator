@@ -24,7 +24,9 @@ These rules decide which column an item goes in. They're configured in `board_co
 | PR closed without merging     | Not moved                 | Next                |
 | PR merged / item closed       | Not moved (GitHub's built-in project workflows move it to Done) | Not moved |
 | Issue with no Status          | -                         | New                 |
-| Item in Waiting or Parked     | Never moved               | Never moved         |
+| PR open, Status=New (GitHub's add default) | Active (New is locked for issues only) | - |
+| Issue in New                  | -                         | Stays until a person moves it |
+| Item in Done, Waiting or Parked | Never moved             | Never moved         |
 
 ## 3. Sprint Assignment Rules
 
@@ -32,9 +34,9 @@ These rules determine which sprint an item belongs to:
 
 | Item Type | Trigger Condition   | Action         | Skip Condition             |
 |-----------|---------------------|----------------|----------------------------|
-| PR, Issue | Column=Next, Active | Sprint=current | Sprint=current already set |
+| PR, Issue | Column=New, Next, Active | Sprint=current | Sprint=current already set |
 | PR, Issue | Column=Done         | Sprint=current | Sprint=any already set     |
-| PR, Issue | Column=New, Backlog | Sprint cleared | No sprint set              |
+| PR, Issue | Column=Backlog      | Sprint cleared | No sprint set              |
 
 ## 4. Linked Issue Rules
 

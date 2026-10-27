@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { loadBoardRules } from '../src/config/board-rules.js';
+import { sprintAction } from '../src/utils/sprint.js';
 import {
   determineLinkedIssueColumn,
   determineTargetColumn,
 } from '../src/utils/column-assignment.js';
 
-const { board_columns: shipped } = loadBoardRules();
+const { board_columns: shipped, sprints } = loadBoardRules();
 
 test('column moves require board_columns: there are no built-in defaults', () => {
   assert.throws(() => determineTargetColumn('Issue', false, null, {}), /board_columns/);
@@ -33,10 +34,12 @@ for (const policy of [shipped]) {
   });
 
   test(`[${label}] draft PR and its issue stay put`, () => {
-    for (const col of ['New', 'Backlog', 'Next', 'Active']) {
+    for (const col of ['Backlog', 'Next', 'Active']) {
       assert.strictEqual(pr(col, { draft: true }), col);
       assert.strictEqual(linked(col, { draft: true }), col);
     }
+    assert.strictEqual(linked('New', { draft: true }), 'New');
+    assert.strictEqual(pr('New', { draft: true }), 'Active');
     assert.strictEqual(pr(null, { draft: true }), 'Active');
     assert.strictEqual(linked(null, { draft: true }), null);
   });
@@ -84,14 +87,24 @@ for (const policy of [shipped]) {
     }
   });
 
-  test(`[${label}] nothing moves out of New, Waiting, Parked or Done`, () => {
+  test(`[${label}] open PRs in New move on; issues and closed PRs in New stay`, () => {
+    assert.strictEqual(pr('New', {}), 'Active');
+    assert.strictEqual(pr('New', { authored: true }), 'Active');
+    assert.strictEqual(pr('New', { draft: true, authored: true }), 'Active');
+    assert.strictEqual(pr('New', { isClosed: true, merged: true }), 'New');
+    assert.strictEqual(pr('New', { isClosed: true, merged: false }), 'New');
+    assert.strictEqual(determineTargetColumn('Issue', false, 'New', { policy }), 'New');
+    assert.strictEqual(determineTargetColumn('Issue', true, 'New', { policy }), 'New');
+  });
+
+  test(`[${label}] nothing moves out of Waiting, Parked or Done`, () => {
     const states = [
       {},
       { draft: true },
       { isClosed: true, merged: true },
       { isClosed: true, merged: false },
     ];
-    for (const col of ['New', 'Waiting', 'Parked', 'Done']) {
+    for (const col of ['Waiting', 'Parked', 'Done']) {
       for (const state of states) {
         assert.strictEqual(pr(col, state), col, `${col} ${JSON.stringify(state)}`);
         assert.strictEqual(pr(col, { ...state, authored: true }), col, `${col} authored`);
@@ -125,4 +138,68 @@ test('board_columns values in rules.yml drive the moves', () => {
     'Backlog'
   );
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Active');
+});
+
+test('regression: open PR stamped New on add goes to Active (nr-spar#2819)', () => {
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: shipped, authored: true }),
+    'Active'
+  );
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: shipped }),
+    'Active'
+  );
+});
+
+test('policy: New is locked for issues only; Done keeps its sprint after rollover', () => {
+  assert.deepStrictEqual([...shipped.locked].sort(), ['Done', 'New', 'Parked', 'Waiting']);
+  assert.strictEqual(shipped.issue.no_status, 'New');
+  assert.ok(sprints.assign_current_if_empty.includes('Done'));
+  assert.ok(!sprints.assign_current.includes('Done'));
+  assert.strictEqual(
+    determineLinkedIssueColumn({ isClosed: false, merged: false, draft: false }, 'New', shipped),
+    'New'
+  );
+  assert.ok(sprints.assign_current.includes('New'));
+  assert.ok(!(sprints.clear || []).includes('New'));
+});
+
+test('add path: GitHub stamps Status=New on add, open PR ends Active with current sprint', () => {
+  // addProjectV2ItemById -> Status=New, Sprint unset
+  for (const state of [{}, { authored: true }, { draft: true }, { draft: true, authored: true }]) {
+    const column = determineTargetColumn('PullRequest', false, 'New', {
+      ...state,
+      policy: shipped,
+    });
+    assert.strictEqual(column, 'Active', JSON.stringify(state));
+    assert.strictEqual(sprintAction(column, null, 'sprint-91', sprints), 'assign');
+  }
+  // Issue with no Status lands in New and still gets the current sprint
+  const issueColumn = determineTargetColumn('Issue', false, null, { policy: shipped });
+  assert.strictEqual(issueColumn, 'New');
+  assert.strictEqual(sprintAction(issueColumn, null, 'sprint-91', sprints), 'assign');
+  // keep targets resolve to the current column, never a literal 'keep'
+  const keepPolicy = {
+    ...shipped,
+    pull_request: { ...shipped.pull_request, ready: 'keep', draft_no_status: 'keep' },
+  };
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: keepPolicy, authored: true }),
+    'New'
+  );
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'New', { policy: keepPolicy, draft: true }),
+    'New'
+  );
+  // Intake column comes from issue.no_status, not a literal
+  const inboxPolicy = { ...shipped, locked: ['Inbox', 'Done'], issue: { no_status: 'Inbox' } };
+  assert.strictEqual(
+    determineTargetColumn('PullRequest', false, 'Inbox', { policy: inboxPolicy }),
+    'Active'
+  );
+  // Human-owned columns stay put for open PRs and issues
+  for (const col of ['Done', 'Waiting', 'Parked']) {
+    assert.strictEqual(determineTargetColumn('PullRequest', false, col, { policy: shipped }), col);
+    assert.strictEqual(determineTargetColumn('Issue', false, col, { policy: shipped }), col);
+  }
 });

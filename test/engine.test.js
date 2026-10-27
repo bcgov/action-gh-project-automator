@@ -33,8 +33,8 @@ test('determineTargetColumn maps columns correctly', () => {
   // Pull Requests already in Waiting stay in Waiting
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Waiting', { policy }), 'Waiting');
 
-  // Open PRs outside locked columns go to Active; New is locked
-  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New', { policy }), 'New');
+  // Open PRs outside locked columns go to Active; New is not locked for open PRs
+  assert.strictEqual(determineTargetColumn('PullRequest', false, 'New', { policy }), 'Active');
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'Backlog', { policy }), 'Active');
   assert.strictEqual(determineTargetColumn('PullRequest', false, 'None', { policy }), 'Active');
   assert.strictEqual(determineTargetColumn('PullRequest', false, null, { policy }), 'Active');
