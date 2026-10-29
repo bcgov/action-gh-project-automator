@@ -5,6 +5,8 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
   push:
     branches: [main]
+  schedule:
+    - cron: "17 * * * *" # Hourly (staggered to avoid top-of-hour runner contention)
   workflow_dispatch:
     inputs:
       catch_up:
