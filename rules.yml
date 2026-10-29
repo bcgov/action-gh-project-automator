@@ -80,6 +80,7 @@ sprints:
 # Board column moves, applied by src/utils/column-assignment.js
 # "keep" leaves the item in its current column.
 # Closed and merged items aren't moved here: GitHub's built-in project workflows move them to Done.
+# Which Status moves belong to built-ins vs Sync: docs/builtin-status-workflows.md
 board_columns:
   # Items in these columns are never moved out by the action; only a person moves them
   locked:

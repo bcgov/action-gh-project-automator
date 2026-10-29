@@ -15,7 +15,7 @@ These rules determine which items are added to the project board:
 
 ## 2. Column Rules
 
-These rules decide which column an item goes in. They're configured in `board_columns` in `rules.yml` (`keep` means the item stays where it is):
+These rules decide which column an item goes in. They're configured in `board_columns` in `rules.yml` (`keep` means the item stays where it is). For which moves GitHub's built-in workflows own, see [docs/builtin-status-workflows.md](../../docs/builtin-status-workflows.md):
 
 | Item / event                  | PR column                 | Linked issue column |
 |-------------------------------|---------------------------|---------------------|

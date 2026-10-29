@@ -20,6 +20,7 @@ How the sync works today. The README covers inputs and `rules.yml` keys; this no
 
 - Columns follow `board_columns`: locked columns are never touched, PRs move by draft or ready state, issues a PR closes follow that PR, and new issues get `issue.no_status`. `keep` leaves an item where it is.
 - Closed and merged items aren't moved by the sync; GitHub's built-in project workflows move them to Done.
+- Built-in vs Sync ownership of each Status move: [builtin-status-workflows.md](builtin-status-workflows.md) ([ADR-030](https://github.com/DerekRoberts/brain/pull/63)).
 - Sprints follow the item's final column through `sprints`.
 - An item authored by a monitored user is assigned to its author unless a monitored user is already assigned. Open linked issues already on the board get the PR's author only when that's a monitored user; otherwise their assignees are left unchanged. Assigning needs admin on the repository; without it the run logs a warning and continues.
 - Excluded titles and labels are skipped on every run; items already on the board aren't removed.
